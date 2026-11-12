@@ -21,6 +21,7 @@ mod dialog;
 mod dpi;
 mod overlay;
 mod preview;
+mod window_list;
 
 use std::path::{Path, PathBuf};
 

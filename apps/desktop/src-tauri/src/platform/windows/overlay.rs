@@ -1,6 +1,10 @@
-//! Region selection on Windows: one borderless topmost window per monitor shows
-//! that monitor's frozen capture, dimmed, drawn with Direct2D. The user drags a
-//! rectangle that shows at full brightness with a size readout and a magnifier.
+//! Capture selection on Windows: one borderless topmost window per monitor shows
+//! that monitor's frozen capture, dimmed, drawn with Direct2D. A small mode bar
+//! (Region, Window, Full screen, Cancel) sits at the top of one monitor. In region
+//! mode the user drags a rectangle that shows at full brightness with a size
+//! readout and a magnifier; in window mode the window under the pointer is
+//! highlighted and a click picks it; in full-screen mode a click picks the
+//! monitor under the pointer.
 //!
 //! Every window is created and pumped on the calling thread, which runs its own
 //! message loop until the user releases the mouse or cancels. Nothing here
@@ -17,6 +21,7 @@
 )]
 
 use std::cell::RefCell;
+use std::sync::{Mutex, PoisonError};
 use std::time::Instant;
 
 use ::windows::Win32::Foundation::{
@@ -46,21 +51,28 @@ use ::windows::Win32::Graphics::Gdi::{
 };
 use ::windows::Win32::System::LibraryLoader::GetModuleHandleW;
 use ::windows::Win32::UI::Input::KeyboardAndMouse::{
-    ReleaseCapture, SetCapture, SetFocus, VK_ESCAPE,
+    ReleaseCapture, SetCapture, SetFocus, VK_ESCAPE, VK_F, VK_R, VK_W,
 };
 use ::windows::Win32::UI::WindowsAndMessaging::{
     CreateWindowExW, DefWindowProcW, DestroyWindow, DispatchMessageW, GetCursorPos, GetMessageW,
-    IDC_CROSS, LoadCursorW, MSG, PostQuitMessage, RegisterClassExW, SW_SHOW, SetCursor,
-    SetForegroundWindow, ShowWindow, TranslateMessage, WM_ACTIVATEAPP, WM_CAPTURECHANGED, WM_CLOSE,
-    WM_ERASEBKGND, WM_KEYDOWN, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT, WM_RBUTTONUP,
-    WM_SETCURSOR, WNDCLASSEXW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
+    IDC_ARROW, IDC_CROSS, LoadCursorW, MSG, PostQuitMessage, RegisterClassExW, SW_SHOW, SetCursor,
+    SetForegroundWindow, ShowWindow, TranslateMessage, WM_ACTIVATEAPP, WM_CAPTURECHANGED, WM_CHAR,
+    WM_CLOSE, WM_ERASEBKGND, WM_KEYDOWN, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE, WM_PAINT,
+    WM_RBUTTONUP, WM_SETCURSOR, WNDCLASSEXW, WS_EX_TOOLWINDOW, WS_EX_TOPMOST, WS_POPUP,
 };
 use ::windows::core::{HRESULT, w};
 
-use super::super::geometry::{Point, client_point_to_desktop, crop_rect, monitor_at, to_local};
-use super::super::{MonitorInfo, PlatformError, Result, RgbaImage, Selection};
+use super::super::geometry::{
+    BarButton, ModeBarLayout, Point, bar_button_at, client_point_to_desktop, crop_rect,
+    mode_bar_layout, monitor_at, to_local,
+};
+use super::super::window_pick::{ListedWindow, MonitorView, Pick, pick};
+use super::super::{
+    CaptureMode, MonitorInfo, PixelRect, PlatformError, Result, RgbaImage, Selection,
+};
 use super::dpi::DpiGuard;
-use crate::i18n::{Lang, capture_text};
+use super::window_list;
+use crate::i18n::{CaptureText, Lang, capture_text};
 
 const CLASS_NAME: ::windows::core::PCWSTR = w!("CropaRegionOverlay");
 /// `D2DERR_RECREATE_TARGET`: the graphics device was lost.
@@ -68,6 +80,10 @@ const D2DERR_RECREATE_TARGET: HRESULT = HRESULT(0x8899_000Cu32 as i32);
 /// Side of the magnified area, in capture pixels.
 const LOUPE_CELLS: u32 = 15;
 const LOUPE_ZOOM: f32 = 9.0;
+
+/// The mode the next overlay opens in: the one the user last switched to.
+/// Not persisted, so every app run starts in region mode.
+static LAST_MODE: Mutex<CaptureMode> = Mutex::new(CaptureMode::Region);
 
 #[allow(clippy::needless_pass_by_value)]
 fn os_error(err: impl ToString) -> PlatformError {
@@ -101,6 +117,12 @@ struct Win {
     shadow: ID2D1SolidColorBrush,
     label_bg: ID2D1SolidColorBrush,
     text: ID2D1SolidColorBrush,
+    bar_bg: ID2D1SolidColorBrush,
+    bar_active: ID2D1SolidColorBrush,
+    bar_hover: ID2D1SolidColorBrush,
+    bar: ModeBarLayout,
+    /// Measured width and height of the four bar labels, in button order.
+    label_sizes: [(f32, f32); 4],
 }
 
 impl Win {
@@ -126,7 +148,21 @@ struct Drag {
 struct Session {
     wins: Vec<Win>,
     dwrite: IDWriteFactory,
-    hint: String,
+    text: CaptureText,
+    mode: CaptureMode,
+    /// The windows on screen, topmost first, in desktop pixels.
+    windows: Vec<ListedWindow>,
+    /// The monitors and their capture sizes, in the order of `wins`.
+    views: Vec<MonitorView>,
+    /// The monitor that shows the mode bar.
+    bar_monitor: usize,
+    bar_hover: Option<BarButton>,
+    /// What window and full-screen mode would pick under the pointer.
+    hover: Option<Pick>,
+    /// A click in window or full-screen mode is waiting for its release.
+    pressed: bool,
+    /// A press on the Cancel button is waiting for its release.
+    cancel_pressed: bool,
     drag: Option<Drag>,
     /// Where the magnifier is drawn: a monitor index and a desktop point.
     cursor: Option<(usize, Point)>,
@@ -148,6 +184,54 @@ impl Session {
     fn desktop_point(&self, index: usize, lparam: LPARAM) -> Point {
         client_point_to_desktop(&self.wins[index].monitor, lparam.0)
     }
+
+    /// True when `point` is on the bar's monitor, so the bar can be hit there.
+    fn on_bar_monitor(&self, point: Point) -> bool {
+        monitor_at(self.wins.iter().map(|w| &w.monitor), point) == Some(self.bar_monitor)
+    }
+
+    /// The bar button under a desktop point.
+    fn bar_button(&self, point: Point) -> Option<BarButton> {
+        if !self.on_bar_monitor(point) {
+            return None;
+        }
+        let win = &self.wins[self.bar_monitor];
+        bar_button_at(&win.bar, point.x - win.monitor.x, point.y - win.monitor.y)
+    }
+
+    fn over_bar(&self, point: Point) -> bool {
+        let win = &self.wins[self.bar_monitor];
+        self.on_bar_monitor(point)
+            && win
+                .bar
+                .bar
+                .contains(point.x - win.monitor.x, point.y - win.monitor.y)
+    }
+
+    /// What window and full-screen mode would pick at `point`. The bar is
+    /// never a target.
+    fn hover_at(&self, point: Point) -> Option<Pick> {
+        if self.over_bar(point) {
+            return None;
+        }
+        pick(self.mode, &self.views, &self.windows, point)
+    }
+
+    /// The capture the user picked by releasing at `point` in window or
+    /// full-screen mode.
+    fn pick_at(&self, point: Point, released_at: Instant) -> Option<Selection> {
+        let picked = self.hover_at(point)?;
+        Some(Selection {
+            monitor: picked.monitor,
+            rect: picked.crop,
+            mode: self.mode,
+            released_at,
+        })
+    }
+}
+
+fn last_mode() -> CaptureMode {
+    *LAST_MODE.lock().unwrap_or_else(PoisonError::into_inner)
 }
 
 thread_local! {
@@ -241,11 +325,51 @@ fn bgra_pixels(image: &RgbaImage) -> Vec<u8> {
     pixels
 }
 
+/// The 14 pt label font at `scale`.
+fn text_format(dwrite: &IDWriteFactory, scale: f32) -> Result<IDWriteTextFormat> {
+    // SAFETY: the family and locale are static literals; no custom font collection.
+    unsafe {
+        dwrite.CreateTextFormat(
+            w!("Segoe UI"),
+            None::<&IDWriteFontCollection>,
+            DWRITE_FONT_WEIGHT_NORMAL,
+            DWRITE_FONT_STYLE_NORMAL,
+            DWRITE_FONT_STRETCH_NORMAL,
+            14.0 * scale,
+            w!("en-us"),
+        )
+    }
+    .map_err(os_error)
+}
+
+/// The mode bar layout for `monitor`, with the measured size of each label.
+fn build_bar(
+    dwrite: &IDWriteFactory,
+    format: &IDWriteTextFormat,
+    monitor: &MonitorInfo,
+    text: &CaptureText,
+) -> Result<(ModeBarLayout, [(f32, f32); 4])> {
+    let labels = [text.region, text.window, text.full_screen, text.cancel];
+    let mut sizes = [(0.0, 0.0); 4];
+    for (size, label) in sizes.iter_mut().zip(labels) {
+        *size = measure_text(dwrite, format, label).map_err(os_error)?;
+    }
+    let tallest = sizes.iter().fold(0.0, |tallest, &(_, h)| h.max(tallest));
+    let layout = mode_bar_layout(
+        monitor.width,
+        monitor.scale_factor,
+        sizes.map(|(width, _)| width),
+        tallest,
+    );
+    Ok((layout, sizes))
+}
+
 fn create_window(
     d2d: &ID2D1Factory,
     dwrite: &IDWriteFactory,
     monitor: &MonitorInfo,
     capture: &RgbaImage,
+    text: &CaptureText,
     windows: &mut Windows,
 ) -> Result<Win> {
     // SAFETY: the class is registered, the window is a plain popup with no parent, and it
@@ -325,21 +449,13 @@ fn create_window(
     let border = brush(color(1.0, 1.0, 1.0, 1.0))?;
     let shadow = brush(color(0.0, 0.0, 0.0, 0.85))?;
     let label_bg = brush(color(0.0, 0.0, 0.0, 0.75))?;
-    let text = brush(color(1.0, 1.0, 1.0, 1.0))?;
+    let text_brush = brush(color(1.0, 1.0, 1.0, 1.0))?;
+    let bar_bg = brush(color(32.0 / 255.0, 32.0 / 255.0, 32.0 / 255.0, 0.92))?;
+    let bar_active = brush(color(1.0, 1.0, 1.0, 0.22))?;
+    let bar_hover = brush(color(1.0, 1.0, 1.0, 0.10))?;
 
-    // SAFETY: the family and locale are static literals; no custom font collection.
-    let format = unsafe {
-        dwrite.CreateTextFormat(
-            w!("Segoe UI"),
-            None::<&IDWriteFontCollection>,
-            DWRITE_FONT_WEIGHT_NORMAL,
-            DWRITE_FONT_STYLE_NORMAL,
-            DWRITE_FONT_STRETCH_NORMAL,
-            14.0 * monitor.scale_factor,
-            w!("en-us"),
-        )
-    }
-    .map_err(os_error)?;
+    let format = text_format(dwrite, monitor.scale_factor)?;
+    let (bar, label_sizes) = build_bar(dwrite, &format, monitor, text)?;
 
     Ok(Win {
         hwnd,
@@ -353,8 +469,62 @@ fn create_window(
         border,
         shadow,
         label_bg,
-        text,
+        text: text_brush,
+        bar_bg,
+        bar_active,
+        bar_hover,
+        bar,
+        label_sizes,
     })
+}
+
+/// Run this thread's message loop until `WM_QUIT`; an error if it breaks.
+fn pump_messages() -> Option<PlatformError> {
+    let mut message = MSG::default();
+    loop {
+        // SAFETY: `message` is a valid out pointer; this thread owns the windows.
+        let status = unsafe { GetMessageW(&mut message, None, 0, 0) };
+        match status.0 {
+            0 => return None,
+            -1 => return Some(os_error(::windows::core::Error::from_thread())),
+            _ => {
+                // SAFETY: `message` was filled by GetMessageW.
+                unsafe {
+                    let _ = TranslateMessage(&message);
+                    DispatchMessageW(&message);
+                }
+            }
+        }
+    }
+}
+
+/// Each monitor with the size of its capture.
+fn monitor_views(shots: &[(MonitorInfo, RgbaImage)]) -> Vec<MonitorView> {
+    shots
+        .iter()
+        .map(|(monitor, capture)| MonitorView {
+            monitor: monitor.clone(),
+            capture_width: capture.width(),
+            capture_height: capture.height(),
+        })
+        .collect()
+}
+
+/// The pickable windows. The thread is per-monitor DPI aware by now, so the
+/// bounds are physical. A failure leaves window mode with nothing to pick; the
+/// capture itself still works.
+fn list_windows() -> Vec<ListedWindow> {
+    let listed = Instant::now();
+    let windows = window_list::listed_on_screen().unwrap_or_else(|err| {
+        log::warn!("could not list the windows to pick: {err}");
+        Vec::new()
+    });
+    log::info!(
+        "listed {} window(s) in {} ms",
+        windows.len(),
+        listed.elapsed().as_millis()
+    );
+    windows
 }
 
 pub fn select_region(shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Selection>> {
@@ -363,6 +533,8 @@ pub fn select_region(shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Select
         return Err(os_error("there is no monitor to cover"));
     }
     let _dpi = DpiGuard::per_monitor();
+    // First, so the bounds are as close as possible to the frozen capture.
+    let windows_on_screen = list_windows();
 
     // SAFETY: creates single-threaded factories used only on this thread.
     let d2d: ID2D1Factory =
@@ -371,6 +543,8 @@ pub fn select_region(shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Select
     let dwrite: IDWriteFactory =
         unsafe { DWriteCreateFactory(DWRITE_FACTORY_TYPE_SHARED) }.map_err(os_error)?;
     register_class()?;
+
+    let text = capture_text(Lang::detect());
 
     // Declared before the windows are created so it is dropped after the
     // message loop, or on any error below.
@@ -382,6 +556,7 @@ pub fn select_region(shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Select
             &dwrite,
             monitor,
             capture,
+            &text,
             &mut windows,
         )?);
     }
@@ -403,18 +578,29 @@ pub fn select_region(shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Select
     let focus_target = wins[first].hwnd;
     let all: Vec<HWND> = wins.iter().map(|w| w.hwnd).collect();
 
-    SESSION.with(|cell| {
-        *cell.borrow_mut() = Some(Session {
-            wins,
-            dwrite,
-            hint: capture_text(Lang::detect()).hint.to_owned(),
-            drag: None,
-            cursor: under_cursor.map(|i| (i, cursor_point)),
-            focused: focus_target,
-            active: false,
-            outcome: None,
-        });
-    });
+    let mut session = Session {
+        wins,
+        dwrite,
+        text,
+        mode: last_mode(),
+        windows: windows_on_screen,
+        views: monitor_views(shots),
+        bar_monitor: first,
+        bar_hover: None,
+        hover: None,
+        pressed: false,
+        cancel_pressed: false,
+        drag: None,
+        cursor: under_cursor.map(|i| (i, cursor_point)),
+        focused: focus_target,
+        active: false,
+        outcome: None,
+    };
+    // Window and full-screen mode show their highlight before the first move.
+    if have_cursor {
+        session.hover = session.hover_at(cursor_point);
+    }
+    SESSION.with(|cell| *cell.borrow_mut() = Some(session));
 
     for &hwnd in &all {
         // SAFETY: our own live window; UpdateWindow paints it once, synchronously.
@@ -438,24 +624,7 @@ pub fn select_region(shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Select
         started.elapsed().as_millis()
     );
 
-    let mut message = MSG::default();
-    let loop_error = loop {
-        // SAFETY: `message` is a valid out pointer; this thread owns the windows.
-        let status = unsafe { GetMessageW(&mut message, None, 0, 0) };
-        match status.0 {
-            0 => break None,
-            -1 => {
-                break Some(os_error(::windows::core::Error::from_thread()));
-            }
-            _ => {
-                // SAFETY: `message` was filled by GetMessageW.
-                unsafe {
-                    let _ = TranslateMessage(&message);
-                    DispatchMessageW(&message);
-                }
-            }
-        }
-    };
+    let loop_error = pump_messages();
 
     let outcome = with(|s| s.outcome.take());
     drop(windows);
@@ -577,11 +746,145 @@ fn draw_magnifier(win: &Win, local: (u32, u32)) {
     }
 }
 
-/// Draw window `index` completely: the frozen capture, the dim, the selection, the hint
-/// or the readout, and the magnifier.
+/// The width and height of `text` set in `format`.
+fn measure_text(
+    dwrite: &IDWriteFactory,
+    format: &IDWriteTextFormat,
+    text: &str,
+) -> ::windows::core::Result<(f32, f32)> {
+    let wide: Vec<u16> = text.encode_utf16().collect();
+    // SAFETY: `wide` and the format outlive the call.
+    let layout: IDWriteTextLayout =
+        unsafe { dwrite.CreateTextLayout(&wide, format, 4000.0, 200.0) }?;
+    let mut metrics = DWRITE_TEXT_METRICS::default();
+    // SAFETY: `metrics` is a valid out pointer.
+    unsafe { layout.GetMetrics(&mut metrics) }?;
+    Ok((metrics.width, metrics.height))
+}
+
+/// Draw the pixels `source` of the capture at full brightness into `dest`
+/// (monitor pixels), outlined, with a size readout next to it.
+fn draw_highlight(
+    win: &Win,
+    dwrite: &IDWriteFactory,
+    dest: D2D_RECT_F,
+    source: PixelRect,
+) -> ::windows::core::Result<()> {
+    let s = win.scale();
+    let (left, top, bottom) = (dest.left, dest.top, dest.bottom);
+    let source_rect = rect(
+        source.x as f32,
+        source.y as f32,
+        (source.x + source.width) as f32,
+        (source.y + source.height) as f32,
+    );
+    let outline = rect(left - 0.5, top - 0.5, dest.right + 0.5, bottom + 0.5);
+    // SAFETY: drawing between BeginDraw and EndDraw with live resources.
+    unsafe {
+        win.target.DrawBitmap(
+            &win.bitmap,
+            Some(&dest),
+            1.0,
+            D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR,
+            Some(&source_rect),
+        );
+        win.target
+            .DrawRectangle(&outline, &win.border, 1.0, None::<&ID2D1StrokeStyle>);
+    }
+    let readout = format!("{} × {}", source.width, source.height);
+    draw_label(win, dwrite, &readout, |_, box_h| {
+        let gap = 6.0 * s;
+        if bottom + gap + box_h <= win.height() {
+            (left, bottom + gap)
+        } else if top - gap - box_h >= 0.0 {
+            (left, top - gap - box_h)
+        } else {
+            (left + gap, top + gap)
+        }
+    })
+}
+
+/// The mode bar: a rounded panel with one label per button, the current mode
+/// filled and the hovered button lightly filled.
+fn draw_bar(session: &Session, win: &Win) {
+    let texts = [
+        session.text.region,
+        session.text.window,
+        session.text.full_screen,
+        session.text.cancel,
+    ];
+    let to_rect = |r: super::super::geometry::LocalRect| {
+        rect(
+            r.x as f32,
+            r.y as f32,
+            (r.x + r.width) as f32,
+            (r.y + r.height) as f32,
+        )
+    };
+    let panel = D2D1_ROUNDED_RECT {
+        rect: to_rect(win.bar.bar),
+        radiusX: win.bar.radius,
+        radiusY: win.bar.radius,
+    };
+    // SAFETY: drawing between BeginDraw and EndDraw with live resources.
+    unsafe { win.target.FillRoundedRectangle(&panel, &win.bar_bg) };
+
+    for (((button, button_rect), text), (label_w, label_h)) in
+        win.bar.buttons.iter().zip(texts).zip(win.label_sizes)
+    {
+        let selected = matches!(
+            (button, session.mode),
+            (BarButton::Region, CaptureMode::Region)
+                | (BarButton::Window, CaptureMode::Window)
+                | (BarButton::FullScreen, CaptureMode::FullScreen)
+        );
+        let fill = if selected {
+            Some(&win.bar_active)
+        } else if session.bar_hover == Some(*button) {
+            Some(&win.bar_hover)
+        } else {
+            None
+        };
+        let area = to_rect(*button_rect);
+        let wide: Vec<u16> = text.encode_utf16().collect();
+        let left = area.left + (area.right - area.left - label_w) / 2.0;
+        let top = area.top + (area.bottom - area.top - label_h) / 2.0;
+        // SAFETY: drawing between BeginDraw and EndDraw with live resources.
+        unsafe {
+            if let Some(fill) = fill {
+                let rounded = D2D1_ROUNDED_RECT {
+                    rect: area,
+                    radiusX: win.bar.button_radius,
+                    radiusY: win.bar.button_radius,
+                };
+                win.target.FillRoundedRectangle(&rounded, fill);
+            }
+            win.target.DrawText(
+                &wide,
+                &win.format,
+                &rect(left, top, left + label_w + 1.0, top + label_h + 1.0),
+                &win.text,
+                D2D1_DRAW_TEXT_OPTIONS_NONE,
+                DWRITE_MEASURING_MODE_NATURAL,
+            );
+        }
+    }
+}
+
+/// The hint line for the current mode, with the key shortcuts after it.
+fn hint_text(session: &Session) -> String {
+    let mode_hint = match session.mode {
+        CaptureMode::Region => session.text.hint,
+        CaptureMode::Window => session.text.window_hint,
+        CaptureMode::FullScreen => session.text.full_screen_hint,
+    };
+    format!("{mode_hint} · {}", session.text.keys_hint)
+}
+
+/// Draw window `index` completely: the frozen capture, the dim, the selection or
+/// highlight, the mode bar, the hint or the readout, and the magnifier.
 fn draw(session: &Session, index: usize) -> ::windows::core::Result<()> {
     let win = &session.wins[index];
-    let s = win.scale();
     let full = rect(0.0, 0.0, win.width(), win.height());
 
     // SAFETY: drawing between BeginDraw and EndDraw with live resources.
@@ -596,63 +899,78 @@ fn draw(session: &Session, index: usize) -> ::windows::core::Result<()> {
         win.target.FillRectangle(&full, &win.dim);
     }
 
-    match &session.drag {
-        None => {
-            let hint = session.hint.as_str();
-            draw_label(win, &session.dwrite, hint, |box_w, _| {
-                ((win.width() - box_w) / 2.0, 24.0 * s)
-            })?;
-        }
-        Some(drag) if drag.monitor == index => {
-            let selection = crop_rect(
-                &win.monitor,
-                win.capture_width,
-                win.capture_height,
-                drag.start,
-                drag.current,
-            );
-            if let Some(selection) = selection {
-                let (sx, sy) = to_local(&win.monitor, drag.start);
-                let (ex, ey) = to_local(&win.monitor, drag.current);
-                let (left, right) = (sx.min(ex) as f32, (sx.max(ex) + 1) as f32);
-                let (top, bottom) = (sy.min(ey) as f32, (sy.max(ey) + 1) as f32);
-                let dest = rect(left, top, right, bottom);
-                let source = rect(
-                    selection.x as f32,
-                    selection.y as f32,
-                    (selection.x + selection.width) as f32,
-                    (selection.y + selection.height) as f32,
+    match session.mode {
+        CaptureMode::Region => {
+            if let Some(drag) = &session.drag
+                && drag.monitor == index
+            {
+                let selection = crop_rect(
+                    &win.monitor,
+                    win.capture_width,
+                    win.capture_height,
+                    drag.start,
+                    drag.current,
                 );
-                let outline = rect(left - 0.5, top - 0.5, right + 0.5, bottom + 0.5);
+                if let Some(selection) = selection {
+                    let (sx, sy) = to_local(&win.monitor, drag.start);
+                    let (ex, ey) = to_local(&win.monitor, drag.current);
+                    let dest = rect(
+                        sx.min(ex) as f32,
+                        sy.min(ey) as f32,
+                        (sx.max(ex) + 1) as f32,
+                        (sy.max(ey) + 1) as f32,
+                    );
+                    draw_highlight(win, &session.dwrite, dest, selection)?;
+                }
+            }
+        }
+        CaptureMode::Window => {
+            if let Some(hover) = session.hover
+                && hover.monitor == index
+            {
+                let local = hover.local;
+                let dest = rect(
+                    local.x as f32,
+                    local.y as f32,
+                    (local.x + local.width) as f32,
+                    (local.y + local.height) as f32,
+                );
+                draw_highlight(win, &session.dwrite, dest, hover.crop)?;
+            }
+        }
+        CaptureMode::FullScreen => {
+            if session.hover.is_some_and(|h| h.monitor == index) {
+                let inset = rect(1.5, 1.5, win.width() - 1.5, win.height() - 1.5);
                 // SAFETY: drawing between BeginDraw and EndDraw with live resources.
                 unsafe {
                     win.target.DrawBitmap(
                         &win.bitmap,
-                        Some(&dest),
+                        Some(&full),
                         1.0,
                         D2D1_BITMAP_INTERPOLATION_MODE_NEAREST_NEIGHBOR,
-                        Some(&source),
+                        None,
                     );
                     win.target
-                        .DrawRectangle(&outline, &win.border, 1.0, None::<&ID2D1StrokeStyle>);
+                        .DrawRectangle(&inset, &win.border, 1.0, None::<&ID2D1StrokeStyle>);
                 }
-                let readout = format!("{} × {}", selection.width, selection.height);
-                draw_label(win, &session.dwrite, &readout, |_, box_h| {
-                    let gap = 6.0 * s;
-                    if bottom + gap + box_h <= win.height() {
-                        (left, bottom + gap)
-                    } else if top - gap - box_h >= 0.0 {
-                        (left, top - gap - box_h)
-                    } else {
-                        (left + gap, top + gap)
-                    }
-                })?;
             }
         }
-        Some(_) => {}
     }
 
-    if let Some((monitor, point)) = session.cursor
+    if index == session.bar_monitor {
+        draw_bar(session, win);
+    }
+
+    if session.drag.is_none() {
+        let hint = hint_text(session);
+        let below_bar = (win.bar.bar.y + win.bar.bar.height) as f32 + 8.0 * win.scale();
+        draw_label(win, &session.dwrite, &hint, |box_w, _| {
+            ((win.width() - box_w) / 2.0, below_bar)
+        })?;
+    }
+
+    if session.mode == CaptureMode::Region
+        && let Some((monitor, point)) = session.cursor
         && monitor == index
     {
         draw_magnifier(win, to_local(&win.monitor, point));
@@ -685,22 +1003,78 @@ fn paint(hwnd: HWND) {
     }
 }
 
-fn on_button_down(hwnd: HWND, lparam: LPARAM) {
+/// Switch to `mode`: abandon any drag or click in progress, recompute what the
+/// pointer is over, and remember the mode for the next capture.
+fn switch_mode(mode: CaptureMode) {
     let all = with(|s| {
-        let index = s.index_of(hwnd)?;
-        let point = s.desktop_point(index, lparam);
-        s.drag = Some(Drag {
-            monitor: index,
-            start: point,
-            current: point,
-        });
-        s.cursor = Some((index, point));
+        if s.mode == mode {
+            return None;
+        }
+        s.mode = mode;
+        s.drag = None;
+        s.pressed = false;
+        s.cancel_pressed = false;
+        let point = s.cursor.map(|(_, point)| point);
+        s.hover = point.and_then(|point| s.hover_at(point));
+        *LAST_MODE.lock().unwrap_or_else(PoisonError::into_inner) = mode;
         Some(s.all_hwnds())
     });
     if let Some(all) = all {
-        // SAFETY: capture follows the drag so the release arrives even outside the window.
-        unsafe { SetCapture(hwnd) };
+        // SAFETY: ends a mouse capture this thread may hold; harmless without one. The
+        // drag and click are already cleared, so the WM_CAPTURECHANGED it sends changes
+        // nothing.
+        unsafe {
+            let _ = ReleaseCapture();
+        }
         invalidate(&all);
+    }
+}
+
+/// What a button press did, decided while the session is borrowed.
+enum Press {
+    Bar(BarButton),
+    Started(HWND, Vec<HWND>),
+    Ignored,
+}
+
+fn on_button_down(hwnd: HWND, lparam: LPARAM) {
+    let press = with(|s| {
+        let index = s.index_of(hwnd)?;
+        let point = s.desktop_point(index, lparam);
+        if let Some(button) = s.bar_button(point) {
+            if button == BarButton::Cancel {
+                // Acts on release, so the release does not land in the app underneath.
+                s.cancel_pressed = true;
+                return Some(Press::Started(hwnd, s.all_hwnds()));
+            }
+            return Some(Press::Bar(button));
+        }
+        if s.over_bar(point) {
+            return Some(Press::Ignored);
+        }
+        match s.mode {
+            CaptureMode::Region => {
+                s.drag = Some(Drag {
+                    monitor: index,
+                    start: point,
+                    current: point,
+                });
+                s.cursor = Some((index, point));
+            }
+            CaptureMode::Window | CaptureMode::FullScreen => s.pressed = true,
+        }
+        Some(Press::Started(hwnd, s.all_hwnds()))
+    });
+    match press {
+        Some(Press::Bar(BarButton::Region)) => switch_mode(CaptureMode::Region),
+        Some(Press::Bar(BarButton::Window)) => switch_mode(CaptureMode::Window),
+        Some(Press::Bar(BarButton::FullScreen)) => switch_mode(CaptureMode::FullScreen),
+        Some(Press::Started(hwnd, all)) => {
+            // SAFETY: capture follows the press so the release arrives even outside the window.
+            unsafe { SetCapture(hwnd) };
+            invalidate(&all);
+        }
+        Some(Press::Bar(BarButton::Cancel) | Press::Ignored) | None => {}
     }
 }
 
@@ -709,7 +1083,10 @@ fn on_mouse_move(hwnd: HWND, lparam: LPARAM) {
         let index = s.index_of(hwnd)?;
         let point = s.desktop_point(index, lparam);
         let mut dirty = Vec::new();
-        if let Some((previous, _)) = s.cursor {
+        let magnifier = s.mode == CaptureMode::Region;
+        if let Some((previous, _)) = s.cursor
+            && magnifier
+        {
             dirty.push(s.wins[previous].hwnd);
         }
         if let Some(drag) = &mut s.drag {
@@ -720,9 +1097,26 @@ fn on_mouse_move(hwnd: HWND, lparam: LPARAM) {
             let monitors = s.wins.iter().map(|w| &w.monitor);
             let hovered = monitor_at(monitors, point).unwrap_or(index);
             s.cursor = Some((hovered, point));
-            dirty.push(s.wins[hovered].hwnd);
+            if magnifier {
+                dirty.push(s.wins[hovered].hwnd);
+            }
+        }
+
+        // Repaint only what the highlight or the bar hover changed.
+        let hover = s.hover_at(point);
+        if hover != s.hover {
+            for old_or_new in [s.hover, hover].into_iter().flatten() {
+                dirty.push(s.wins[old_or_new.monitor].hwnd);
+            }
+            s.hover = hover;
+        }
+        let bar_hover = s.bar_button(point);
+        if bar_hover != s.bar_hover {
+            s.bar_hover = bar_hover;
+            dirty.push(s.wins[s.bar_monitor].hwnd);
         }
         dirty.dedup();
+
         // Keep the keyboard on the monitor the pointer is over, so Esc works there.
         let focus = match (&s.drag, s.cursor) {
             (None, Some((hovered, _))) if s.wins[hovered].hwnd != s.focused => {
@@ -744,51 +1138,83 @@ fn on_mouse_move(hwnd: HWND, lparam: LPARAM) {
     }
 }
 
-fn on_button_up() {
+fn on_button_up(hwnd: HWND, lparam: LPARAM) {
     let released_at = Instant::now();
-    let step = with(|s| {
-        let drag = s.drag.take()?;
-        let win = &s.wins[drag.monitor];
-        let rect = crop_rect(
-            &win.monitor,
-            win.capture_width,
-            win.capture_height,
-            drag.start,
-            drag.current,
-        );
-        Some((
-            drag.monitor,
-            rect.map(|rect| Selection {
-                monitor: drag.monitor,
-                rect,
-                released_at,
-            }),
-            s.all_hwnds(),
-        ))
+    let cancel = with(|s| {
+        if !s.cancel_pressed {
+            return None;
+        }
+        s.cancel_pressed = false;
+        let point = s.desktop_point(s.index_of(hwnd)?, lparam);
+        Some(s.bar_button(point) == Some(BarButton::Cancel))
     });
-    let Some((_, selection, all)) = step else {
+    if let Some(confirmed) = cancel {
+        // SAFETY: ends the press's mouse capture; the press is already cleared.
+        unsafe {
+            let _ = ReleaseCapture();
+        }
+        if confirmed {
+            finish(Ok(None));
+        }
+        return;
+    }
+    let step = with(|s| {
+        if s.mode == CaptureMode::Region {
+            let drag = s.drag.take()?;
+            let win = &s.wins[drag.monitor];
+            let rect = crop_rect(
+                &win.monitor,
+                win.capture_width,
+                win.capture_height,
+                drag.start,
+                drag.current,
+            );
+            Some((
+                rect.map(|rect| Selection {
+                    monitor: drag.monitor,
+                    rect,
+                    mode: CaptureMode::Region,
+                    released_at,
+                }),
+                s.all_hwnds(),
+            ))
+        } else {
+            if !s.pressed {
+                return None;
+            }
+            s.pressed = false;
+            let index = s.index_of(hwnd)?;
+            let point = s.desktop_point(index, lparam);
+            Some((s.pick_at(point, released_at), s.all_hwnds()))
+        }
+    });
+    let Some((selection, all)) = step else {
         return;
     };
-    // SAFETY: ends the drag's mouse capture; the drag is already cleared, so the
+    // SAFETY: ends the press's mouse capture; the press is already cleared, so the
     // WM_CAPTURECHANGED this sends changes nothing.
     unsafe {
         let _ = ReleaseCapture();
     }
     match selection {
         Some(selection) => finish(Ok(Some(selection))),
-        // A click without a drag: keep the overlay open and start over.
+        // A click without a drag, or on nothing: keep the overlay open and start over.
         None => invalidate(&all),
     }
 }
 
 fn on_capture_changed(lparam: LPARAM) {
     let all = with(|s| {
-        s.drag.as_ref()?;
+        if s.drag.is_none() && !s.pressed && !s.cancel_pressed {
+            return None;
+        }
         let gained = lparam.0;
         if s.wins.iter().any(|w| w.hwnd.0 as isize == gained) {
             return None;
         }
         s.drag = None;
+        s.pressed = false;
+        s.cancel_pressed = false;
         Some(s.all_hwnds())
     });
     if let Some(all) = all {
@@ -811,6 +1237,32 @@ fn on_activate_app(active: bool) {
     }
 }
 
+/// True when the pointer is over the mode bar or the mode picks a target by
+/// clicking: both want the arrow, region mode wants the crosshair.
+fn wants_arrow_cursor() -> bool {
+    with(|s| {
+        if s.mode != CaptureMode::Region {
+            return Some(true);
+        }
+        let mut at = POINT::default();
+        // SAFETY: `at` is a valid out pointer.
+        unsafe { GetCursorPos(&mut at) }.ok()?;
+        Some(s.over_bar(Point { x: at.x, y: at.y }))
+    })
+    .unwrap_or(false)
+}
+
+/// The mode a typed character switches to: R, W (or the `ư` a Vietnamese
+/// input method makes of it) and F, in either case.
+fn mode_for_char(unit: usize) -> Option<CaptureMode> {
+    match char::from_u32(u32::try_from(unit).ok()?)? {
+        'r' | 'R' => Some(CaptureMode::Region),
+        'w' | 'W' | 'ư' | 'Ư' => Some(CaptureMode::Window),
+        'f' | 'F' => Some(CaptureMode::FullScreen),
+        _ => None,
+    }
+}
+
 unsafe extern "system" fn wnd_proc(
     hwnd: HWND,
     message: u32,
@@ -819,9 +1271,14 @@ unsafe extern "system" fn wnd_proc(
 ) -> LRESULT {
     match message {
         WM_SETCURSOR => {
+            let stock = if wants_arrow_cursor() {
+                IDC_ARROW
+            } else {
+                IDC_CROSS
+            };
             // SAFETY: loads and sets a stock cursor.
             unsafe {
-                if let Ok(cursor) = LoadCursorW(None, IDC_CROSS) {
+                if let Ok(cursor) = LoadCursorW(None, stock) {
                     SetCursor(Some(cursor));
                 }
             }
@@ -841,7 +1298,7 @@ unsafe extern "system" fn wnd_proc(
             LRESULT(0)
         }
         WM_LBUTTONUP => {
-            on_button_up();
+            on_button_up(hwnd, lparam);
             LRESULT(0)
         }
         WM_CLOSE | WM_RBUTTONUP => {
@@ -852,6 +1309,27 @@ unsafe extern "system" fn wnd_proc(
             finish(Ok(None));
             LRESULT(0)
         }
+        WM_KEYDOWN if wparam.0 == usize::from(VK_R.0) => {
+            switch_mode(CaptureMode::Region);
+            LRESULT(0)
+        }
+        WM_KEYDOWN if wparam.0 == usize::from(VK_W.0) => {
+            switch_mode(CaptureMode::Window);
+            LRESULT(0)
+        }
+        WM_KEYDOWN if wparam.0 == usize::from(VK_F.0) => {
+            switch_mode(CaptureMode::FullScreen);
+            LRESULT(0)
+        }
+        // Input tools such as Unikey swallow a lone W and resend it as a character.
+        WM_CHAR => match mode_for_char(wparam.0) {
+            Some(mode) => {
+                switch_mode(mode);
+                LRESULT(0)
+            }
+            // SAFETY: forwards an unhandled message with the arguments we received.
+            None => unsafe { DefWindowProcW(hwnd, message, wparam, lparam) },
+        },
         WM_ACTIVATEAPP => {
             on_activate_app(wparam.0 != 0);
             LRESULT(0)

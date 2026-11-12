@@ -61,7 +61,7 @@ pub fn client_point_to_desktop(monitor: &MonitorInfo, lparam: isize) -> Point {
 }
 
 /// `edge * capture / monitor`, rounded to nearest.
-fn map_edge(edge: u32, capture: u32, monitor: u32) -> u32 {
+pub(crate) fn map_edge(edge: u32, capture: u32, monitor: u32) -> u32 {
     if monitor == 0 {
         return 0;
     }
@@ -134,7 +134,7 @@ pub struct LocalRect {
 }
 
 impl LocalRect {
-    fn contains(&self, x: i32, y: i32) -> bool {
+    pub fn contains(&self, x: i32, y: i32) -> bool {
         let (x, y) = (i64::from(x), i64::from(y));
         x >= i64::from(self.x)
             && y >= i64::from(self.y)
@@ -255,6 +255,94 @@ pub fn preview_button_at(layout: &PreviewLayout, x: i32, y: i32) -> Option<Previ
     } else {
         None
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum BarButton {
+    Region,
+    Window,
+    FullScreen,
+    Cancel,
+}
+
+/// Where the capture mode bar and its four buttons sit, in monitor-local pixels.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct ModeBarLayout {
+    pub bar: LocalRect,
+    pub buttons: [(BarButton, LocalRect); 4],
+    pub radius: f32,
+    pub button_radius: f32,
+}
+
+const BAR_TOP_MARGIN: f32 = 16.0;
+const BAR_PADDING: f32 = 4.0;
+const BAR_BUTTON_HEIGHT: f32 = 32.0;
+const BAR_BUTTON_PADDING: f32 = 12.0;
+const BAR_GAP: f32 = 4.0;
+const BAR_CANCEL_GAP: f32 = 8.0;
+const BAR_RADIUS: f32 = 8.0;
+const BAR_BUTTON_RADIUS: f32 = 6.0;
+
+/// Centre a bar of four text buttons at the top of a monitor `monitor_width`
+/// wide. `label_widths` are the measured text widths in physical pixels, in
+/// button order; `label_height` is the text's height.
+pub fn mode_bar_layout(
+    monitor_width: u32,
+    scale: f32,
+    label_widths: [f32; 4],
+    label_height: f32,
+) -> ModeBarLayout {
+    let padding = px(BAR_PADDING, scale);
+    let gap = px(BAR_GAP, scale);
+    let cancel_gap = px(BAR_CANCEL_GAP, scale);
+    let button_padding = px(BAR_BUTTON_PADDING, scale);
+    let button_height = px(BAR_BUTTON_HEIGHT, scale).max(px(label_height.ceil(), 1.0));
+    let widths = label_widths.map(|w| px(w.ceil(), 1.0) + 2 * button_padding);
+
+    let content = widths.iter().sum::<u32>() + 3 * gap + cancel_gap;
+    let bar_width = content + 2 * padding;
+    let bar = LocalRect {
+        x: monitor_width.saturating_sub(bar_width) / 2,
+        y: px(BAR_TOP_MARGIN, scale),
+        width: bar_width,
+        height: button_height + 2 * padding,
+    };
+
+    let kinds = [
+        BarButton::Region,
+        BarButton::Window,
+        BarButton::FullScreen,
+        BarButton::Cancel,
+    ];
+    let mut x = bar.x + padding;
+    let buttons = std::array::from_fn(|i| {
+        if i == 3 {
+            x += cancel_gap;
+        }
+        let rect = LocalRect {
+            x,
+            y: bar.y + padding,
+            width: widths[i],
+            height: button_height,
+        };
+        x += widths[i] + gap;
+        (kinds[i], rect)
+    });
+    ModeBarLayout {
+        bar,
+        buttons,
+        radius: BAR_RADIUS * scale,
+        button_radius: BAR_BUTTON_RADIUS * scale,
+    }
+}
+
+/// The button under a point given in window coordinates.
+pub fn bar_button_at(layout: &ModeBarLayout, x: i32, y: i32) -> Option<BarButton> {
+    layout
+        .buttons
+        .iter()
+        .find(|(_, rect)| rect.contains(x, y))
+        .map(|(button, _)| *button)
 }
 
 #[cfg(test)]
@@ -501,5 +589,48 @@ mod tests {
         assert_eq!(preview_button_at(&layout, -1, -1), None);
         assert!(close.x + close.width <= layout.card.x + layout.card.width);
         assert!(edit.x + edit.width < close.x);
+    }
+
+    #[test]
+    fn the_bar_buttons_are_found_where_they_are_drawn() {
+        let layout = mode_bar_layout(2880, 1.5, [60.0, 70.0, 110.0, 50.0], 20.0);
+        let kinds = [
+            BarButton::Region,
+            BarButton::Window,
+            BarButton::FullScreen,
+            BarButton::Cancel,
+        ];
+        for (kind, rect) in layout.buttons {
+            let (left, top) = (rect.x.cast_signed(), rect.y.cast_signed());
+            let (right, bottom) = (
+                (rect.x + rect.width).cast_signed(),
+                (rect.y + rect.height).cast_signed(),
+            );
+            assert_eq!(bar_button_at(&layout, left, top), Some(kind));
+            assert_eq!(bar_button_at(&layout, right - 1, bottom - 1), Some(kind));
+            assert_eq!(bar_button_at(&layout, left, top - 1), None);
+            assert_eq!(bar_button_at(&layout, left, bottom), None);
+        }
+        assert_eq!(layout.buttons.map(|(kind, _)| kind), kinds);
+        // The bar is centred and a gap separates every pair of buttons.
+        let bar = layout.bar;
+        assert_eq!(bar.x * 2 + bar.width, 2880);
+        for pair in layout.buttons.windows(2) {
+            assert!(pair[0].1.x + pair[0].1.width < pair[1].1.x);
+        }
+        let first_gap = layout.buttons[1].1.x - (layout.buttons[0].1.x + layout.buttons[0].1.width);
+        let cancel_gap =
+            layout.buttons[3].1.x - (layout.buttons[2].1.x + layout.buttons[2].1.width);
+        assert!(cancel_gap > first_gap);
+        assert_eq!(
+            bar_button_at(&layout, bar.x.cast_signed() + 1, bar.y.cast_signed() + 1),
+            None
+        );
+    }
+
+    #[test]
+    fn a_bar_wider_than_the_monitor_starts_at_the_left_edge() {
+        let layout = mode_bar_layout(200, 1.0, [100.0; 4], 18.0);
+        assert_eq!(layout.bar.x, 0);
     }
 }

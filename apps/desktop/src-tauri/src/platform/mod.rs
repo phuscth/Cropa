@@ -11,6 +11,7 @@ compile_error!("Cropa supports Windows and macOS only");
 pub(crate) mod geometry;
 #[cfg(target_os = "macos")]
 mod macos;
+pub(crate) mod window_pick;
 #[cfg(windows)]
 mod windows;
 
@@ -70,12 +71,33 @@ pub struct PixelRect {
     pub height: u32,
 }
 
+/// How the user picks what to capture on the overlay.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub enum CaptureMode {
+    #[default]
+    Region,
+    Window,
+    FullScreen,
+}
+
+impl CaptureMode {
+    pub fn log_name(self) -> &'static str {
+        match self {
+            Self::Region => "region",
+            Self::Window => "window",
+            Self::FullScreen => "full screen",
+        }
+    }
+}
+
 /// What the user selected: an index into the `shots` given to `select_region`,
 /// and the rectangle in that monitor's capture, in the capture's own pixels.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct Selection {
     pub monitor: usize,
     pub rect: PixelRect,
+    /// The mode the selection was made in.
+    pub mode: CaptureMode,
     /// When the mouse button was released, to measure how long the copy takes.
     pub released_at: std::time::Instant,
 }
@@ -129,9 +151,10 @@ pub trait Platform {
     fn ask_yes_no(&self, title: &str, text: &str) -> Result<bool>;
     /// Modal native notice with an OK button. Blocks the calling thread.
     fn show_warning(&self, title: &str, text: &str) -> Result<()>;
-    /// Cover every monitor with its frozen capture and let the user drag a region.
-    /// Blocks the calling thread (which must not be the UI event loop) until the
-    /// user releases the mouse (`Some`) or presses Esc (`None`).
+    /// Cover every monitor with its frozen capture and let the user drag a
+    /// region, or switch to picking a window or a whole monitor. Blocks the
+    /// calling thread (which must not be the UI event loop) until the user
+    /// releases the mouse on a target (`Some`) or cancels (`None`).
     fn select_region(&self, shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Selection>>;
     /// Put an image on the clipboard, replacing its contents. With
     /// `exclude_from_history`, the OS is asked to keep it out of its clipboard
