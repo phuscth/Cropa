@@ -180,7 +180,7 @@ mod tests {
     }
 
     #[test]
-    fn default_shortcut_matches_d13() {
+    fn default_shortcut_is_alt_shift_s() {
         assert_eq!(Settings::default().capture_shortcut, "Alt+Shift+S");
     }
 
