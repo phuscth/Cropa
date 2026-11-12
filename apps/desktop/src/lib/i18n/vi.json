@@ -6,11 +6,24 @@
     "title": "Editor",
     "empty": "Chưa có ảnh chụp.",
     "hint": "Bấm {{shortcut}} hoặc chọn “Chụp vùng” ở khay hệ thống.",
-    "captureReceived": "Đã nhận yêu cầu chụp (từ {{source}}) lúc {{time}}. Chụp vùng chưa có.",
-    "source": {
-      "Hotkey": "phím tắt",
-      "Tray": "menu khay"
-    }
+    "imageAlt": "Ảnh chụp đang hiển thị trong editor"
+  },
+  "history": {
+    "title": "Lịch sử",
+    "count": "Đã lưu {{total}}",
+    "deleteAll": "Xóa tất cả",
+    "confirm": {
+      "message": "Xóa mọi ảnh chụp trong lịch sử? Không thể hoàn tác.",
+      "cancel": "Hủy"
+    },
+    "openInEditor": "Mở trong editor",
+    "copy": "Sao chép",
+    "copied": "Đã sao chép.",
+    "delete": "Xóa",
+    "empty": "Chưa có ảnh chụp nào.",
+    "savingOff": "Đang tắt việc lưu ảnh chụp vào lịch sử. Bạn có thể bật lại trong Cài đặt.",
+    "thumbnailAlt": "Ảnh chụp lúc {{time}}",
+    "size": "{{width}} × {{height}}"
   },
   "settings": {
     "title": "Cài đặt",
@@ -37,7 +50,11 @@
     "autostart": {
       "label": "Mở Cropa khi đăng nhập Windows"
     },
-    "saved": "Đã lưu."
+    "saved": "Đã lưu.",
+    "history": {
+      "label": "Lưu ảnh chụp vào lịch sử",
+      "description": "Cropa giữ 50 ảnh chụp gần nhất trong 30 ngày, trong thư mục người dùng của bạn, dưới dạng file PNG không mã hóa."
+    }
   },
   "errors": {
     "ShortcutInvalid": {
@@ -69,6 +86,26 @@
       "what": "Không đổi được chế độ mở khi đăng nhập.",
       "why": "Windows từ chối thay đổi ({{detail}}).",
       "next": "Thử lại, hoặc bật trong Windows Settings › Apps › Startup."
+    },
+    "HistoryMissing": {
+      "what": "Ảnh chụp này không còn trong lịch sử.",
+      "why": "Ảnh đã bị xóa, hoặc đã quá 30 ngày.",
+      "next": "Chọn ảnh chụp khác trong danh sách."
+    },
+    "HistoryRead": {
+      "what": "Không mở được ảnh chụp.",
+      "why": "Cropa không đọc được ảnh từ thư mục lịch sử ({{detail}}).",
+      "next": "Thử lại, hoặc xóa ảnh khỏi lịch sử nếu file bị hỏng."
+    },
+    "HistoryDelete": {
+      "what": "Không xóa được ảnh chụp.",
+      "why": "Windows từ chối thay đổi ({{detail}}).",
+      "next": "Đóng ứng dụng đang mở file này rồi thử lại."
+    },
+    "Clipboard": {
+      "what": "Không sao chép được ảnh chụp.",
+      "why": "Có thể một ứng dụng khác đang giữ clipboard ({{detail}}).",
+      "next": "Đóng ứng dụng đó hoặc thử lại."
     },
     "Unexpected": {
       "what": "Đã có lỗi xảy ra.",

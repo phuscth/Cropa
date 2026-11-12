@@ -1,18 +1,12 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { commands, events, type CaptureSource } from '../../lib/bindings.ts';
+import { commands, events } from '../../lib/bindings.ts';
 
-interface LastCapture {
-  source: CaptureSource;
-  at: Date;
-}
-
-/** Placeholder: proves the shortcut and tray reach the WebView. */
 export function EditorWindow() {
-  const { t, i18n } = useTranslation();
+  const { t } = useTranslation();
   const [shortcut, setShortcut] = useState<string>();
-  const [last, setLast] = useState<LastCapture>();
+  const [image, setImage] = useState<string>();
 
   useEffect(() => {
     void commands.getShortcutStatus().then((status) => {
@@ -21,34 +15,39 @@ export function EditorWindow() {
     const unlistenStatus = events.shortcutStatus.listen((event) => {
       setShortcut(event.payload.accelerator);
     });
-    const unlistenCapture = events.captureRequested.listen((event) => {
-      setLast({ source: event.payload.source, at: new Date() });
-    });
+
+    let mounted = true;
+    const loadImage = () => {
+      void commands.getEditorImage().then((result) => {
+        if (mounted && result.status === 'ok') setImage(result.data ?? undefined);
+      });
+    };
+    loadImage();
+    const unlistenImage = events.editorImageChanged.listen(loadImage);
     return () => {
+      mounted = false;
       void unlistenStatus.then((off) => { off(); });
-      void unlistenCapture.then((off) => { off(); });
+      void unlistenImage.then((off) => { off(); });
     };
   }, []);
 
   return (
     <main className="flex h-screen flex-col">
       <header className="border-b px-4 py-3 text-sm font-medium">{t('editor.title')}</header>
-      <section className="flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
-        <p className="text-lg text-foreground">{t('editor.empty')}</p>
-        {shortcut && (
-          <p>
-            {t('editor.hint', { shortcut })}
-          </p>
-        )}
-        {last && (
-          <p role="status" className="mt-4 rounded-md bg-card px-3 py-2 text-sm text-card-foreground shadow-sm">
-            {t('editor.captureReceived', {
-              source: t(`editor.source.${last.source}`),
-              time: last.at.toLocaleTimeString(i18n.language),
-            })}
-          </p>
-        )}
-      </section>
+      {image ? (
+        <section className="flex min-h-0 flex-1 items-center justify-center bg-canvas p-8">
+          <img
+            src={image}
+            alt={t('editor.imageAlt')}
+            className="max-h-full max-w-full object-contain shadow-lg"
+          />
+        </section>
+      ) : (
+        <section className="flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
+          <p className="text-lg text-foreground">{t('editor.empty')}</p>
+          {shortcut && <p>{t('editor.hint', { shortcut })}</p>}
+        </section>
+      )}
     </main>
   );
 }

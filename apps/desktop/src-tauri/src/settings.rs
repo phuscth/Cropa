@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-pub const CURRENT_VERSION: u32 = 2;
+pub const CURRENT_VERSION: u32 = 3;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
@@ -47,6 +47,8 @@ pub struct Settings {
     pub theme: ThemePreference,
     /// Whether the first-launch "Start with Windows?" question has been answered.
     pub autostart_asked: bool,
+    /// Whether each capture is also kept in the history folder.
+    pub save_history: bool,
 }
 
 impl Default for Settings {
@@ -56,6 +58,7 @@ impl Default for Settings {
             capture_shortcut: DEFAULT_CAPTURE_SHORTCUT.to_owned(),
             theme: ThemePreference::default(),
             autostart_asked: false,
+            save_history: true,
         }
     }
 }
@@ -83,8 +86,9 @@ pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => over_defaults(v1_to_v2(value)),
-        2 => over_defaults(value),
+        1 => over_defaults(v2_to_v3(v1_to_v2(value))),
+        2 => over_defaults(v2_to_v3(value)),
+        3 => over_defaults(value),
         other => Err(MigrateError::TooNew(other)),
     }
 }
@@ -96,6 +100,15 @@ fn v1_to_v2(mut value: serde_json::Value) -> serde_json::Value {
     if let Some(file) = value.as_object_mut() {
         file.insert("version".into(), 2.into());
         file.entry("autostartAsked").or_insert(true.into());
+    }
+    value
+}
+
+/// History saving was introduced in version 3 and is on for existing files.
+fn v2_to_v3(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(file) = value.as_object_mut() {
+        file.insert("version".into(), 3.into());
+        file.entry("saveHistory").or_insert(true.into());
     }
     value
 }
@@ -195,14 +208,16 @@ mod tests {
             capture_shortcut: "Ctrl+Shift+2".into(),
             theme: ThemePreference::Dark,
             autostart_asked: true,
+            save_history: false,
             ..Settings::default()
         };
         save(&path, &settings).unwrap();
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["theme"], "dark");
-        assert_eq!(on_disk["version"], 2);
+        assert_eq!(on_disk["version"], 3);
         assert_eq!(on_disk["autostartAsked"], true);
+        assert_eq!(on_disk["saveHistory"], false);
         assert_eq!(load(&path), settings);
     }
 
@@ -236,12 +251,12 @@ mod tests {
     fn missing_and_unknown_fields_keep_the_rest() {
         // A file from a build that had a field this one dropped (`autostart`).
         let old =
-            serde_json::json!({ "version": 2, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
+            serde_json::json!({ "version": 3, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
         let migrated = migrate(old).unwrap();
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::System);
         // A file written before a field existed gets that field's default.
-        let sparse = serde_json::json!({ "version": 2 });
+        let sparse = serde_json::json!({ "version": 3 });
         assert_eq!(migrate(sparse).unwrap(), Settings::default());
     }
 
@@ -251,8 +266,9 @@ mod tests {
             "version": 1, "captureShortcut": "Ctrl+Alt+P", "theme": "light", "autostart": true
         });
         let migrated = migrate(with_theme).unwrap();
-        assert_eq!(migrated.version, 2);
+        assert_eq!(migrated.version, 3);
         assert!(migrated.autostart_asked);
+        assert!(migrated.save_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::Light);
 
@@ -263,10 +279,29 @@ mod tests {
     }
 
     #[test]
+    fn a_version_2_file_migrates_to_3_and_keeps_its_fields() {
+        let v2 = serde_json::json!({
+            "version": 2, "captureShortcut": "Ctrl+Alt+P", "theme": "dark", "autostartAsked": false
+        });
+        let migrated = migrate(v2).unwrap();
+        assert_eq!(migrated.version, 3);
+        assert!(migrated.save_history);
+        assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
+        assert_eq!(migrated.theme, ThemePreference::Dark);
+        assert!(!migrated.autostart_asked);
+    }
+
+    #[test]
+    fn a_version_3_file_keeps_history_off() {
+        let off = serde_json::json!({ "version": 3, "saveHistory": false });
+        assert!(!migrate(off).unwrap().save_history);
+    }
+
+    #[test]
     fn a_newer_version_is_rejected() {
         assert!(matches!(
-            migrate(serde_json::json!({ "version": 3 })),
-            Err(MigrateError::TooNew(3))
+            migrate(serde_json::json!({ "version": 4 })),
+            Err(MigrateError::TooNew(4))
         ));
     }
 
@@ -274,7 +309,7 @@ mod tests {
     fn a_file_missing_a_field_is_not_backed_up() {
         let dir = TempDir::new("sparse");
         let path = dir.0.join(FILE_NAME);
-        fs::write(&path, r#"{ "version": 2 }"#).unwrap();
+        fs::write(&path, r#"{ "version": 3 }"#).unwrap();
         assert_eq!(load(&path), Settings::default());
         assert!(path.exists());
         assert!(!dir.0.join("settings.json.bak").exists());

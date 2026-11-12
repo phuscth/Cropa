@@ -1,4 +1,4 @@
-//! The app's WebView windows (editor, settings), created on demand.
+//! The app's WebView windows (editor, history, settings), created on demand.
 //!
 //! Nothing is created at startup, so a Cropa that only sits in the tray holds
 //! no WebView. Closing a window hides it; if it is not shown again within
@@ -13,6 +13,7 @@ use tauri::window::Color;
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const EDITOR: &str = "editor";
+pub const HISTORY: &str = "history";
 pub const SETTINGS: &str = "settings";
 
 /// How long a closed window stays hidden before it is destroyed.
@@ -34,6 +35,14 @@ const SPECS: &[Spec] = &[
         title: "Cropa",
         size: (1100.0, 720.0),
         min_size: Some((720.0, 480.0)),
+        resizable: true,
+    },
+    Spec {
+        label: HISTORY,
+        url: "src/windows/history/index.html",
+        title: "Cropa History",
+        size: (900.0, 640.0),
+        min_size: Some((560.0, 400.0)),
         resizable: true,
     },
     Spec {
@@ -181,7 +190,7 @@ impl CloseTimers {
 
 #[cfg(test)]
 mod tests {
-    use super::{CloseTimers, EDITOR, SETTINGS, SPECS};
+    use super::{CloseTimers, EDITOR, HISTORY, SETTINGS, SPECS};
 
     #[test]
     fn a_closed_window_is_destroyed_when_its_timer_fires() {
@@ -220,7 +229,7 @@ mod tests {
 
     #[test]
     fn every_label_has_a_spec() {
-        for label in [EDITOR, SETTINGS] {
+        for label in [EDITOR, HISTORY, SETTINGS] {
             assert!(SPECS.iter().any(|spec| spec.label == label), "{label}");
         }
     }

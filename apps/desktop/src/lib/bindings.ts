@@ -27,12 +27,29 @@ export const commands = {
 	getAutostart: () => typedError<boolean, CommandError>(__TAURI_INVOKE("get_autostart")),
 	/**  Turn start-at-sign-in on or off and return what Windows now reports. */
 	setAutostart: (enabled: boolean) => typedError<boolean, CommandError>(__TAURI_INVOKE("set_autostart", { enabled })),
+	/**
+	 *  Turn saving each capture to the history folder on or off. Captures already
+	 *  in the history stay.
+	 */
+	setSaveHistory: (enabled: boolean) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_save_history", { enabled })),
+	listHistory: () => typedError<HistoryItem[], CommandError>(__TAURI_INVOKE("list_history")),
+	/**  The thumbnail of one capture as a `data:` URL. */
+	getHistoryThumbnail: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("get_history_thumbnail", { id })),
+	/**  Put the original capture back on the clipboard. */
+	copyHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("copy_history_image", { id })),
+	deleteHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_history_image", { id })),
+	deleteAllHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("delete_all_history")),
+	openHistoryInEditor: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("open_history_in_editor", { id })),
+	/**  The image the editor shows, as a `data:` URL, or `None` when it has none. */
+	getEditorImage: () => typedError<string | null, CommandError>(__TAURI_INVOKE("get_editor_image")),
 };
 
 /** Events */
 export const events = {
 	autostartChanged: makeEvent<AutostartChanged, AutostartChanged>("autostart-changed"),
 	captureRequested: makeEvent<CaptureRequested, CaptureRequested>("capture-requested"),
+	editorImageChanged: makeEvent<EditorImageChanged, EditorImageChanged>("editor-image-changed"),
+	historyChanged: makeEvent<HistoryChanged, HistoryChanged>("history-changed"),
 	shortcutStatus: makeEvent<ShortcutStatus_Serialize, ShortcutStatus_Deserialize>("shortcut-status"),
 };
 
@@ -55,7 +72,21 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string };
+
+/**  The editor has another image to show. */
+export type EditorImageChanged = null;
+
+/**  The history changed: a capture was saved or deleted. */
+export type HistoryChanged = null;
+
+export type HistoryItem = {
+	id: string,
+	/**  Milliseconds since the Unix epoch. */
+	capturedAt: number | null,
+	width: number,
+	height: number,
+};
 
 /**
  *  Start-at-login is not stored here: Windows is the only source of truth for it
@@ -69,6 +100,8 @@ export type Settings = {
 	theme: ThemePreference,
 	/**  Whether the first-launch "Start with Windows?" question has been answered. */
 	autostartAsked: boolean,
+	/**  Whether each capture is also kept in the history folder. */
+	saveHistory: boolean,
 };
 
 export type ShortcutErrorKind = 

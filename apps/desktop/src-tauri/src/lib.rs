@@ -4,7 +4,9 @@
 mod app_windows;
 mod capture;
 mod commands;
+mod editor;
 mod first_run;
+mod history;
 mod i18n;
 mod platform;
 mod settings;
@@ -29,11 +31,21 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::set_theme,
             commands::settings::get_autostart,
             commands::settings::set_autostart,
+            commands::settings::set_save_history,
+            commands::history::list_history,
+            commands::history::get_history_thumbnail,
+            commands::history::copy_history_image,
+            commands::history::delete_history_image,
+            commands::history::delete_all_history,
+            commands::history::open_history_in_editor,
+            commands::editor::get_editor_image,
         ])
         .events(collect_events![
             capture::CaptureRequested,
             shortcut::ShortcutStatus,
-            first_run::AutostartChanged
+            first_run::AutostartChanged,
+            history::HistoryChanged,
+            editor::EditorImageChanged
         ])
         .error_handling(ErrorHandlingMode::Result)
 }
@@ -87,6 +99,18 @@ pub fn run() {
             app.set_theme(loaded.theme.to_tauri());
             app.manage(AppState::new(settings_path, loaded));
             app.manage(app_windows::CloseTimers::default());
+            app.manage(editor::EditorImage::default());
+            app.manage(history::History::new(
+                app.path().app_local_data_dir()?.join("history"),
+            ));
+            // Captures past their 30 days go even when nothing new is captured.
+            std::thread::spawn({
+                let app = app.handle().clone();
+                move || {
+                    app.state::<history::History>()
+                        .prune(std::time::SystemTime::now());
+                }
+            });
 
             let lang = i18n::Lang::detect();
             tray::create(app.handle(), lang)?;

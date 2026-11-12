@@ -12,6 +12,7 @@
     "allow-open-print-screen-setting",
     "allow-set-theme",
     "allow-get-autostart",
-    "allow-set-autostart"
+    "allow-set-autostart",
+    "allow-set-save-history"
   ]
 }

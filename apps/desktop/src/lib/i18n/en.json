@@ -6,11 +6,24 @@
     "title": "Editor",
     "empty": "No screenshot yet.",
     "hint": "Press {{shortcut}} or choose “Capture region” in the tray.",
-    "captureReceived": "Capture request received ({{source}}) at {{time}}. Region capture is not available yet.",
-    "source": {
-      "Hotkey": "shortcut",
-      "Tray": "tray menu"
-    }
+    "imageAlt": "The capture shown in the editor"
+  },
+  "history": {
+    "title": "History",
+    "count": "{{total}} saved",
+    "deleteAll": "Delete all",
+    "confirm": {
+      "message": "Delete every capture in history? This can't be undone.",
+      "cancel": "Cancel"
+    },
+    "openInEditor": "Open in editor",
+    "copy": "Copy",
+    "copied": "Copied.",
+    "delete": "Delete",
+    "empty": "No captures yet.",
+    "savingOff": "Saving captures to history is off. You can turn it on in Settings.",
+    "thumbnailAlt": "Capture from {{time}}",
+    "size": "{{width}} × {{height}}"
   },
   "settings": {
     "title": "Settings",
@@ -37,7 +50,11 @@
     "autostart": {
       "label": "Start Cropa when I sign in"
     },
-    "saved": "Saved."
+    "saved": "Saved.",
+    "history": {
+      "label": "Save captures to history",
+      "description": "Cropa keeps your last 50 captures for 30 days in your user folder, as unencrypted PNG files."
+    }
   },
   "errors": {
     "ShortcutInvalid": {
@@ -69,6 +86,26 @@
       "what": "Couldn't change start-at-login.",
       "why": "Windows refused the change ({{detail}}).",
       "next": "Try again, or turn it on in Windows Settings › Apps › Startup."
+    },
+    "HistoryMissing": {
+      "what": "That capture is no longer in history.",
+      "why": "It was deleted, or it is older than 30 days.",
+      "next": "Pick another capture from the list."
+    },
+    "HistoryRead": {
+      "what": "Couldn't open the capture.",
+      "why": "Cropa couldn't read it from the history folder ({{detail}}).",
+      "next": "Try again, or delete it from history if the file is damaged."
+    },
+    "HistoryDelete": {
+      "what": "Couldn't delete the capture.",
+      "why": "Windows refused the change ({{detail}}).",
+      "next": "Close any app that has the file open and try again."
+    },
+    "Clipboard": {
+      "what": "Couldn't copy the capture.",
+      "why": "Another app may be holding the clipboard ({{detail}}).",
+      "next": "Close that app or try again."
     },
     "Unexpected": {
       "what": "Something went wrong.",
