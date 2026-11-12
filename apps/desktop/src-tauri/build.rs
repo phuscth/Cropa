@@ -6,6 +6,7 @@ fn main() {
         "get_settings",
         "get_shortcut_status",
         "set_capture_shortcut",
+        "open_print_screen_setting",
         "set_theme",
         "get_autostart",
         "set_autostart",

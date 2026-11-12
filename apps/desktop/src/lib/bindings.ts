@@ -13,6 +13,11 @@ export const commands = {
 	 *  `settings.json` is unchanged.
 	 */
 	setCaptureShortcut: (accelerator: string) => typedError<ShortcutStatus_Serialize, CommandError>(__TAURI_INVOKE("set_capture_shortcut", { accelerator })),
+	/**
+	 *  Open the Windows page where the user can stop Windows from using the Print
+	 *  Screen key for its own screen snipping.
+	 */
+	openPrintScreenSetting: () => typedError<null, CommandError>(__TAURI_INVOKE("open_print_screen_setting")),
 	/**  Change the colour theme and apply it to every window, open or opened later. */
 	setTheme: (theme: ThemePreference) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_theme", { theme })),
 	/**
@@ -26,11 +31,20 @@ export const commands = {
 
 /** Events */
 export const events = {
+	autostartChanged: makeEvent<AutostartChanged, AutostartChanged>("autostart-changed"),
 	captureRequested: makeEvent<CaptureRequested, CaptureRequested>("capture-requested"),
 	shortcutStatus: makeEvent<ShortcutStatus_Serialize, ShortcutStatus_Deserialize>("shortcut-status"),
 };
 
 /* Types */
+/**
+ *  What Windows reports for start-at-sign-in after the first-launch answer,
+ *  so an open Settings window can update its checkbox.
+ */
+export type AutostartChanged = {
+	enabled: boolean,
+};
+
 export type CaptureRequested = {
 	source: CaptureSource,
 };
@@ -41,7 +55,7 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string };
 
 /**
  *  Start-at-login is not stored here: Windows is the only source of truth for it
@@ -53,13 +67,20 @@ export type Settings = {
 	captureShortcut: string,
 	/**  Colour theme; a file written before this field existed gets `System`. */
 	theme: ThemePreference,
+	/**  Whether the first-launch "Start with Windows?" question has been answered. */
+	autostartAsked: boolean,
 };
 
 export type ShortcutErrorKind = 
 /**  The text is not a valid accelerator (e.g. no main key). */
 "Invalid" | 
 /**  The OS refused it, almost always because another app holds it. */
-"InUse";
+"InUse" | 
+/**
+ *  Windows (its own screen snipping on `PrtScn`) or another screenshot app
+ *  holds the `PrtScn` key.
+ */
+"PrintScreenInUse";
 
 export type ShortcutStatus = ShortcutStatus_Serialize | ShortcutStatus_Deserialize;
 

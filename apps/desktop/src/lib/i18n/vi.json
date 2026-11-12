@@ -17,6 +17,8 @@
     "shortcut": {
       "label": "Phím tắt chụp",
       "description": "Bấm vào ô, rồi nhấn tổ hợp phím mới.",
+      "usePrintScreen": "Dùng phím PrtScn",
+      "printScreenHint": "Cropa mở một cài đặt của Windows để bạn tắt việc Windows dùng phím PrtScn cho công cụ chụp màn hình của nó.",
       "recording": "Nhấn phím… (Esc để hủy)",
       "registered": "Đang hoạt động",
       "notRegistered": "Chưa hoạt động"
@@ -27,6 +29,10 @@
       "light": "Sáng",
       "dark": "Tối",
       "description": "Theo hệ thống sẽ dùng chế độ sáng hoặc tối đã chọn trong Windows."
+    },
+    "printScreen": {
+      "retry": "Thử lại",
+      "openSetting": "Mở cài đặt Windows"
     },
     "autostart": {
       "label": "Mở Cropa khi đăng nhập Windows"
@@ -43,6 +49,16 @@
       "what": "Phím tắt chụp chưa hoạt động.",
       "why": "Một ứng dụng khác đang dùng {{shortcut}}.",
       "next": "Chọn tổ hợp khác bên dưới, hoặc đóng ứng dụng kia rồi mở lại Cropa."
+    },
+    "PrintScreenInUse": {
+      "what": "Phím PrtScn chưa dùng được để chụp.",
+      "why": "Windows đang dùng PrtScn để mở công cụ cắt màn hình của nó, hoặc một ứng dụng chụp màn hình khác đã giữ phím này.",
+      "next": "Trong cài đặt Bàn phím của Windows, tắt công tắc dùng phím Print Screen để mở công cụ cắt màn hình, rồi quay lại Cropa: Cropa sẽ tự thử lại. Đóng ứng dụng chụp màn hình khác đang dùng PrtScn."
+    },
+    "OpenSystemSetting": {
+      "what": "Không mở được cài đặt Windows.",
+      "why": "Windows không mở được ứng dụng Cài đặt ({{detail}}).",
+      "next": "Tự mở Cài đặt › Dễ truy cập › Bàn phím (Trợ năng › Bàn phím trên Windows 11) và tắt công tắc Print Screen."
     },
     "SaveSettings": {
       "what": "Chưa lưu được cài đặt.",

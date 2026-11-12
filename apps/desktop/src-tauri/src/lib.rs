@@ -4,6 +4,7 @@
 mod app_windows;
 mod capture;
 mod commands;
+mod first_run;
 mod i18n;
 mod platform;
 mod settings;
@@ -24,13 +25,15 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::get_settings,
             commands::settings::get_shortcut_status,
             commands::settings::set_capture_shortcut,
+            commands::settings::open_print_screen_setting,
             commands::settings::set_theme,
             commands::settings::get_autostart,
             commands::settings::set_autostart,
         ])
         .events(collect_events![
             capture::CaptureRequested,
-            shortcut::ShortcutStatus
+            shortcut::ShortcutStatus,
+            first_run::AutostartChanged
         ])
         .error_handling(ErrorHandlingMode::Result)
 }
@@ -85,13 +88,15 @@ pub fn run() {
             app.manage(AppState::new(settings_path, loaded));
             app.manage(app_windows::CloseTimers::default());
 
-            tray::create(app.handle(), i18n::Lang::detect())?;
+            let lang = i18n::Lang::detect();
+            tray::create(app.handle(), lang)?;
 
             let status = shortcut::register_from_settings(app.handle());
             if !status.registered {
                 // Tell the user right away instead of failing silently.
                 app_windows::show(app.handle(), app_windows::SETTINGS);
             }
+            first_run::ask_autostart_once(app.handle(), lang);
             Ok(())
         })
         .on_window_event(|window, event| match event {

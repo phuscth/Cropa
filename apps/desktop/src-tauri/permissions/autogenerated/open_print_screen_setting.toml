@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-print-screen-setting"
+description = "Enables the open_print_screen_setting command without any pre-configured scope."
+commands.allow = ["open_print_screen_setting"]
+
+[[permission]]
+identifier = "deny-open-print-screen-setting"
+description = "Denies the open_print_screen_setting command without any pre-configured scope."
+commands.deny = ["open_print_screen_setting"]
