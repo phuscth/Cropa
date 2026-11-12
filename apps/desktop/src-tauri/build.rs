@@ -27,6 +27,9 @@ fn main() {
         "choose_save_folder",
         "reset_save_folder",
         "open_sponsors_page",
+        "list_user_presets",
+        "save_user_preset",
+        "delete_user_preset",
     ]);
 
     // tauri-build embeds its Windows manifest (Common Controls v6) only into

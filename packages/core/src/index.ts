@@ -13,9 +13,25 @@ export {
 } from './schema/json-schema.ts';
 
 export { render } from './render/render.ts';
-export { outputSize } from './render/layout.ts';
+export { outputSize, screenshotRect } from './render/layout.ts';
+export { ANNOTATION_DEFAULTS, ANNOTATION_FONT } from './render/annotations.ts';
+export { annotationBounds, hitTest } from './render/hit-test.ts';
 export { edgeColor } from './render/edge-color.ts';
 export type { Canvas2D, CanvasImage, RenderEnv } from './render/canvas.ts';
 
 export { PLATFORM_SIZES, PLATFORM_IDS, applyPlatformSize } from './export/platform-sizes.ts';
 export type { PlatformId, PlatformSize } from './export/platform-sizes.ts';
+export {
+  PRESET_FILE_VERSION,
+  PRESET_MAX_BYTES,
+  PresetFile,
+  PresetId,
+  PresetName,
+  migratePresetFile,
+  importPreset,
+  exportPreset,
+  presetId,
+  presetName,
+} from './presets/file.ts';
+export type { Preset, PresetError, PresetResult } from './presets/file.ts';
+export { builtinPresets } from './presets/builtin.ts';

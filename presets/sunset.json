@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "sunset",
+  "name": {
+    "en": "Sunset",
+    "vi": "Hoàng hôn"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "linear",
+        "angle": 135,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ff8a7a"
+          },
+          {
+            "offset": 1,
+            "color": "#ffc371"
+          }
+        ]
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

@@ -1,0 +1,66 @@
+{
+  "version": 1,
+  "id": "prism",
+  "name": {
+    "en": "Prism",
+    "vi": "Lăng kính"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "conic",
+        "cx": 500,
+        "cy": 500,
+        "angle": 0,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ffb3c7"
+          },
+          {
+            "offset": 0.2,
+            "color": "#ffe0a3"
+          },
+          {
+            "offset": 0.4,
+            "color": "#c8f2b0"
+          },
+          {
+            "offset": 0.6,
+            "color": "#a8e6ff"
+          },
+          {
+            "offset": 0.8,
+            "color": "#c9b8ff"
+          },
+          {
+            "offset": 1,
+            "color": "#ffb3c7"
+          }
+        ]
+      },
+      {
+        "type": "blur",
+        "radius": 40
+      },
+      {
+        "type": "solid",
+        "color": "#ffffff",
+        "opacity": 0.25
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

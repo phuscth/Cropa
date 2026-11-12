@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "id": "midnight",
+  "name": {
+    "en": "Midnight",
+    "vi": "Nửa đêm"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "linear",
+        "angle": 160,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#0b1026"
+          },
+          {
+            "offset": 1,
+            "color": "#1e2a6b"
+          }
+        ]
+      },
+      {
+        "type": "noise",
+        "opacity": 0.04,
+        "grain": 1.5,
+        "seed": 11
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

@@ -1,0 +1,52 @@
+{
+  "version": 1,
+  "id": "lagoon",
+  "name": {
+    "en": "Lagoon",
+    "vi": "Đầm phá"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "solid",
+        "color": "#d9f5f2"
+      },
+      {
+        "type": "mesh",
+        "points": [
+          {
+            "x": 150,
+            "y": 200,
+            "r": 600,
+            "color": "#2dd4bf"
+          },
+          {
+            "x": 850,
+            "y": 300,
+            "r": 600,
+            "color": "#38bdf8"
+          },
+          {
+            "x": 450,
+            "y": 900,
+            "r": 650,
+            "color": "#34d399"
+          }
+        ]
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

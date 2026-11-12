@@ -71,6 +71,16 @@ export const commands = {
 	resetSaveFolder: () => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("reset_save_folder")),
 	/**  Open the GitHub Sponsors page in the default browser. */
 	openSponsorsPage: () => typedError<null, CommandError>(__TAURI_INVOKE("open_sponsors_page")),
+	/**  The backgrounds the user saved, in the order they were first saved. */
+	listUserPresets: () => typedError<UserPreset[], CommandError>(__TAURI_INVOKE("list_user_presets")),
+	/**
+	 *  Saves a background under a name. With no `id` it is added as a new preset; with
+	 *  an `id` that preset is replaced in place. The background is the JSON of the
+	 *  core `BackgroundSpec`, which the WebView has already validated.
+	 */
+	saveUserPreset: (id: string | null, name: string, background: Json) => typedError<UserPreset, CommandError>(__TAURI_INVOKE("save_user_preset", { id, name, background })),
+	/**  Deletes a saved preset. A preset that is already gone is not an error. */
+	deleteUserPreset: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_user_preset", { id })),
 };
 
 /** Events */
@@ -101,7 +111,7 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string };
 
 /**  The editor has another image to show. */
 export type EditorImageChanged = null;
@@ -119,6 +129,9 @@ export type HistoryItem = {
 	width: number,
 	height: number,
 };
+
+/**  Any JSON value, typed `unknown` in the bindings (the WebView holds the schema). */
+export type Json = unknown;
 
 export type SaveAsChoice = { kind: "chosen"; token: number; format: ExportFormat; fileName: string } | { kind: "cancelled" };
 
@@ -209,6 +222,16 @@ export type ShortcutStatus_Serialize = {
 export type ThemePreference = 
 /**  Follow the light or dark mode set in Windows. */
 "system" | "light" | "dark";
+
+/**
+ *  One saved background. `background` is the JSON of `@cropa/core`'s `BackgroundSpec`;
+ *  the bindings type it as `unknown` and the WebView validates it with that schema.
+ */
+export type UserPreset = {
+	id: string,
+	name: string,
+	background: unknown,
+};
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

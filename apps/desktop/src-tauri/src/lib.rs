@@ -10,6 +10,7 @@ mod first_run;
 mod history;
 mod i18n;
 mod platform;
+mod presets;
 mod settings;
 mod shortcut;
 mod state;
@@ -49,6 +50,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::choose_save_folder,
             commands::settings::reset_save_folder,
             commands::settings::open_sponsors_page,
+            commands::presets::list_user_presets,
+            commands::presets::save_user_preset,
+            commands::presets::delete_user_preset,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -113,6 +117,9 @@ pub fn run() {
             app.manage(export::SavedFiles::default());
             app.manage(history::History::new(
                 app.path().app_local_data_dir()?.join("history"),
+            ));
+            app.manage(presets::UserPresets::new(
+                app.path().app_config_dir()?.join(presets::FILE_NAME),
             ));
             // Captures past their 30 days go even when nothing new is captured.
             std::thread::spawn({

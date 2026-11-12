@@ -29,3 +29,14 @@ export function describeUnexpected(t: TFunction, cause: unknown): UserError {
   const detail = cause instanceof Error ? cause.message : String(cause);
   return render(t, 'Unexpected', { detail });
 }
+
+/** The editor could not decode the capture it was given. */
+export function describeEditorImage(t: TFunction, cause: unknown): UserError {
+  const detail = cause instanceof Error ? cause.message : String(cause);
+  return render(t, 'EditorImage', { detail });
+}
+
+/** An edit was refused because the image would exceed the output size limit. */
+export function describeOutputTooLarge(t: TFunction): UserError {
+  return render(t, 'OutputTooLarge', {});
+}

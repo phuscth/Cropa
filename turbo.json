@@ -8,6 +8,10 @@
     "lint": {},
     "test": {
       "outputs": []
+    },
+    "@cropa/core#test": {
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/presets/**"],
+      "outputs": []
     }
   }
 }

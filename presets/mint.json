@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "mint",
+  "name": {
+    "en": "Mint",
+    "vi": "Bạc hà"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "linear",
+        "angle": 150,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#e6f5b8"
+          },
+          {
+            "offset": 1,
+            "color": "#8fd9a8"
+          }
+        ]
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

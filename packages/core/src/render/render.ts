@@ -1,37 +1,24 @@
 import type { Scene } from '../schema/scene.ts';
 import { renderBackground } from './background.ts';
-import type { Canvas2D, RenderEnv } from './canvas.ts';
+import type { Canvas2D, CanvasImage, RenderEnv } from './canvas.ts';
+import { drawAnnotations } from './annotations.ts';
 import { edgeColor } from './edge-color.ts';
-import { computeLayout } from './layout.ts';
-
-/** Rounded rectangle path built from `arcTo`; the radius is kept within half the shorter side. */
-function roundedRect(
-  ctx: Canvas2D,
-  x: number,
-  y: number,
-  w: number,
-  h: number,
-  radius: number,
-): void {
-  const r = Math.max(0, Math.min(radius, w / 2, h / 2));
-  ctx.beginPath();
-  ctx.moveTo(x + r, y);
-  ctx.arcTo(x + w, y, x + w, y + h, r);
-  ctx.arcTo(x + w, y + h, x, y + h, r);
-  ctx.arcTo(x, y + h, x, y, r);
-  ctx.arcTo(x, y, x + w, y, r);
-  ctx.closePath();
-}
+import type { Placement } from './layout.ts';
+import { placeFrame } from './layout.ts';
+import { redactScreenshot } from './redact.ts';
+import { roundedRect } from './shapes.ts';
 
 /**
- * Draws `scene` over the whole of `ctx.canvas`: the background, then the framed
- * screenshot. The frame is scaled uniformly to fit the canvas and centred; the
- * background always covers all of it. A preview passes any canvas, an export
- * passes one sized by `outputSize`.
+ * Draws `scene` over the whole of `ctx.canvas`. The order is: the background, the
+ * frame, the screenshot with its blur and pixelate annotations baked in, then the
+ * other annotations in array order (they may extend over the padding). The frame
+ * is scaled uniformly to fit the canvas and centred; the background always covers
+ * all of it. A preview passes any canvas, an export passes one sized by
+ * `outputSize`.
  *
- * `t` is the animation time in [0, 1); a still image uses 0. Animation, the
- * mask and annotations are not drawn yet. The scene is not validated: pass the
- * output of `migrateScene`. Throws a RangeError when `t` is outside [0, 1).
+ * `t` is the animation time in [0, 1); a still image uses 0. Animation and the
+ * mask are not drawn yet. The scene is not validated: pass the output of
+ * `migrateScene`. Throws a RangeError when `t` is outside [0, 1).
  */
 export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): void {
   if (!(t >= 0 && t < 1)) {
@@ -39,10 +26,7 @@ export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): 
   }
   const cw = ctx.canvas.width;
   const ch = ctx.canvas.height;
-  const layout = computeLayout(scene);
-  const s = Math.min(cw / layout.w, ch / layout.h);
-  const ox = (cw - layout.w * s) / 2;
-  const oy = (ch - layout.h * s) / 2;
+  const placement = placeFrame(scene, cw, ch);
 
   ctx.save();
   try {
@@ -58,7 +42,8 @@ export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): 
     ctx.clearRect(0, 0, cw, ch);
 
     renderBackground(scene.background, ctx, env, cw, ch);
-    drawFrame(scene, layout, s, ox, oy, ctx, env);
+    drawFrame(scene, placement, redactScreenshot(scene, env) ?? env.screenshot, ctx, env);
+    drawAnnotations(scene, placement.shot, ctx);
   } finally {
     ctx.restore();
   }
@@ -66,25 +51,17 @@ export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): 
 
 function drawFrame(
   scene: Scene,
-  layout: ReturnType<typeof computeLayout>,
-  s: number,
-  ox: number,
-  oy: number,
+  placement: Placement,
+  source: CanvasImage,
   ctx: Canvas2D,
   env: RenderEnv,
 ): void {
   const { frame } = scene;
+  const { s, shot } = placement;
   const bw = (frame.border?.width ?? 0) * s;
   const inset = frame.inset * s;
 
-  // Round the screenshot to whole canvas pixels and build the card and border
-  // around it, so a 1x export with integer padding copies the pixels exactly.
-  const shot = {
-    x: Math.round(ox + layout.shot.x * s),
-    y: Math.round(oy + layout.shot.y * s),
-    w: Math.max(1, Math.round(layout.shot.w * s)),
-    h: Math.max(1, Math.round(layout.shot.h * s)),
-  };
+  // The card and border are built around the rounded screenshot rectangle.
   const card = {
     x: shot.x - inset,
     y: shot.y - inset,
@@ -125,10 +102,10 @@ function drawFrame(
   if (frame.inset > 0) {
     ctx.fillStyle =
       frame.insetColor === 'auto'
-        ? (edgeColor(env.screenshot, (w, h) => env.createContext(w, h)) ?? '#ffffff')
+        ? (edgeColor(source,(w, h) => env.createContext(w, h)) ?? '#ffffff')
         : frame.insetColor;
     ctx.fillRect(card.x, card.y, card.w, card.h);
   }
-  ctx.drawImage(env.screenshot, shot.x, shot.y, shot.w, shot.h);
+  ctx.drawImage(source, shot.x, shot.y, shot.w, shot.h);
   ctx.restore();
 }
