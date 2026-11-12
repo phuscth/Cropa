@@ -32,8 +32,9 @@ pub fn get_shortcut_status(state: State<'_, AppState>) -> ShortcutStatus {
     state.lock().shortcut.clone()
 }
 
-/// Change the capture shortcut. On conflict the old shortcut keeps working
-/// and nothing is saved.
+/// Change the capture shortcut. The new shortcut only takes over once it is
+/// saved: on a conflict or a failed save, the old shortcut keeps working and
+/// `settings.json` is unchanged.
 #[tauri::command]
 #[specta::specta]
 pub fn set_capture_shortcut(
@@ -42,18 +43,30 @@ pub fn set_capture_shortcut(
     accelerator: String,
 ) -> Result<ShortcutStatus, CommandError> {
     let accelerator = accelerator.trim();
-    let status = shortcut::change(&app, accelerator)?;
-    persist(&state, |s| accelerator.clone_into(&mut s.capture_shortcut))?;
-    Ok(status)
+    let pending = shortcut::begin_change(&app, accelerator)?;
+    match persist(&state, |s| accelerator.clone_into(&mut s.capture_shortcut)) {
+        Ok(_) => Ok(pending.commit(&app)),
+        Err(err) => {
+            pending.rollback(&app);
+            Err(err)
+        }
+    }
 }
 
+/// Whether Cropa starts at sign-in, read from Windows each time: the user can
+/// change it outside Cropa (Task Manager › Startup apps).
 #[tauri::command]
 #[specta::specta]
-pub fn set_autostart(
-    app: AppHandle,
-    state: State<'_, AppState>,
-    enabled: bool,
-) -> Result<Settings, CommandError> {
+pub fn get_autostart(app: AppHandle) -> Result<bool, CommandError> {
+    app.autolaunch()
+        .is_enabled()
+        .map_err(|err| CommandError::Autostart(err.to_string()))
+}
+
+/// Turn start-at-sign-in on or off and return what Windows now reports.
+#[tauri::command]
+#[specta::specta]
+pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, CommandError> {
     let autolaunch = app.autolaunch();
     let result = if enabled {
         autolaunch.enable()
@@ -61,5 +74,5 @@ pub fn set_autostart(
         autolaunch.disable()
     };
     result.map_err(|err| CommandError::Autostart(err.to_string()))?;
-    persist(&state, |s| s.autostart = enabled)
+    get_autostart(app)
 }

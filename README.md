@@ -24,7 +24,8 @@ Cropa starts in the system tray. Press `Alt+Shift+S` or use the tray menu.
 | `pnpm lint` / `pnpm typecheck` / `pnpm test` | ESLint, `tsc -b`, Vitest |
 | `cargo clippy --workspace --all-targets -- -D warnings` | Rust lint |
 | `cargo test --workspace` | Rust tests (also checks `bindings.ts` is fresh) |
-| `pnpm tauri build` | NSIS and MSI installers in `target/release/bundle/` |
+| `pnpm tauri build` | NSIS installer in `target/release/bundle/nsis/` |
+| `pnpm bindings` | Regenerate `apps/desktop/src/lib/bindings.ts` from the Rust commands |
 | `pnpm check:licenses` | Block disallowed npm licences |
 
 ## Layout

@@ -16,15 +16,19 @@ export function SettingsWindow() {
   const { t } = useTranslation();
   const [settings, setSettings] = useState<Settings>();
   const [status, setStatus] = useState<ShortcutStatus>();
+  // Read from Windows, not from settings.json: the user can change it in Task Manager.
+  const [autostart, setAutostart] = useState<boolean>();
   const [error, setError] = useState<UserError>();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
-    Promise.all([commands.getSettings(), commands.getShortcutStatus()])
-      .then(([s, st]) => {
+    Promise.all([commands.getSettings(), commands.getShortcutStatus(), commands.getAutostart()])
+      .then(([s, st, auto]) => {
         setSettings(s);
         setStatus(st);
+        if (auto.status === 'ok') setAutostart(auto.data);
+        else setError(describeCommandError(t, auto.error));
       })
       .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
     const unlisten = events.shortcutStatus.listen((event) => { setStatus(event.payload); });
@@ -68,7 +72,7 @@ export function SettingsWindow() {
 
   const changeAutostart = async (enabled: boolean) => {
     const next = await run(() => commands.setAutostart(enabled));
-    if (next) setSettings(next);
+    if (next !== undefined) setAutostart(next);
   };
 
   // A shortcut that failed at startup is reported even before the user acts.
@@ -115,8 +119,8 @@ export function SettingsWindow() {
         <input
           type="checkbox"
           className="size-4"
-          checked={settings?.autostart ?? false}
-          disabled={busy || !settings}
+          checked={autostart ?? false}
+          disabled={busy || autostart === undefined}
           onChange={(event) => { void changeAutostart(event.target.checked); }}
         />
         {t('settings.autostart.label')}

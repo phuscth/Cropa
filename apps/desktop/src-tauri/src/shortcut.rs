@@ -86,36 +86,68 @@ pub fn register_from_settings<R: Runtime>(app: &AppHandle<R>) -> ShortcutStatus 
     status
 }
 
-/// Switch to a new accelerator. The new one is registered **before** the old
-/// one is released, so a conflict leaves the working shortcut untouched.
-/// Returns the status the caller should persist and show.
-pub fn change<R: Runtime>(
+/// A new shortcut registered next to the old one but not yet in effect for the
+/// app state. The caller saves settings, then either [`commit`](Self::commit)s
+/// (release the old shortcut) or [`rollback`](Self::rollback)s (release the new
+/// one), so the OS, the app state and `settings.json` never disagree.
+#[must_use = "a pending change must be committed or rolled back"]
+pub struct PendingChange {
+    accelerator: String,
+    new: Shortcut,
+    old: Option<Shortcut>,
+}
+
+/// Start switching to `accelerator`. The new shortcut is registered **before**
+/// the old one is released, so a conflict leaves the working shortcut untouched.
+pub fn begin_change<R: Runtime>(
     app: &AppHandle<R>,
     accelerator: &str,
-) -> Result<ShortcutStatus, ShortcutErrorKind> {
+) -> Result<PendingChange, ShortcutErrorKind> {
     let new = parse(accelerator)?;
-    let state = app.state::<AppState>();
-    let current = state.lock().shortcut.clone();
+    let current = app.state::<AppState>().lock().shortcut.clone();
     let old = current
         .registered
         .then(|| parse(&current.accelerator).ok())
         .flatten();
-
     if old != Some(new) {
         register(app, new)?;
-        if let Some(old) = old
+    }
+    Ok(PendingChange {
+        accelerator: accelerator.to_owned(),
+        new,
+        old,
+    })
+}
+
+impl PendingChange {
+    fn changed(&self) -> bool {
+        self.old != Some(self.new)
+    }
+
+    /// Settings are saved: release the old shortcut and publish the new status.
+    pub fn commit<R: Runtime>(self, app: &AppHandle<R>) -> ShortcutStatus {
+        if self.changed()
+            && let Some(old) = self.old
             && let Err(err) = app.global_shortcut().unregister(old)
         {
             log::warn!("could not release the previous shortcut: {err}");
         }
+        let status = ShortcutStatus::ok(&self.accelerator);
+        app.state::<AppState>().lock().shortcut = status.clone();
+        if let Err(err) = status.emit(app) {
+            log::warn!("could not emit shortcut status: {err}");
+        }
+        status
     }
 
-    let status = ShortcutStatus::ok(accelerator);
-    state.lock().shortcut = status.clone();
-    if let Err(err) = status.emit(app) {
-        log::warn!("could not emit shortcut status: {err}");
+    /// Saving failed: release the new shortcut; the old one never stopped working.
+    pub fn rollback<R: Runtime>(self, app: &AppHandle<R>) {
+        if self.changed()
+            && let Err(err) = app.global_shortcut().unregister(self.new)
+        {
+            log::warn!("could not release the shortcut after a failed save: {err}");
+        }
     }
-    Ok(status)
 }
 
 #[cfg(test)]

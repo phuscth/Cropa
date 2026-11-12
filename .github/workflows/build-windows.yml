@@ -1,7 +1,8 @@
 name: Build Windows
 
-# Unsigned installers as workflow artifacts for self-testing (D7, D8).
-# No GitHub Release is created before Phase 6.
+# Unsigned NSIS installer as a workflow artifact for self-testing (D7, D8).
+# No GitHub Release is created before Phase 4.
+# Actions are pinned to a commit SHA; the comment gives the tag it came from.
 on:
   push:
     branches: [main]
@@ -14,21 +15,20 @@ jobs:
   bundle:
     runs-on: windows-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: pnpm/action-setup@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: pnpm/action-setup@b906affcce14559ad1aafd4ab0e942779e9f58b1 # v4
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
         with:
           node-version: 24
           cache: pnpm
-      - uses: dtolnay/rust-toolchain@stable
-      - uses: Swatinem/rust-cache@v2
+      # Installs the toolchain pinned in rust-toolchain.toml.
+      - run: rustup toolchain install
+      - uses: Swatinem/rust-cache@d1527c8f67ef9af357290475d4af4b0fab8f12e0 # v2
       - run: pnpm install --frozen-lockfile
       - run: pnpm tauri build
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: cropa-windows-${{ github.sha }}
-          path: |
-            target/release/bundle/nsis/*.exe
-            target/release/bundle/msi/*.msi
+          path: target/release/bundle/nsis/*.exe
           if-no-files-found: error
           retention-days: 14

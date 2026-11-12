@@ -24,6 +24,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::get_settings,
             commands::settings::get_shortcut_status,
             commands::settings::set_capture_shortcut,
+            commands::settings::get_autostart,
             commands::settings::set_autostart,
         ])
         .events(collect_events![
@@ -115,9 +116,14 @@ pub fn run() {
 #[cfg(test)]
 mod tests {
     /// CI guard: the committed `bindings.ts` must match the Rust command surface.
-    /// Regenerate with `pnpm dev` (debug builds export on start) if this fails.
+    /// `pnpm bindings` runs this test with `CROPA_WRITE_BINDINGS=1`, which writes
+    /// the file instead of comparing (no window needed).
     #[test]
     fn bindings_are_up_to_date() {
+        if std::env::var_os("CROPA_WRITE_BINDINGS").is_some() {
+            super::export_bindings(&super::specta_builder(), &super::bindings_path());
+            return;
+        }
         let fresh = std::env::temp_dir().join(format!("cropa-bindings-{}.ts", std::process::id()));
         super::export_bindings(&super::specta_builder(), &fresh);
         let normalize = |s: String| s.replace("\r\n", "\n");
@@ -125,11 +131,11 @@ mod tests {
         let _ = std::fs::remove_file(&fresh);
         let committed = normalize(
             std::fs::read_to_string(super::bindings_path())
-                .expect("src/lib/bindings.ts is missing; run `pnpm dev` once"),
+                .expect("src/lib/bindings.ts is missing; run `pnpm bindings`"),
         );
         assert!(
             expected == committed,
-            "src/lib/bindings.ts is stale; run `pnpm dev` once and commit it"
+            "src/lib/bindings.ts is stale; run `pnpm bindings` and commit it"
         );
     }
 }

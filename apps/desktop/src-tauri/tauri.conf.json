@@ -53,7 +53,7 @@
   },
   "bundle": {
     "active": true,
-    "targets": ["nsis", "msi"],
+    "targets": ["nsis"],
     "publisher": "Cropa contributors",
     "copyright": "MIT License",
     "category": "Utility",

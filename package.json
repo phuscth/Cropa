@@ -13,7 +13,8 @@
     "lint": "turbo run lint",
     "typecheck": "tsc -b",
     "test": "turbo run test",
-    "check:licenses": "node tools/license-check/check-npm-licenses.mjs"
+    "check:licenses": "node tools/license-check/check-npm-licenses.mjs",
+    "bindings": "node tools/bindings.mjs"
   },
   "devDependencies": {
     "@cropa/config": "workspace:*",

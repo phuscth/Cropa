@@ -28,8 +28,9 @@ licence check.
 - **Commands are typed.** Add a Rust command with `#[tauri::command]` and
   `#[specta::specta]`, register it in `specta_builder()` (`src-tauri/src/lib.rs`)
   **and** in `build.rs`, then grant `allow-<command>` only in the capabilities
-  of the windows that need it. Run `pnpm dev` once to regenerate
-  `src/lib/bindings.ts` and commit it; `cargo test` fails if it is stale.
+  of the windows that need it. Run `pnpm bindings` to regenerate
+  `src/lib/bindings.ts` (no window opens) and commit it; `cargo test` fails if
+  it is stale.
   Never call `invoke` with a hand-written string.
 - **UI strings go through i18n** (`apps/desktop/src/lib/i18n/en.json` and
   `vi.json`, same keys). Tray strings live in `src-tauri/src/i18n.rs`.

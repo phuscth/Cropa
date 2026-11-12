@@ -8,11 +8,18 @@ export const commands = {
 	getSettings: () => __TAURI_INVOKE<Settings>("get_settings"),
 	getShortcutStatus: () => __TAURI_INVOKE<ShortcutStatus_Serialize>("get_shortcut_status"),
 	/**
-	 *  Change the capture shortcut. On conflict the old shortcut keeps working
-	 *  and nothing is saved.
+	 *  Change the capture shortcut. The new shortcut only takes over once it is
+	 *  saved: on a conflict or a failed save, the old shortcut keeps working and
+	 *  `settings.json` is unchanged.
 	 */
 	setCaptureShortcut: (accelerator: string) => typedError<ShortcutStatus_Serialize, CommandError>(__TAURI_INVOKE("set_capture_shortcut", { accelerator })),
-	setAutostart: (enabled: boolean) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_autostart", { enabled })),
+	/**
+	 *  Whether Cropa starts at sign-in, read from Windows each time: the user can
+	 *  change it outside Cropa (Task Manager › Startup apps).
+	 */
+	getAutostart: () => typedError<boolean, CommandError>(__TAURI_INVOKE("get_autostart")),
+	/**  Turn start-at-sign-in on or off and return what Windows now reports. */
+	setAutostart: (enabled: boolean) => typedError<boolean, CommandError>(__TAURI_INVOKE("set_autostart", { enabled })),
 };
 
 /** Events */
@@ -34,12 +41,14 @@ export type CaptureSource = "Hotkey" | "Tray";
  */
 export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string };
 
+/**
+ *  Start-at-login is not stored here: Windows is the only source of truth for it
+ *  (see `commands::settings::get_autostart`).
+ */
 export type Settings = {
 	version: number,
 	/**  Global shortcut for region capture, in Tauri accelerator syntax. */
 	captureShortcut: string,
-	/**  Start Cropa when the user signs in. Off by default. */
-	autostart: boolean,
 };
 
 export type ShortcutErrorKind = 

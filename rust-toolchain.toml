@@ -1,0 +1,6 @@
+# Same Rust on every machine and in CI. Bump deliberately, in its own commit.
+# `rust-version` in Cargo.toml stays the minimum supported version.
+[toolchain]
+channel = "1.99.0"
+components = ["clippy", "rustfmt"]
+profile = "minimal"

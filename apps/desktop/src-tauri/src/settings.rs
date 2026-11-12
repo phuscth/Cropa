@@ -12,14 +12,14 @@ pub const CURRENT_VERSION: u32 = 1;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
+/// Start-at-login is not stored here: Windows is the only source of truth for it
+/// (see `commands::settings::get_autostart`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Settings {
     pub version: u32,
     /// Global shortcut for region capture, in Tauri accelerator syntax.
     pub capture_shortcut: String,
-    /// Start Cropa when the user signs in. Off by default.
-    pub autostart: bool,
 }
 
 impl Default for Settings {
@@ -27,7 +27,6 @@ impl Default for Settings {
         Self {
             version: CURRENT_VERSION,
             capture_shortcut: DEFAULT_CAPTURE_SHORTCUT.to_owned(),
-            autostart: false,
         }
     }
 }
@@ -43,15 +42,33 @@ pub enum MigrateError {
 }
 
 /// Bring any known on-disk version up to [`CURRENT_VERSION`].
+///
+/// Within a version, the file is laid over the defaults: a field the file lacks
+/// (added later) takes its default and a field this build does not know
+/// (removed later) is dropped, so adding or removing a field never throws the
+/// user's file away. A field whose meaning changes needs a new version and a
+/// step here.
 pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
     let version = value
         .get("version")
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => Ok(serde_json::from_value(value)?),
+        1 => over_defaults(value),
         other => Err(MigrateError::TooNew(other)),
     }
+}
+
+fn over_defaults(file: serde_json::Value) -> Result<Settings, MigrateError> {
+    let mut merged = serde_json::to_value(Settings::default())?;
+    if let (Some(base), serde_json::Value::Object(file)) = (merged.as_object_mut(), file) {
+        for (key, value) in file {
+            if let Some(slot) = base.get_mut(&key) {
+                *slot = value;
+            }
+        }
+    }
+    Ok(serde_json::from_value(merged)?)
 }
 
 /// Load settings from `path`. A missing file gives defaults. An unreadable or
@@ -135,7 +152,6 @@ mod tests {
         let path = dir.0.join("nested").join(FILE_NAME);
         let settings = Settings {
             capture_shortcut: "Ctrl+Shift+2".into(),
-            autostart: true,
             ..Settings::default()
         };
         save(&path, &settings).unwrap();
@@ -166,6 +182,26 @@ mod tests {
     #[test]
     fn default_shortcut_matches_d13() {
         assert_eq!(Settings::default().capture_shortcut, "Alt+Shift+S");
-        assert!(!Settings::default().autostart);
+    }
+
+    #[test]
+    fn missing_and_unknown_fields_keep_the_rest() {
+        // A file from a build that had a field this one dropped (`autostart`).
+        let old =
+            serde_json::json!({ "version": 1, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
+        assert_eq!(migrate(old).unwrap().capture_shortcut, "Ctrl+Alt+P");
+        // A file written before a field existed gets that field's default.
+        let sparse = serde_json::json!({ "version": 1 });
+        assert_eq!(migrate(sparse).unwrap(), Settings::default());
+    }
+
+    #[test]
+    fn a_file_missing_a_field_is_not_backed_up() {
+        let dir = TempDir::new("sparse");
+        let path = dir.0.join(FILE_NAME);
+        fs::write(&path, r#"{ "version": 1 }"#).unwrap();
+        assert_eq!(load(&path), Settings::default());
+        assert!(path.exists());
+        assert!(!dir.0.join("settings.json.bak").exists());
     }
 }
