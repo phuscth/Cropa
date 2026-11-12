@@ -115,6 +115,148 @@ pub fn crop_rect(
     })
 }
 
+/// A rectangle on the virtual desktop, in physical pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct DesktopRect {
+    pub x: i32,
+    pub y: i32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// A rectangle inside a window, in physical pixels from its top-left corner.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct LocalRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+impl LocalRect {
+    fn contains(&self, x: i32, y: i32) -> bool {
+        let (x, y) = (i64::from(x), i64::from(y));
+        x >= i64::from(self.x)
+            && y >= i64::from(self.y)
+            && x < i64::from(self.x) + i64::from(self.width)
+            && y < i64::from(self.y) + i64::from(self.height)
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PreviewButton {
+    Edit,
+    Close,
+}
+
+/// Where everything of a floating preview sits. The window is the card plus a
+/// margin on every side for its shadow.
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct PreviewLayout {
+    pub window: DesktopRect,
+    pub card: LocalRect,
+    pub image: LocalRect,
+    pub edit: LocalRect,
+    pub close: LocalRect,
+    pub radius: f32,
+}
+
+// Sizes below are in logical pixels and become physical ones through the scale.
+const IMAGE_MAX: (f32, f32) = (240.0, 160.0);
+const CARD_MIN: (f32, f32) = (136.0, 72.0);
+const SHADOW_MARGIN: f32 = 12.0;
+const SCREEN_GAP: f32 = 16.0;
+const BUTTON_INSET: f32 = 6.0;
+const EDIT_SIZE: (f32, f32) = (56.0, 24.0);
+const CLOSE_SIZE: f32 = 24.0;
+const CARD_RADIUS: f32 = 8.0;
+
+/// A length scaled to physical pixels and rounded.
+fn px(length: f32, scale: f32) -> u32 {
+    #[allow(clippy::cast_possible_truncation, clippy::cast_sign_loss)]
+    let rounded = (length * scale).round().max(0.0) as u32;
+    rounded
+}
+
+/// The size of the thumbnail shown in the preview: at most 240 × 160 logical
+/// pixels, aspect kept, never larger than the capture itself.
+pub fn preview_image_size(image: (u32, u32), scale: f32) -> (u32, u32) {
+    let (width, height) = (image.0.max(1), image.1.max(1));
+    #[allow(clippy::cast_precision_loss)]
+    let (w, h) = (width as f32, height as f32);
+    let factor = (IMAGE_MAX.0 * scale / w)
+        .min(IMAGE_MAX.1 * scale / h)
+        .min(1.0);
+    (px(w, factor).max(1), px(h, factor).max(1))
+}
+
+/// Place a preview in the bottom-right corner of `work_area`, 16 logical pixels
+/// from its edges. A work area too small for the window puts the window's
+/// top-left corner at the work area's.
+pub fn preview_layout(work_area: DesktopRect, scale: f32, image: (u32, u32)) -> PreviewLayout {
+    let (image_w, image_h) = preview_image_size(image, scale);
+    let card_w = image_w.max(px(CARD_MIN.0, scale));
+    let card_h = image_h.max(px(CARD_MIN.1, scale));
+    let margin = px(SHADOW_MARGIN, scale);
+    let gap = px(SCREEN_GAP, scale);
+
+    // The window's start on one axis: the card ends `gap` before the work
+    // area's far edge, and the window never starts before the work area.
+    let place = |origin: i32, extent: u32, card: u32| {
+        let far_edge = i64::from(origin) + i64::from(extent);
+        let start = far_edge - i64::from(gap) - i64::from(card) - i64::from(margin);
+        i32::try_from(start.max(i64::from(origin))).unwrap_or(origin)
+    };
+    let window = DesktopRect {
+        x: place(work_area.x, work_area.width, card_w),
+        y: place(work_area.y, work_area.height, card_h),
+        width: card_w + 2 * margin,
+        height: card_h + 2 * margin,
+    };
+
+    let inset = px(BUTTON_INSET, scale);
+    let close_size = px(CLOSE_SIZE, scale);
+    PreviewLayout {
+        window,
+        card: LocalRect {
+            x: margin,
+            y: margin,
+            width: card_w,
+            height: card_h,
+        },
+        image: LocalRect {
+            x: margin + (card_w - image_w) / 2,
+            y: margin + (card_h - image_h) / 2,
+            width: image_w,
+            height: image_h,
+        },
+        edit: LocalRect {
+            x: margin + inset,
+            y: margin + inset,
+            width: px(EDIT_SIZE.0, scale),
+            height: px(EDIT_SIZE.1, scale),
+        },
+        close: LocalRect {
+            x: (margin + card_w).saturating_sub(inset + close_size),
+            y: margin + inset,
+            width: close_size,
+            height: close_size,
+        },
+        radius: CARD_RADIUS * scale,
+    }
+}
+
+/// The button under a point given in window coordinates.
+pub fn preview_button_at(layout: &PreviewLayout, x: i32, y: i32) -> Option<PreviewButton> {
+    if layout.edit.contains(x, y) {
+        Some(PreviewButton::Edit)
+    } else if layout.close.contains(x, y) {
+        Some(PreviewButton::Close)
+    } else {
+        None
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -259,5 +401,105 @@ mod tests {
         assert_eq!(client_point_to_desktop(&m, lparam), p(-2890, -420));
         let lparam = (0x012Cisize << 16) | 0x01F4; // y = 300, x = 500
         assert_eq!(client_point_to_desktop(&m, lparam), p(-2380, -100));
+    }
+
+    fn work(x: i32, y: i32, width: u32, height: u32) -> DesktopRect {
+        DesktopRect {
+            x,
+            y,
+            width,
+            height,
+        }
+    }
+
+    /// The card's bottom-right corner in desktop coordinates.
+    fn card_corner(layout: &PreviewLayout) -> (i32, i32) {
+        (
+            layout.window.x + (layout.card.x + layout.card.width).cast_signed(),
+            layout.window.y + (layout.card.y + layout.card.height).cast_signed(),
+        )
+    }
+
+    #[test]
+    fn a_preview_sits_16_from_the_corner_above_the_taskbar() {
+        let layout = preview_layout(work(0, 0, 1920, 1040), 1.0, (1920, 1080));
+        assert_eq!(card_corner(&layout), (1904, 1024));
+        assert_eq!((layout.image.width, layout.image.height), (240, 135));
+        assert_eq!(layout.window.width, 240 + 24);
+        assert_eq!(layout.card.x, 12);
+    }
+
+    #[test]
+    fn a_preview_at_150_percent_scales_everything() {
+        let layout = preview_layout(work(0, 0, 2880, 1560), 1.5, (1920, 1080));
+        assert_eq!(layout.image.width, 360);
+        assert!(layout.image.height.abs_diff(203) <= 1);
+        assert_eq!(card_corner(&layout), (2880 - 24, 1560 - 24));
+        assert_eq!(layout.card.x, 18);
+    }
+
+    #[test]
+    fn a_preview_on_a_monitor_left_of_and_above_the_primary_stays_inside() {
+        let area = work(-2560, -200, 2560, 1440);
+        let layout = preview_layout(area, 1.25, (2560, 1440));
+        let window = layout.window;
+        assert!(window.x >= area.x && window.y >= area.y);
+        assert!(i64::from(window.x) + i64::from(window.width) <= i64::from(area.x) + 2560);
+        assert!(i64::from(window.y) + i64::from(window.height) <= i64::from(area.y) + 1440);
+        // 16 logical pixels at 125 % is 20 physical pixels from the corner.
+        assert_eq!(
+            card_corner(&layout),
+            (area.x + 2560 - 20, area.y + 1440 - 20)
+        );
+    }
+
+    #[test]
+    fn a_tall_capture_is_limited_by_height_and_keeps_its_aspect() {
+        let (w, h) = preview_image_size((400, 1600), 1.25);
+        assert_eq!(h, 200);
+        assert!(w.abs_diff(50) <= 1);
+        let layout = preview_layout(work(0, 0, 1920, 1080), 1.25, (400, 1600));
+        assert_eq!(layout.image.height, 200);
+    }
+
+    #[test]
+    fn a_tiny_capture_is_not_enlarged_and_is_centred_in_the_smallest_card() {
+        let layout = preview_layout(work(0, 0, 1920, 1080), 1.0, (20, 10));
+        assert_eq!((layout.image.width, layout.image.height), (20, 10));
+        assert_eq!((layout.card.width, layout.card.height), (136, 72));
+        assert_eq!(layout.image.x, layout.card.x + (136 - 20) / 2);
+        assert_eq!(layout.image.y, layout.card.y + (72 - 10) / 2);
+    }
+
+    #[test]
+    fn a_taskbar_on_the_left_leaves_the_preview_at_the_right_edge() {
+        let layout = preview_layout(work(60, 0, 1860, 1080), 1.0, (800, 600));
+        assert_eq!(card_corner(&layout).0, 1904);
+        assert!(layout.window.x >= 60);
+    }
+
+    #[test]
+    fn a_work_area_smaller_than_the_preview_pins_it_to_the_work_area_origin() {
+        let layout = preview_layout(work(100, 50, 100, 40), 1.0, (800, 600));
+        assert_eq!((layout.window.x, layout.window.y), (100, 50));
+    }
+
+    #[test]
+    fn the_buttons_are_found_where_they_are_drawn() {
+        let layout = preview_layout(work(0, 0, 1920, 1080), 1.0, (800, 600));
+        let (edit, close) = (layout.edit, layout.close);
+        let inside = |r: LocalRect| (r.x.cast_signed() + 1, r.y.cast_signed() + 1);
+        let (x, y) = inside(edit);
+        assert_eq!(preview_button_at(&layout, x, y), Some(PreviewButton::Edit));
+        let (x, y) = inside(close);
+        assert_eq!(preview_button_at(&layout, x, y), Some(PreviewButton::Close));
+        let (x, y) = (
+            layout.card.x.cast_signed() + 100,
+            layout.card.y.cast_signed() + 100,
+        );
+        assert_eq!(preview_button_at(&layout, x, y), None);
+        assert_eq!(preview_button_at(&layout, -1, -1), None);
+        assert!(close.x + close.width <= layout.card.x + layout.card.width);
+        assert!(edit.x + edit.width < close.x);
     }
 }

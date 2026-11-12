@@ -45,9 +45,6 @@ use ::windows::Win32::Graphics::Gdi::{
     BeginPaint, EndPaint, InvalidateRect, PAINTSTRUCT, UpdateWindow,
 };
 use ::windows::Win32::System::LibraryLoader::GetModuleHandleW;
-use ::windows::Win32::UI::HiDpi::{
-    DPI_AWARENESS_CONTEXT, DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2, SetThreadDpiAwarenessContext,
-};
 use ::windows::Win32::UI::Input::KeyboardAndMouse::{
     ReleaseCapture, SetCapture, SetFocus, VK_ESCAPE,
 };
@@ -62,6 +59,7 @@ use ::windows::core::{HRESULT, w};
 
 use super::super::geometry::{Point, client_point_to_desktop, crop_rect, monitor_at, to_local};
 use super::super::{MonitorInfo, PlatformError, Result, RgbaImage, Selection};
+use super::dpi::DpiGuard;
 use crate::i18n::{Lang, capture_text};
 
 const CLASS_NAME: ::windows::core::PCWSTR = w!("CropaRegionOverlay");
@@ -185,25 +183,6 @@ fn finish(result: Result<Option<Selection>>) {
     if stored.is_some() {
         // SAFETY: posts WM_QUIT to this thread's queue.
         unsafe { PostQuitMessage(0) };
-    }
-}
-
-/// Restores the thread's DPI awareness when dropped.
-struct DpiGuard(DPI_AWARENESS_CONTEXT);
-
-impl DpiGuard {
-    fn per_monitor() -> Self {
-        // SAFETY: changes only this thread's awareness; the previous value is restored on drop.
-        Self(unsafe { SetThreadDpiAwarenessContext(DPI_AWARENESS_CONTEXT_PER_MONITOR_AWARE_V2) })
-    }
-}
-
-impl Drop for DpiGuard {
-    fn drop(&mut self) {
-        if !self.0.0.is_null() {
-            // SAFETY: `self.0` came from the earlier call on this thread.
-            unsafe { SetThreadDpiAwarenessContext(self.0) };
-        }
     }
 }
 

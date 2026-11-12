@@ -763,6 +763,7 @@ dependencies = [
  "tauri-specta",
  "thiserror 2.0.21",
  "windows",
+ "windows-numerics",
  "xcap",
 ]
 

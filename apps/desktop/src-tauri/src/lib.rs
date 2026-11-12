@@ -32,6 +32,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::get_autostart,
             commands::settings::set_autostart,
             commands::settings::set_save_history,
+            commands::settings::set_exclude_from_clipboard_history,
             commands::history::list_history,
             commands::history::get_history_thumbnail,
             commands::history::copy_history_image,

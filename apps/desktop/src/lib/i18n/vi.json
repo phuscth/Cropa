@@ -54,6 +54,10 @@
     "history": {
       "label": "Lưu ảnh chụp vào lịch sử",
       "description": "Cropa giữ 50 ảnh chụp gần nhất trong 30 ngày, trong thư mục người dùng của bạn, dưới dạng file PNG không mã hóa."
+    },
+    "clipboardPrivacy": {
+      "label": "Không đưa ảnh chụp vào lịch sử clipboard",
+      "description": "Ảnh chụp của Cropa sẽ không xuất hiện trong lịch sử clipboard của Windows (Win+V) và không đồng bộ sang các thiết bị khác của bạn."
     }
   },
   "errors": {

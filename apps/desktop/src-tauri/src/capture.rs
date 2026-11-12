@@ -1,23 +1,30 @@
 //! Region capture: the capture key or tray item freezes every monitor, the
 //! platform overlay lets the user drag a region over the frozen picture, and
 //! the cropped pixels go to the clipboard. Esc leaves the clipboard untouched.
+//! A small floating preview of the capture then waits in the screen corner
+//! until the user opens it in the editor, dismisses it, or captures again.
 //!
 //! The work runs on its own thread because the overlay pumps its own message
 //! loop and must never share the UI event loop.
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::mpsc::Receiver;
+use std::sync::{Arc, Mutex, PoisonError};
 use std::time::{Instant, SystemTime};
 
-use image::RgbaImage;
+use image::codecs::png::PngEncoder;
+use image::{ExtendedColorType, ImageEncoder, RgbaImage};
 use serde::Serialize;
 use specta::Type;
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_specta::Event;
 
+use crate::editor;
 use crate::history::{History, HistoryChanged};
 use crate::i18n::{CaptureFailure, Lang, capture_failed_text, capture_text};
-use crate::platform::{self, MonitorInfo, Platform, Selection};
+use crate::platform::{
+    self, MonitorInfo, Platform, PreviewAction, PreviewCloser, PreviewHandle, Selection,
+};
 use crate::state::AppState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
@@ -34,6 +41,15 @@ pub struct CaptureRequested {
 
 /// Set while a capture runs, so a second key press cannot capture the overlay.
 static BUSY: AtomicBool = AtomicBool::new(false);
+
+/// Takes down the preview that is on screen, if any.
+static PREVIEW: Mutex<Option<PreviewCloser>> = Mutex::new(None);
+
+/// A preview on screen, with the capture it shows.
+struct PendingPreview {
+    actions: Receiver<PreviewAction>,
+    image: Arc<RgbaImage>,
+}
 
 /// Clears [`BUSY`] when dropped, including on a panic or an early return.
 struct BusyGuard;
@@ -66,20 +82,37 @@ pub fn request<R: Runtime>(app: &AppHandle<R>, source: CaptureSource) {
     let spawned = std::thread::Builder::new()
         .name("cropa-capture".into())
         .spawn(move || {
-            let _guard = guard;
-            run(&app, pressed);
+            let pending = run(&app, pressed);
+            // A new capture can start while the preview waits for a choice.
+            drop(guard);
+            if let Some(pending) = pending {
+                wait_for_choice(&app, pending);
+            }
         });
     if let Err(err) = spawned {
         log::warn!("could not start the capture thread: {err}");
     }
 }
 
-fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) {
+fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) -> Option<PendingPreview> {
+    // The old preview must be gone before the screen is captured, or it would
+    // be in the new picture. This is also how a new capture replaces it.
+    if let Some(closer) = PREVIEW
+        .lock()
+        .unwrap_or_else(PoisonError::into_inner)
+        .take()
+    {
+        closer.close();
+    }
+
     let platform = platform::current();
 
     let shots = match platform.capture_all() {
         Ok(shots) => shots,
-        Err(err) => return fail(&platform, CaptureFailure::Capture, &err.to_string()),
+        Err(err) => {
+            fail(&platform, CaptureFailure::Capture, &err.to_string());
+            return None;
+        }
     };
     log::info!(
         "captured {} monitor(s) in {} ms after the key press",
@@ -91,17 +124,29 @@ fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) {
         Ok(Some(selection)) => selection,
         Ok(None) => {
             log::info!("capture cancelled");
-            return;
+            return None;
         }
-        Err(err) => return fail(&platform, CaptureFailure::Overlay, &err.to_string()),
+        Err(err) => {
+            fail(&platform, CaptureFailure::Overlay, &err.to_string());
+            return None;
+        }
     };
 
     let Some(image) = crop(&shots, &selection) else {
         log::warn!("the selection does not fit its capture; nothing was copied");
-        return;
+        return None;
     };
-    if let Err(err) = platform.copy_image(&image) {
-        return fail(&platform, CaptureFailure::Clipboard, &err.to_string());
+    let (save_history, exclude_from_history) = {
+        let state = app.state::<AppState>();
+        let inner = state.lock();
+        (
+            inner.settings.save_history,
+            inner.settings.exclude_from_clipboard_history,
+        )
+    };
+    if let Err(err) = platform.copy_image(&image, exclude_from_history) {
+        fail(&platform, CaptureFailure::Clipboard, &err.to_string());
+        return None;
     }
     log::info!(
         "region {}×{} copied to the clipboard {} ms after mouse release",
@@ -111,9 +156,51 @@ fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) {
     );
 
     let image = Arc::new(image);
-    if app.state::<AppState>().lock().settings.save_history {
-        save_to_history(app, image);
+    if save_history {
+        save_to_history(app, Arc::clone(&image));
     }
+
+    let monitor = &shots.get(selection.monitor)?.0;
+    match platform.show_preview(&image, monitor) {
+        Ok(PreviewHandle { actions, closer }) => {
+            log::info!(
+                "preview shown {} ms after mouse release",
+                selection.released_at.elapsed().as_millis()
+            );
+            // Stored while the busy flag is still held, so the next capture
+            // always finds and closes this preview.
+            *PREVIEW.lock().unwrap_or_else(PoisonError::into_inner) = Some(closer);
+            Some(PendingPreview { actions, image })
+        }
+        Err(err) => {
+            // The clipboard already holds the capture.
+            log::warn!("could not show the preview: {err}");
+            None
+        }
+    }
+}
+
+/// Wait for the user's choice on the preview. It never touches the clipboard.
+fn wait_for_choice<R: Runtime>(app: &AppHandle<R>, pending: PendingPreview) {
+    let PendingPreview { actions, image } = pending;
+    // A disconnect means the preview was closed another way: nothing to do.
+    if actions.recv() == Ok(PreviewAction::Edit) {
+        match encode_png(&image) {
+            Ok(png) => editor::open(app, png),
+            Err(err) => log::warn!("could not open the capture in the editor: {err}"),
+        }
+    }
+}
+
+fn encode_png(image: &RgbaImage) -> Result<Vec<u8>, image::ImageError> {
+    let mut png = Vec::new();
+    PngEncoder::new(&mut png).write_image(
+        image.as_raw(),
+        image.width(),
+        image.height(),
+        ExtendedColorType::Rgba8,
+    )?;
+    Ok(png)
 }
 
 /// Keep the capture in the history folder. It runs on its own thread, after

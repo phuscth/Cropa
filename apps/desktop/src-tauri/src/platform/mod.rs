@@ -102,8 +102,41 @@ pub trait Platform {
     /// Blocks the calling thread (which must not be the UI event loop) until the
     /// user releases the mouse (`Some`) or presses Esc (`None`).
     fn select_region(&self, shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Selection>>;
-    /// Put an image on the clipboard, replacing its contents.
-    fn copy_image(&self, image: &RgbaImage) -> Result<()>;
+    /// Put an image on the clipboard, replacing its contents. With
+    /// `exclude_from_history`, the OS is asked to keep it out of its clipboard
+    /// history and cloud sync.
+    fn copy_image(&self, image: &RgbaImage, exclude_from_history: bool) -> Result<()>;
+    /// Show a small floating preview of `image` in the corner of monitor `on`,
+    /// without taking the keyboard focus. Returns once the preview is on screen.
+    fn show_preview(&self, image: &RgbaImage, on: &MonitorInfo) -> Result<PreviewHandle>;
+}
+
+/// What the user chose on a floating preview.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PreviewAction {
+    Edit,
+    Dismiss,
+}
+
+/// Closes a preview and returns once it is gone. Safe to call after the
+/// preview already closed itself.
+pub struct PreviewCloser(Box<dyn FnOnce() + Send>);
+
+impl PreviewCloser {
+    pub fn new(close: impl FnOnce() + Send + 'static) -> Self {
+        Self(Box::new(close))
+    }
+
+    pub fn close(self) {
+        (self.0)();
+    }
+}
+
+/// A floating preview on screen. The receiver yields the user's choice once;
+/// it disconnects without a value when the preview is closed another way.
+pub struct PreviewHandle {
+    pub actions: std::sync::mpsc::Receiver<PreviewAction>,
+    pub closer: PreviewCloser,
 }
 
 /// The implementation for the OS this binary was built for.

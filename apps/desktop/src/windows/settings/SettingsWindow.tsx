@@ -161,6 +161,11 @@ export function SettingsWindow() {
     if (next) setSettings(next);
   };
 
+  const changeClipboardPrivacy = async (enabled: boolean) => {
+    const next = await run(() => commands.setExcludeFromClipboardHistory(enabled));
+    if (next) setSettings(next);
+  };
+
   const changeAutostart = async (enabled: boolean) => {
     const next = await run(() => commands.setAutostart(enabled));
     if (next !== undefined) setAutostart(next);
@@ -302,6 +307,22 @@ export function SettingsWindow() {
           {t('settings.history.label')}
         </label>
         <p className="pl-7 text-xs text-muted-foreground">{t('settings.history.description')}</p>
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={settings?.excludeFromClipboardHistory ?? false}
+            disabled={busy || !settings}
+            onChange={(event) => { void changeClipboardPrivacy(event.target.checked); }}
+          />
+          {t('settings.clipboardPrivacy.label')}
+        </label>
+        <p className="pl-7 text-xs text-muted-foreground">
+          {t('settings.clipboardPrivacy.description')}
+        </p>
       </div>
 
       {saved && !notice && (
