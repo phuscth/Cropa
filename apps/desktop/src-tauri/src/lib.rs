@@ -24,6 +24,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::settings::get_settings,
             commands::settings::get_shortcut_status,
             commands::settings::set_capture_shortcut,
+            commands::settings::set_theme,
             commands::settings::get_autostart,
             commands::settings::set_autostart,
         ])
@@ -79,6 +80,8 @@ pub fn run() {
 
             let settings_path = app.path().app_config_dir()?.join(settings::FILE_NAME);
             let loaded = settings::load(&settings_path);
+            // Windows created later inherit this theme.
+            app.set_theme(loaded.theme.to_tauri());
             app.manage(AppState::new(settings_path, loaded));
             app.manage(app_windows::CloseTimers::default());
 
@@ -91,13 +94,20 @@ pub fn run() {
             }
             Ok(())
         })
-        .on_window_event(|window, event| {
+        .on_window_event(|window, event| match event {
             // Cropa lives in the tray: closing a window hides it, and it is
             // destroyed a few minutes later unless reopened.
-            if let WindowEvent::CloseRequested { api, .. } = event {
+            WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
                 app_windows::hide_then_destroy(window);
             }
+            // The theme setting or the Windows mode changed.
+            WindowEvent::ThemeChanged(theme) => {
+                if let Some(webview) = window.app_handle().get_webview_window(window.label()) {
+                    app_windows::paint_background(&webview, *theme);
+                }
+            }
+            _ => {}
         })
         .build(tauri::generate_context!())
         .expect("error while building Cropa");

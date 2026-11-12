@@ -9,6 +9,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use std::time::Duration;
 
+use tauri::window::Color;
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
 pub const EDITOR: &str = "editor";
@@ -82,7 +83,29 @@ fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewW
     if let Some((width, height)) = spec.min_size {
         builder = builder.min_inner_size(width, height);
     }
-    builder.build()
+    let window = builder.build()?;
+    match window.theme() {
+        Ok(theme) => paint_background(&window, theme),
+        Err(err) => log::warn!("could not read the theme of window `{label}`: {err}"),
+    }
+    Ok(window)
+}
+
+/// Paint the native window and WebView background in `theme`, so a dark
+/// window does not flash white before the page loads or while it is resized.
+/// Called when a window is created and whenever its theme changes. The colours
+/// match `--background` in packages/config/tailwind.css.
+pub fn paint_background<R: Runtime>(window: &WebviewWindow<R>, theme: tauri::Theme) {
+    let background = match theme {
+        tauri::Theme::Dark => Color(0x19, 0x19, 0x19, 255),
+        _ => Color(0xfa, 0xfa, 0xfa, 255),
+    };
+    if let Err(err) = window.set_background_color(Some(background)) {
+        log::warn!(
+            "could not set the background of window `{}`: {err}",
+            window.label()
+        );
+    }
 }
 
 /// Called on `CloseRequested`: hide now, destroy later unless shown again.

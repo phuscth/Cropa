@@ -21,6 +21,13 @@
       "registered": "Active",
       "notRegistered": "Not active"
     },
+    "theme": {
+      "label": "Theme",
+      "system": "System",
+      "light": "Light",
+      "dark": "Dark",
+      "description": "System follows the light or dark mode set in Windows."
+    },
     "autostart": {
       "label": "Start Cropa when I sign in"
     },

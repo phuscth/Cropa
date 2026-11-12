@@ -12,6 +12,29 @@ pub const CURRENT_VERSION: u32 = 1;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
+/// Colour theme of every window. On disk: `"system"`, `"light"` or `"dark"`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum ThemePreference {
+    /// Follow the light or dark mode set in Windows.
+    #[default]
+    System,
+    Light,
+    Dark,
+}
+
+impl ThemePreference {
+    /// The theme to hand to Tauri; `None` follows the operating system.
+    #[must_use]
+    pub fn to_tauri(self) -> Option<tauri::Theme> {
+        match self {
+            Self::System => None,
+            Self::Light => Some(tauri::Theme::Light),
+            Self::Dark => Some(tauri::Theme::Dark),
+        }
+    }
+}
+
 /// Start-at-login is not stored here: Windows is the only source of truth for it
 /// (see `commands::settings::get_autostart`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -20,6 +43,8 @@ pub struct Settings {
     pub version: u32,
     /// Global shortcut for region capture, in Tauri accelerator syntax.
     pub capture_shortcut: String,
+    /// Colour theme; a file written before this field existed gets `System`.
+    pub theme: ThemePreference,
 }
 
 impl Default for Settings {
@@ -27,6 +52,7 @@ impl Default for Settings {
         Self {
             version: CURRENT_VERSION,
             capture_shortcut: DEFAULT_CAPTURE_SHORTCUT.to_owned(),
+            theme: ThemePreference::default(),
         }
     }
 }
@@ -152,9 +178,13 @@ mod tests {
         let path = dir.0.join("nested").join(FILE_NAME);
         let settings = Settings {
             capture_shortcut: "Ctrl+Shift+2".into(),
+            theme: ThemePreference::Dark,
             ..Settings::default()
         };
         save(&path, &settings).unwrap();
+        let on_disk: serde_json::Value =
+            serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
+        assert_eq!(on_disk["theme"], "dark");
         assert_eq!(load(&path), settings);
     }
 
@@ -189,7 +219,9 @@ mod tests {
         // A file from a build that had a field this one dropped (`autostart`).
         let old =
             serde_json::json!({ "version": 1, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
-        assert_eq!(migrate(old).unwrap().capture_shortcut, "Ctrl+Alt+P");
+        let migrated = migrate(old).unwrap();
+        assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
+        assert_eq!(migrated.theme, ThemePreference::System);
         // A file written before a field existed gets that field's default.
         let sparse = serde_json::json!({ "version": 1 });
         assert_eq!(migrate(sparse).unwrap(), Settings::default());
