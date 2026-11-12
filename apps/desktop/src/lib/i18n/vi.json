@@ -175,6 +175,46 @@
       "why": "Ảnh sẽ lớn hơn 16384 pixel ở một cạnh.",
       "next": "Hãy giảm độ đệm hoặc chọn tỉ lệ khung hình khác."
     },
+    "UserPresetName": {
+      "what": "Chưa lưu được preset.",
+      "why": "Tên preset phải có từ 1 đến 40 ký tự và không chứa ký tự điều khiển như dấu xuống dòng hay phím tab.",
+      "next": "Nhập một tên ngắn hơn hoặc đơn giản hơn rồi thử lại."
+    },
+    "UserPresetInvalid": {
+      "what": "Chưa lưu được preset.",
+      "why": "Nền không hợp lệ ({{detail}}).",
+      "next": "Chỉnh lại nền rồi thử lại."
+    },
+    "UserPresetTooLarge": {
+      "what": "Chưa lưu được preset.",
+      "why": "Nền này có quá nhiều chi tiết để lưu thành preset.",
+      "next": "Bớt vài lớp hoặc điểm màu rồi thử lại."
+    },
+    "UserPresetsFull": {
+      "what": "Chưa lưu được preset.",
+      "why": "Bạn đã có số preset tối đa mà Cropa lưu được (200).",
+      "next": "Xóa một preset không dùng nữa rồi thử lại."
+    },
+    "UserPresetMissing": {
+      "what": "Preset này không còn nữa.",
+      "why": "Preset đã bị xóa, có thể từ một cửa sổ khác.",
+      "next": "Hãy lưu nền này thành một preset mới."
+    },
+    "UserPresetsTooNew": {
+      "what": "Không thay đổi được các preset của bạn.",
+      "why": "File preset do một phiên bản Cropa mới hơn ghi ra, nên phiên bản này không động vào file đó.",
+      "next": "Cập nhật Cropa lên phiên bản mới nhất."
+    },
+    "UserPresetsRead": {
+      "what": "Không tải được các preset của bạn.",
+      "why": "Cropa không đọc được file preset ({{detail}}).",
+      "next": "Kiểm tra thư mục người dùng không bị khóa, rồi mở lại trình chỉnh sửa."
+    },
+    "UserPresetsSave": {
+      "what": "Chưa lưu được các preset của bạn.",
+      "why": "Cropa không ghi được file preset ({{detail}}).",
+      "next": "Kiểm tra thư mục người dùng còn chỗ trống và không bị khóa ghi, rồi thử lại."
+    },
     "Unexpected": {
       "what": "Đã có lỗi xảy ra.",
       "why": "{{detail}}",

@@ -11,6 +11,7 @@ import { GlobalFonts, createCanvas, loadImage } from '@napi-rs/canvas';
 import type { Canvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
 
+import { builtinPresets } from '../presets/builtin.ts';
 import type { Annotation } from '../schema/annotation.ts';
 import { defaultScene } from '../schema/scene.ts';
 import type { Scene } from '../schema/scene.ts';
@@ -370,6 +371,30 @@ describe('render', () => {
 
   it.each(backgroundCases)('background: %s', async (name, layers) => {
     await expectMatchesSnapshot(name, renderScene(sceneWith({ frame: { padding: 30 }, layers })));
+  });
+});
+
+describe('built-in presets', () => {
+  /** Every preset behind the test screenshot with the default frame, 4 tiles per row. */
+  function contactSheet(scale: number): Canvas {
+    const base = defaultScene({ width: 160, height: 100 });
+    const tile = outputSize(base, scale);
+    const columns = 4;
+    const rows = Math.ceil(builtinPresets.length / columns);
+    const sheet = createCanvas(tile.width * columns, tile.height * rows);
+    const sheetCtx = sheet.getContext('2d');
+    sheetCtx.fillStyle = '#ffffff';
+    sheetCtx.fillRect(0, 0, sheet.width, sheet.height);
+    for (const [i, preset] of builtinPresets.entries()) {
+      const canvas = createCanvas(tile.width, tile.height);
+      render({ ...base, background: preset.background }, 0, canvas.getContext('2d'), env);
+      sheetCtx.drawImage(canvas, (i % columns) * tile.width, Math.floor(i / columns) * tile.height);
+    }
+    return sheet;
+  }
+
+  it('renders the contact sheet', async () => {
+    await expectMatchesSnapshot('presets-contact-sheet', contactSheet(1));
   });
 });
 

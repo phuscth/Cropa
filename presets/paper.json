@@ -1,0 +1,35 @@
+{
+  "version": 1,
+  "id": "paper",
+  "name": {
+    "en": "Paper",
+    "vi": "Giấy"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "solid",
+        "color": "#f3ede2"
+      },
+      {
+        "type": "noise",
+        "opacity": 0.06,
+        "grain": 1.5,
+        "seed": 21
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

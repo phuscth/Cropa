@@ -4,6 +4,7 @@
 
 pub mod editor;
 pub mod history;
+pub mod presets;
 pub mod settings;
 
 use serde::Serialize;
@@ -36,6 +37,22 @@ pub enum CommandError {
     HistoryDelete(String),
     #[error("could not copy to the clipboard: {0}")]
     Clipboard(String),
+    #[error("the preset name must have 1 to 40 characters and no control characters")]
+    UserPresetName,
+    #[error("the preset background is not valid: {0}")]
+    UserPresetInvalid(String),
+    #[error("the preset background is too large")]
+    UserPresetTooLarge,
+    #[error("there are already as many presets as Cropa can keep")]
+    UserPresetsFull,
+    #[error("that preset does not exist")]
+    UserPresetMissing,
+    #[error("the presets file was written by a newer version of Cropa")]
+    UserPresetsTooNew,
+    #[error("could not read the presets: {0}")]
+    UserPresetsRead(String),
+    #[error("could not save the presets: {0}")]
+    UserPresetsSave(String),
 }
 
 /// A PNG as a `data:` URL the WebView can show in an `<img>`.

@@ -19,6 +19,9 @@ fn main() {
         "delete_all_history",
         "open_history_in_editor",
         "get_editor_image",
+        "list_user_presets",
+        "save_user_preset",
+        "delete_user_preset",
     ]);
 
     // tauri-build embeds its Windows manifest (Common Controls v6) only into

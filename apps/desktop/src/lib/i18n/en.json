@@ -175,6 +175,46 @@
       "why": "The image would be larger than 16384 pixels on one side.",
       "next": "Reduce the padding or choose another aspect ratio."
     },
+    "UserPresetName": {
+      "what": "Couldn't save the preset.",
+      "why": "A preset name must have 1 to 40 characters and no control characters such as line breaks or tabs.",
+      "next": "Type a shorter or simpler name and try again."
+    },
+    "UserPresetInvalid": {
+      "what": "Couldn't save the preset.",
+      "why": "The background isn't valid ({{detail}}).",
+      "next": "Change the background and try again."
+    },
+    "UserPresetTooLarge": {
+      "what": "Couldn't save the preset.",
+      "why": "This background has too many details to store as a preset.",
+      "next": "Remove some layers or points and try again."
+    },
+    "UserPresetsFull": {
+      "what": "Couldn't save the preset.",
+      "why": "You already have the most presets Cropa can keep (200).",
+      "next": "Delete a preset you no longer use and try again."
+    },
+    "UserPresetMissing": {
+      "what": "That preset is no longer there.",
+      "why": "It was deleted, possibly from another window.",
+      "next": "Save the background as a new preset instead."
+    },
+    "UserPresetsTooNew": {
+      "what": "Couldn't change your presets.",
+      "why": "Your presets file was written by a newer version of Cropa, so this version leaves it untouched.",
+      "next": "Update Cropa to the latest version."
+    },
+    "UserPresetsRead": {
+      "what": "Couldn't load your presets.",
+      "why": "Cropa couldn't read the presets file ({{detail}}).",
+      "next": "Check that your user folder isn't locked, then reopen the editor."
+    },
+    "UserPresetsSave": {
+      "what": "Couldn't save your presets.",
+      "why": "Cropa couldn't write the presets file ({{detail}}).",
+      "next": "Check that your user folder has free space and isn't locked, then try again."
+    },
     "Unexpected": {
       "what": "Something went wrong.",
       "why": "{{detail}}",

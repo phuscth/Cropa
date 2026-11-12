@@ -4,7 +4,7 @@
   "license": "MIT",
   "packageManager": "pnpm@11.21.0",
   "engines": {
-    "node": ">=22"
+    "node": ">=22.18"
   },
   "scripts": {
     "dev": "pnpm --filter @cropa/desktop tauri dev",
@@ -14,6 +14,7 @@
     "typecheck": "tsc -b",
     "test": "turbo run test",
     "check:licenses": "node tools/license-check/check-npm-licenses.mjs",
+    "check:presets": "node tools/check-presets.mjs",
     "bindings": "node tools/bindings.mjs"
   },
   "devDependencies": {

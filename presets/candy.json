@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "id": "candy",
+  "name": {
+    "en": "Candy",
+    "vi": "Kẹo ngọt"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "solid",
+        "color": "#ffe3ee"
+      },
+      {
+        "type": "mesh",
+        "points": [
+          {
+            "x": 150,
+            "y": 150,
+            "r": 550,
+            "color": "#ff9ec7"
+          },
+          {
+            "x": 880,
+            "y": 200,
+            "r": 550,
+            "color": "#c9a7ff"
+          },
+          {
+            "x": 800,
+            "y": 880,
+            "r": 550,
+            "color": "#9fd0ff"
+          },
+          {
+            "x": 180,
+            "y": 850,
+            "r": 500,
+            "color": "#fff0a8"
+          }
+        ]
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

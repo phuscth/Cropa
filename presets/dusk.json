@@ -1,0 +1,49 @@
+{
+  "version": 1,
+  "id": "dusk",
+  "name": {
+    "en": "Dusk",
+    "vi": "Chạng vạng"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "solid",
+        "color": "#1d1245"
+      },
+      {
+        "type": "radial",
+        "cx": 500,
+        "cy": 1000,
+        "r": 850,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ff8a5c"
+          },
+          {
+            "offset": 0.5,
+            "color": "#d04f7ccc"
+          },
+          {
+            "offset": 1,
+            "color": "#1d124500"
+          }
+        ]
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

@@ -1,0 +1,58 @@
+{
+  "version": 1,
+  "id": "aurora",
+  "name": {
+    "en": "Aurora",
+    "vi": "Cực quang"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "solid",
+        "color": "#0a1022"
+      },
+      {
+        "type": "mesh",
+        "points": [
+          {
+            "x": 200,
+            "y": 850,
+            "r": 650,
+            "color": "#22d3ee"
+          },
+          {
+            "x": 600,
+            "y": 900,
+            "r": 600,
+            "color": "#a3e635"
+          },
+          {
+            "x": 850,
+            "y": 250,
+            "r": 650,
+            "color": "#8b5cf6"
+          }
+        ]
+      },
+      {
+        "type": "noise",
+        "opacity": 0.05,
+        "grain": 1.5,
+        "seed": 41
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}
