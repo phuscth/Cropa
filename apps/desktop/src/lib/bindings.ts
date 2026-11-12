@@ -5,7 +5,7 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
-	getSettings: () => __TAURI_INVOKE<Settings>("get_settings"),
+	getSettings: () => __TAURI_INVOKE<Settings_Serialize>("get_settings"),
 	getShortcutStatus: () => __TAURI_INVOKE<ShortcutStatus_Serialize>("get_shortcut_status"),
 	/**
 	 *  Change the capture shortcut. The new shortcut only takes over once it is
@@ -19,7 +19,7 @@ export const commands = {
 	 */
 	openPrintScreenSetting: () => typedError<null, CommandError>(__TAURI_INVOKE("open_print_screen_setting")),
 	/**  Change the colour theme and apply it to every window, open or opened later. */
-	setTheme: (theme: ThemePreference) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_theme", { theme })),
+	setTheme: (theme: ThemePreference) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_theme", { theme })),
 	/**
 	 *  Whether Cropa starts at sign-in, read from Windows each time: the user can
 	 *  change it outside Cropa (Task Manager › Startup apps).
@@ -31,9 +31,9 @@ export const commands = {
 	 *  Turn saving each capture to the history folder on or off. Captures already
 	 *  in the history stay.
 	 */
-	setSaveHistory: (enabled: boolean) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_save_history", { enabled })),
+	setSaveHistory: (enabled: boolean) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_save_history", { enabled })),
 	/**  Keep captures out of Windows clipboard history and cloud sync, or not. */
-	setExcludeFromClipboardHistory: (enabled: boolean) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_exclude_from_clipboard_history", { enabled })),
+	setExcludeFromClipboardHistory: (enabled: boolean) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_exclude_from_clipboard_history", { enabled })),
 	listHistory: () => typedError<HistoryItem[], CommandError>(__TAURI_INVOKE("list_history")),
 	/**  The thumbnail of one capture as a `data:` URL. */
 	getHistoryThumbnail: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("get_history_thumbnail", { id })),
@@ -44,6 +44,33 @@ export const commands = {
 	openHistoryInEditor: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("open_history_in_editor", { id })),
 	/**  The image the editor shows, as a `data:` URL, or `None` when it has none. */
 	getEditorImage: () => typedError<string | null, CommandError>(__TAURI_INVOKE("get_editor_image")),
+	/**
+	 *  Ctrl+S: save the rendered image (a `data:` URL of `format`) to the save
+	 *  folder, named after the capture time. `session_file` is the id of this
+	 *  image's earlier quick save, which is then replaced instead of adding a copy.
+	 */
+	quickSave: (image: string, format: ExportFormat, capturedAt: number | null, sessionFile: number | null) => typedError<SaveOutcome, CommandError>(__TAURI_INVOKE("quick_save", { image, format, capturedAt, sessionFile })),
+	/**
+	 *  Show the Save as dialog. The file is written by [`write_save_as`] once the
+	 *  WebView has encoded the format the user picked in the dialog.
+	 */
+	chooseSaveAsPath: (suggestedName: string, format: ExportFormat) => typedError<SaveAsChoice, CommandError>(__TAURI_INVOKE("choose_save_as_path", { suggestedName, format })),
+	/**
+	 *  Write the image to the destination picked by [`choose_save_as_path`]. The
+	 *  dialog already asked before replacing a file, so an existing one is
+	 *  replaced.
+	 */
+	writeSaveAs: (token: number, image: string) => typedError<SavedFile, CommandError>(__TAURI_INVOKE("write_save_as", { token, image })),
+	/**  Put the rendered image (a PNG `data:` URL) on the clipboard. */
+	copyRenderedImage: (image: string) => typedError<null, CommandError>(__TAURI_INVOKE("copy_rendered_image", { image })),
+	/**  Show a file saved in this run in its folder, selected. */
+	revealSavedFile: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("reveal_saved_file", { id })),
+	/**  Pick the folder Ctrl+S saves into. `None` when the user cancels. */
+	chooseSaveFolder: () => typedError<Settings_Serialize | null, CommandError>(__TAURI_INVOKE("choose_save_folder")),
+	/**  Forget the save folder: Cropa asks again the next time the user saves. */
+	resetSaveFolder: () => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("reset_save_folder")),
+	/**  Open the GitHub Sponsors page in the default browser. */
+	openSponsorsPage: () => typedError<null, CommandError>(__TAURI_INVOKE("open_sponsors_page")),
 };
 
 /** Events */
@@ -74,10 +101,13 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string };
 
 /**  The editor has another image to show. */
 export type EditorImageChanged = null;
+
+/**  An image file format the editor can export. */
+export type ExportFormat = "png" | "jpeg" | "webp";
 
 /**  The history changed: a capture was saved or deleted. */
 export type HistoryChanged = null;
@@ -90,11 +120,31 @@ export type HistoryItem = {
 	height: number,
 };
 
+export type SaveAsChoice = { kind: "chosen"; token: number; format: ExportFormat; fileName: string } | { kind: "cancelled" };
+
+export type SaveOutcome = { kind: "saved"; file: SavedFile } | { kind: "cancelled" };
+
+/**
+ *  A file saved in this run. The WebView refers to it by `id`; `path` is only
+ *  for display.
+ */
+export type SavedFile = {
+	id: number,
+	path: string,
+	fileName: string,
+};
+
 /**
  *  Start-at-login is not stored here: Windows is the only source of truth for it
  *  (see `commands::settings::get_autostart`).
  */
-export type Settings = {
+export type Settings = Settings_Serialize | Settings_Deserialize;
+
+/**
+ *  Start-at-login is not stored here: Windows is the only source of truth for it
+ *  (see `commands::settings::get_autostart`).
+ */
+export type Settings_Deserialize = {
 	version: number,
 	/**  Global shortcut for region capture, in Tauri accelerator syntax. */
 	captureShortcut: string,
@@ -106,6 +156,28 @@ export type Settings = {
 	saveHistory: boolean,
 	/**  Whether captures are kept out of Windows clipboard history and cloud sync. */
 	excludeFromClipboardHistory: boolean,
+	/**  Folder that Ctrl+S saves into; `None` until the user picks one. */
+	saveFolder?: string | null,
+};
+
+/**
+ *  Start-at-login is not stored here: Windows is the only source of truth for it
+ *  (see `commands::settings::get_autostart`).
+ */
+export type Settings_Serialize = {
+	version: number,
+	/**  Global shortcut for region capture, in Tauri accelerator syntax. */
+	captureShortcut: string,
+	/**  Colour theme; a file written before this field existed gets `System`. */
+	theme: ThemePreference,
+	/**  Whether the first-launch "Start with Windows?" question has been answered. */
+	autostartAsked: boolean,
+	/**  Whether each capture is also kept in the history folder. */
+	saveHistory: boolean,
+	/**  Whether captures are kept out of Windows clipboard history and cloud sync. */
+	excludeFromClipboardHistory: boolean,
+	/**  Folder that Ctrl+S saves into; `None` until the user picks one. */
+	saveFolder: string | null,
 };
 
 export type ShortcutErrorKind = 

@@ -126,6 +126,33 @@ pub const fn preview_text(lang: Lang) -> PreviewText {
     }
 }
 
+pub struct SaveDialogText {
+    pub pick_folder_title: &'static str,
+    pub save_as_title: &'static str,
+    pub png: &'static str,
+    pub jpeg: &'static str,
+    pub webp: &'static str,
+}
+
+pub const fn save_dialog_text(lang: Lang) -> SaveDialogText {
+    match lang {
+        Lang::En => SaveDialogText {
+            pick_folder_title: "Choose a folder for your Cropa images",
+            save_as_title: "Save image as",
+            png: "PNG image",
+            jpeg: "JPEG image",
+            webp: "WebP image",
+        },
+        Lang::Vi => SaveDialogText {
+            pick_folder_title: "Chọn thư mục lưu ảnh Cropa",
+            save_as_title: "Lưu ảnh thành",
+            png: "Ảnh PNG",
+            jpeg: "Ảnh JPEG",
+            webp: "Ảnh WebP",
+        },
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureFailure {
     Capture,

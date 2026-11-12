@@ -5,6 +5,7 @@ mod app_windows;
 mod capture;
 mod commands;
 mod editor;
+mod export;
 mod first_run;
 mod history;
 mod i18n;
@@ -40,6 +41,14 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::history::delete_all_history,
             commands::history::open_history_in_editor,
             commands::editor::get_editor_image,
+            commands::export::quick_save,
+            commands::export::choose_save_as_path,
+            commands::export::write_save_as,
+            commands::export::copy_rendered_image,
+            commands::export::reveal_saved_file,
+            commands::settings::choose_save_folder,
+            commands::settings::reset_save_folder,
+            commands::settings::open_sponsors_page,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -101,6 +110,7 @@ pub fn run() {
             app.manage(AppState::new(settings_path, loaded));
             app.manage(app_windows::CloseTimers::default());
             app.manage(editor::EditorImage::default());
+            app.manage(export::SavedFiles::default());
             app.manage(history::History::new(
                 app.path().app_local_data_dir()?.join("history"),
             ));

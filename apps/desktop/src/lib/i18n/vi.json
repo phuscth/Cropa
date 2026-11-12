@@ -58,6 +58,17 @@
     "clipboardPrivacy": {
       "label": "Không đưa ảnh chụp vào lịch sử clipboard",
       "description": "Ảnh chụp của Cropa sẽ không xuất hiện trong lịch sử clipboard của Windows (Win+V) và không đồng bộ sang các thiết bị khác của bạn."
+    },
+    "saveFolder": {
+      "label": "Thư mục lưu ảnh",
+      "notSet": "Chưa chọn. Cropa sẽ hỏi ở lần đầu bạn lưu bằng Ctrl+S.",
+      "change": "Đổi…",
+      "reset": "Đặt lại"
+    },
+    "about": {
+      "title": "Giới thiệu",
+      "version": "Cropa {{version}}",
+      "sponsor": "Ủng hộ Cropa trên GitHub Sponsors"
     }
   },
   "errors": {
@@ -110,6 +121,46 @@
       "what": "Không sao chép được ảnh chụp.",
       "why": "Có thể một ứng dụng khác đang giữ clipboard ({{detail}}).",
       "next": "Đóng ứng dụng đó hoặc thử lại."
+    },
+    "ExportInvalid": {
+      "what": "Không dùng được ảnh này.",
+      "why": "Ảnh Cropa đã tạo không phải là ảnh hợp lệ ở định dạng đã chọn.",
+      "next": "Hãy thử lại. Nếu vẫn lỗi, hãy khởi động lại Cropa."
+    },
+    "ExportTooLarge": {
+      "what": "Ảnh quá lớn để lưu.",
+      "why": "Cropa chỉ lưu ảnh tối đa {{detail}} MB.",
+      "next": "Hãy thu nhỏ ảnh, hoặc chọn định dạng nhẹ hơn như JPEG hoặc WebP."
+    },
+    "SaveFile": {
+      "what": "Không lưu được ảnh.",
+      "why": "Windows từ chối ghi file ({{detail}}).",
+      "next": "Hãy kiểm tra thư mục còn tồn tại, chưa đầy và không ở chế độ chỉ đọc, hoặc chọn thư mục khác."
+    },
+    "SaveAsExpired": {
+      "what": "Không lưu được ảnh.",
+      "why": "Vị trí lưu bạn đã chọn không còn hợp lệ, vì một lần lưu khác đã bắt đầu hoặc Cropa không còn nhớ nó.",
+      "next": "Hãy chọn Lưu thành lần nữa."
+    },
+    "SaveDialog": {
+      "what": "Không mở được hộp thoại chọn file.",
+      "why": "Windows không hiển thị hộp thoại ({{detail}}).",
+      "next": "Hãy thử lại. Nếu vẫn lỗi, hãy khởi động lại Cropa."
+    },
+    "SavedFileGone": {
+      "what": "Không hiển thị được file.",
+      "why": "File đã bị di chuyển, đổi tên hoặc xóa sau khi Cropa lưu.",
+      "next": "Hãy lưu lại ảnh."
+    },
+    "OpenFolder": {
+      "what": "Không mở được thư mục.",
+      "why": "Windows từ chối mở thư mục ({{detail}}).",
+      "next": "Hãy tự mở thư mục trong File Explorer."
+    },
+    "OpenWebPage": {
+      "what": "Không mở được trang web.",
+      "why": "Windows không mở được trình duyệt của bạn ({{detail}}).",
+      "next": "Hãy tự mở github.com/sponsors/phuscth trong trình duyệt."
     },
     "Unexpected": {
       "what": "Đã có lỗi xảy ra.",

@@ -7,6 +7,11 @@
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "allow-get-shortcut-status",
-    "allow-get-editor-image"
+    "allow-get-editor-image",
+    "allow-quick-save",
+    "allow-choose-save-as-path",
+    "allow-write-save-as",
+    "allow-copy-rendered-image",
+    "allow-reveal-saved-file"
   ]
 }

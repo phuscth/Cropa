@@ -17,13 +17,16 @@ use ::windows::core::{HSTRING, w};
 use xcap::{Monitor, Window, XCapError};
 
 mod clipboard;
+mod dialog;
 mod dpi;
 mod overlay;
 mod preview;
 
+use std::path::{Path, PathBuf};
+
 use super::{
-    MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, PreviewHandle, Result,
-    RgbaImage, Selection, WindowInfo,
+    MonitorInfo, OwnerWindow, Permission, PermissionStatus, Platform, PlatformError, PreviewHandle,
+    Result, RgbaImage, SaveFileType, Selection, WindowInfo,
 };
 
 pub struct WindowsPlatform;
@@ -49,6 +52,20 @@ fn monitor_info(monitor: &Monitor) -> Result<MonitorInfo> {
 /// Ease of Access > Keyboard on Windows 10, Accessibility > Keyboard on
 /// Windows 11; both hold the switch for the Print Screen key.
 const KEYBOARD_SETTINGS_URI: &str = "ms-settings:easeofaccess-keyboard";
+
+/// Open a fixed URI or web address with the program Windows has for it.
+fn shell_open(target: &'static str) -> Result<()> {
+    let target = HSTRING::from(target);
+    // SAFETY: the strings are null-terminated and outlive the call; the target
+    // is a compile-time constant, nothing comes from the WebView.
+    let result = unsafe { ShellExecuteW(None, w!("open"), &target, None, None, SW_SHOWNORMAL) };
+    // ShellExecuteW reports success with a value above 32.
+    let code = result.0 as isize;
+    if code <= 32 {
+        return Err(PlatformError::Os(format!("ShellExecute error {code}")));
+    }
+    Ok(())
+}
 
 /// Show a modal message box and return the button the user pressed.
 fn message_box(title: &str, text: &str, style: MESSAGEBOX_STYLE) -> Result<i32> {
@@ -114,16 +131,7 @@ impl Platform for WindowsPlatform {
     }
 
     fn open_print_screen_setting(&self) -> Result<()> {
-        let uri = HSTRING::from(KEYBOARD_SETTINGS_URI);
-        // SAFETY: the strings are null-terminated and outlive the call; the
-        // target is a fixed Settings URI, nothing comes from the WebView.
-        let result = unsafe { ShellExecuteW(None, w!("open"), &uri, None, None, SW_SHOWNORMAL) };
-        // ShellExecuteW reports success with a value above 32.
-        let code = result.0 as isize;
-        if code <= 32 {
-            return Err(PlatformError::Os(format!("ShellExecute error {code}")));
-        }
-        Ok(())
+        shell_open(KEYBOARD_SETTINGS_URI)
     }
 
     fn ask_yes_no(&self, title: &str, text: &str) -> Result<bool> {
@@ -145,5 +153,34 @@ impl Platform for WindowsPlatform {
 
     fn show_preview(&self, image: &RgbaImage, on: &MonitorInfo) -> Result<PreviewHandle> {
         preview::show_preview(image, on)
+    }
+
+    fn pick_folder(
+        &self,
+        owner: Option<OwnerWindow>,
+        title: &str,
+        start_in: Option<&Path>,
+    ) -> Result<Option<PathBuf>> {
+        dialog::pick_folder(owner, title, start_in)
+    }
+
+    fn pick_save_path(
+        &self,
+        owner: Option<OwnerWindow>,
+        title: &str,
+        types: &[SaveFileType<'_>],
+        initial_type: usize,
+        file_name: &str,
+        start_in: Option<&Path>,
+    ) -> Result<Option<(PathBuf, usize)>> {
+        dialog::pick_save_path(owner, title, types, initial_type, file_name, start_in)
+    }
+
+    fn reveal_file(&self, path: &Path) -> Result<()> {
+        dialog::reveal_file(path)
+    }
+
+    fn open_web_page(&self, url: &'static str) -> Result<()> {
+        shell_open(url)
     }
 }

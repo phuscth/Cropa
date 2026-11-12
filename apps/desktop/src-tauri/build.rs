@@ -19,6 +19,14 @@ fn main() {
         "delete_all_history",
         "open_history_in_editor",
         "get_editor_image",
+        "quick_save",
+        "choose_save_as_path",
+        "write_save_as",
+        "copy_rendered_image",
+        "reveal_saved_file",
+        "choose_save_folder",
+        "reset_save_folder",
+        "open_sponsors_page",
     ]);
 
     // tauri-build embeds its Windows manifest (Common Controls v6) only into

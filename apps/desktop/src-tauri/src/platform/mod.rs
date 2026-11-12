@@ -16,6 +16,21 @@ mod windows;
 
 pub use image::RgbaImage;
 
+use std::path::{Path, PathBuf};
+
+/// An opaque native handle to the window a dialog belongs to (the HWND, as an
+/// integer, on Windows).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct OwnerWindow(pub isize);
+
+/// One entry of the file-type list in a save dialog.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct SaveFileType<'a> {
+    pub label: &'a str,
+    /// Without the dot: `png`.
+    pub extension: &'a str,
+}
+
 /// One display, in physical pixels on the virtual desktop.
 #[derive(Debug, Clone, PartialEq)]
 pub struct MonitorInfo {
@@ -109,6 +124,31 @@ pub trait Platform {
     /// Show a small floating preview of `image` in the corner of monitor `on`,
     /// without taking the keyboard focus. Returns once the preview is on screen.
     fn show_preview(&self, image: &RgbaImage, on: &MonitorInfo) -> Result<PreviewHandle>;
+    /// Native folder picker. `Ok(None)` when the user cancels. Blocks the
+    /// calling thread (not the UI event loop) until the dialog closes.
+    fn pick_folder(
+        &self,
+        owner: Option<OwnerWindow>,
+        title: &str,
+        start_in: Option<&Path>,
+    ) -> Result<Option<PathBuf>>;
+    /// Native Save as dialog. Returns the chosen path and the index into
+    /// `types` of the file type selected when the user confirmed; `Ok(None)`
+    /// when the user cancels. Asks before replacing an existing file. Blocks
+    /// the calling thread (not the UI event loop).
+    fn pick_save_path(
+        &self,
+        owner: Option<OwnerWindow>,
+        title: &str,
+        types: &[SaveFileType<'_>],
+        initial_type: usize,
+        file_name: &str,
+        start_in: Option<&Path>,
+    ) -> Result<Option<(PathBuf, usize)>>;
+    /// Open the folder that holds `path` with the file selected.
+    fn reveal_file(&self, path: &Path) -> Result<()>;
+    /// Open a web page in the default browser. Only fixed addresses.
+    fn open_web_page(&self, url: &'static str) -> Result<()>;
 }
 
 /// What the user chose on a floating preview.
