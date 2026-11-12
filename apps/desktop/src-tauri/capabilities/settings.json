@@ -14,6 +14,10 @@
     "allow-get-autostart",
     "allow-set-autostart",
     "allow-set-save-history",
-    "allow-set-exclude-from-clipboard-history"
+    "allow-set-exclude-from-clipboard-history",
+    "allow-choose-save-folder",
+    "allow-reset-save-folder",
+    "allow-open-sponsors-page",
+    "core:app:allow-version"
   ]
 }

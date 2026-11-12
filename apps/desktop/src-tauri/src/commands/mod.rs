@@ -3,6 +3,7 @@
 //! that window needs.
 
 pub mod editor;
+pub mod export;
 pub mod history;
 pub mod presets;
 pub mod settings;
@@ -37,6 +38,22 @@ pub enum CommandError {
     HistoryDelete(String),
     #[error("could not copy to the clipboard: {0}")]
     Clipboard(String),
+    #[error("the image is not a valid picture in the expected format")]
+    ExportInvalid,
+    #[error("the image is larger than {0} MB")]
+    ExportTooLarge(u32),
+    #[error("could not save the file: {0}")]
+    SaveFile(String),
+    #[error("the Save as choice is no longer valid")]
+    SaveAsExpired,
+    #[error("could not open the file dialog: {0}")]
+    SaveDialog(String),
+    #[error("that file is no longer where it was saved")]
+    SavedFileGone,
+    #[error("could not open the folder: {0}")]
+    OpenFolder(String),
+    #[error("could not open the web page: {0}")]
+    OpenWebPage(String),
     #[error("the preset name must have 1 to 40 characters and no control characters")]
     UserPresetName,
     #[error("the preset background is not valid: {0}")]

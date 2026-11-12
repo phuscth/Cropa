@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-pub const CURRENT_VERSION: u32 = 3;
+pub const CURRENT_VERSION: u32 = 4;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
@@ -51,6 +51,8 @@ pub struct Settings {
     pub save_history: bool,
     /// Whether captures are kept out of Windows clipboard history and cloud sync.
     pub exclude_from_clipboard_history: bool,
+    /// Folder that Ctrl+S saves into; `None` until the user picks one.
+    pub save_folder: Option<PathBuf>,
 }
 
 impl Default for Settings {
@@ -62,6 +64,7 @@ impl Default for Settings {
             autostart_asked: false,
             save_history: true,
             exclude_from_clipboard_history: false,
+            save_folder: None,
         }
     }
 }
@@ -89,9 +92,10 @@ pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => over_defaults(v2_to_v3(v1_to_v2(value))),
-        2 => over_defaults(v2_to_v3(value)),
-        3 => over_defaults(value),
+        1 => over_defaults(v3_to_v4(v2_to_v3(v1_to_v2(value)))),
+        2 => over_defaults(v3_to_v4(v2_to_v3(value))),
+        3 => over_defaults(v3_to_v4(value)),
+        4 => over_defaults(value),
         other => Err(MigrateError::TooNew(other)),
     }
 }
@@ -114,6 +118,16 @@ fn v2_to_v3(mut value: serde_json::Value) -> serde_json::Value {
         file.entry("saveHistory").or_insert(true.into());
         file.entry("excludeFromClipboardHistory")
             .or_insert(false.into());
+    }
+    value
+}
+
+/// The save folder was introduced in version 4; it starts unset, so Cropa asks
+/// the first time the user saves.
+fn v3_to_v4(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(file) = value.as_object_mut() {
+        file.insert("version".into(), 4.into());
+        file.entry("saveFolder").or_insert(serde_json::Value::Null);
     }
     value
 }
@@ -215,16 +229,18 @@ mod tests {
             autostart_asked: true,
             save_history: false,
             exclude_from_clipboard_history: true,
+            save_folder: Some(PathBuf::from("D:/Pictures/Cropa")),
             ..Settings::default()
         };
         save(&path, &settings).unwrap();
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["theme"], "dark");
-        assert_eq!(on_disk["version"], 3);
+        assert_eq!(on_disk["version"], 4);
         assert_eq!(on_disk["autostartAsked"], true);
         assert_eq!(on_disk["saveHistory"], false);
         assert_eq!(on_disk["excludeFromClipboardHistory"], true);
+        assert_eq!(on_disk["saveFolder"], "D:/Pictures/Cropa");
         assert_eq!(load(&path), settings);
     }
 
@@ -258,12 +274,12 @@ mod tests {
     fn missing_and_unknown_fields_keep_the_rest() {
         // A file from a build that had a field this one dropped (`autostart`).
         let old =
-            serde_json::json!({ "version": 3, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
+            serde_json::json!({ "version": 4, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
         let migrated = migrate(old).unwrap();
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::System);
         // A file written before a field existed gets that field's default.
-        let sparse = serde_json::json!({ "version": 3 });
+        let sparse = serde_json::json!({ "version": 4 });
         assert_eq!(migrate(sparse).unwrap(), Settings::default());
     }
 
@@ -273,7 +289,7 @@ mod tests {
             "version": 1, "captureShortcut": "Ctrl+Alt+P", "theme": "light", "autostart": true
         });
         let migrated = migrate(with_theme).unwrap();
-        assert_eq!(migrated.version, 3);
+        assert_eq!(migrated.version, 4);
         assert!(migrated.autostart_asked);
         assert!(migrated.save_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -286,12 +302,12 @@ mod tests {
     }
 
     #[test]
-    fn a_version_2_file_migrates_to_3_and_keeps_its_fields() {
+    fn a_version_2_file_migrates_to_4_and_keeps_its_fields() {
         let v2 = serde_json::json!({
             "version": 2, "captureShortcut": "Ctrl+Alt+P", "theme": "dark", "autostartAsked": false
         });
         let migrated = migrate(v2).unwrap();
-        assert_eq!(migrated.version, 3);
+        assert_eq!(migrated.version, 4);
         assert!(migrated.save_history);
         assert!(!migrated.exclude_from_clipboard_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -312,10 +328,35 @@ mod tests {
     }
 
     #[test]
+    fn a_version_3_file_migrates_to_4_without_a_save_folder() {
+        let v3 = serde_json::json!({
+            "version": 3, "captureShortcut": "Ctrl+Alt+P", "theme": "dark",
+            "autostartAsked": true, "saveHistory": false, "excludeFromClipboardHistory": true
+        });
+        let migrated = migrate(v3).unwrap();
+        assert_eq!(migrated.version, 4);
+        assert_eq!(migrated.save_folder, None);
+        assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
+        assert_eq!(migrated.theme, ThemePreference::Dark);
+        assert!(migrated.autostart_asked);
+        assert!(!migrated.save_history);
+        assert!(migrated.exclude_from_clipboard_history);
+    }
+
+    #[test]
+    fn a_version_4_file_keeps_its_save_folder() {
+        let v4 = serde_json::json!({ "version": 4, "saveFolder": "D:/Pictures/Cropa" });
+        assert_eq!(
+            migrate(v4).unwrap().save_folder,
+            Some(PathBuf::from("D:/Pictures/Cropa"))
+        );
+    }
+
+    #[test]
     fn a_newer_version_is_rejected() {
         assert!(matches!(
-            migrate(serde_json::json!({ "version": 4 })),
-            Err(MigrateError::TooNew(4))
+            migrate(serde_json::json!({ "version": 5 })),
+            Err(MigrateError::TooNew(5))
         ));
     }
 
@@ -323,7 +364,7 @@ mod tests {
     fn a_file_missing_a_field_is_not_backed_up() {
         let dir = TempDir::new("sparse");
         let path = dir.0.join(FILE_NAME);
-        fs::write(&path, r#"{ "version": 3 }"#).unwrap();
+        fs::write(&path, r#"{ "version": 4 }"#).unwrap();
         assert_eq!(load(&path), Settings::default());
         assert!(path.exists());
         assert!(!dir.0.join("settings.json.bak").exists());

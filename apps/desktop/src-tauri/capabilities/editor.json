@@ -1,13 +1,18 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "editor",
-  "description": "Editor window: listens to app events, reads the shortcut status and manages the user's saved background presets.",
+  "description": "Editor window: listens to app events, reads the shortcut status, manages the user's saved background presets, and saves, copies and reveals exported images.",
   "windows": ["editor"],
   "permissions": [
     "core:event:allow-listen",
     "core:event:allow-unlisten",
     "allow-get-shortcut-status",
     "allow-get-editor-image",
+    "allow-quick-save",
+    "allow-choose-save-as-path",
+    "allow-write-save-as",
+    "allow-copy-rendered-image",
+    "allow-reveal-saved-file",
     "allow-list-user-presets",
     "allow-save-user-preset",
     "allow-delete-user-preset"

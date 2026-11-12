@@ -19,6 +19,8 @@ export { annotationBounds, hitTest } from './render/hit-test.ts';
 export { edgeColor } from './render/edge-color.ts';
 export type { Canvas2D, CanvasImage, RenderEnv } from './render/canvas.ts';
 
+export { PLATFORM_SIZES, PLATFORM_IDS, applyPlatformSize } from './export/platform-sizes.ts';
+export type { PlatformId, PlatformSize } from './export/platform-sizes.ts';
 export {
   PRESET_FILE_VERSION,
   PRESET_MAX_BYTES,

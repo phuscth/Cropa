@@ -20,7 +20,7 @@ function render(t: TFunction, kind: string, vars: Vars): UserError {
 }
 
 export function describeCommandError(t: TFunction, error: CommandError, vars: Vars = {}): UserError {
-  const detail = 'detail' in error ? error.detail : '';
+  const detail = 'detail' in error ? String(error.detail) : '';
   return render(t, error.kind, { ...vars, detail });
 }
 

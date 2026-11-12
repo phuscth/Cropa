@@ -112,6 +112,17 @@
     "clipboardPrivacy": {
       "label": "Keep captures out of clipboard history",
       "description": "Cropa's captures won't appear in Windows clipboard history (Win+V) or sync to your other devices."
+    },
+    "saveFolder": {
+      "label": "Save folder",
+      "notSet": "Not set. Cropa asks the first time you save with Ctrl+S.",
+      "change": "Change…",
+      "reset": "Reset"
+    },
+    "about": {
+      "title": "About",
+      "version": "Cropa {{version}}",
+      "sponsor": "Support Cropa on GitHub Sponsors"
     }
   },
   "errors": {
@@ -164,6 +175,46 @@
       "what": "Couldn't copy the capture.",
       "why": "Another app may be holding the clipboard ({{detail}}).",
       "next": "Close that app or try again."
+    },
+    "ExportInvalid": {
+      "what": "Couldn't use the image.",
+      "why": "The picture Cropa prepared isn't a valid image in the chosen format.",
+      "next": "Try again. If it keeps happening, restart Cropa."
+    },
+    "ExportTooLarge": {
+      "what": "The image is too large to save.",
+      "why": "Cropa saves images up to {{detail}} MB.",
+      "next": "Make the image smaller, or choose a lighter format such as JPEG or WebP."
+    },
+    "SaveFile": {
+      "what": "Couldn't save the image.",
+      "why": "Windows refused to write the file ({{detail}}).",
+      "next": "Check that the folder exists and isn't full or read-only, or choose another folder."
+    },
+    "SaveAsExpired": {
+      "what": "Couldn't save the image.",
+      "why": "The save location you chose is no longer valid, because another save started or Cropa lost track of it.",
+      "next": "Choose Save as again."
+    },
+    "SaveDialog": {
+      "what": "Couldn't open the file dialog.",
+      "why": "Windows didn't show the dialog ({{detail}}).",
+      "next": "Try again. If it keeps happening, restart Cropa."
+    },
+    "SavedFileGone": {
+      "what": "Couldn't show the file.",
+      "why": "The file was moved, renamed or deleted after Cropa saved it.",
+      "next": "Save the image again."
+    },
+    "OpenFolder": {
+      "what": "Couldn't open the folder.",
+      "why": "Windows refused to open it ({{detail}}).",
+      "next": "Open the folder yourself in File Explorer."
+    },
+    "OpenWebPage": {
+      "what": "Couldn't open the web page.",
+      "why": "Windows didn't open your browser ({{detail}}).",
+      "next": "Open github.com/sponsors/phuscth in your browser yourself."
     },
     "EditorImage": {
       "what": "Couldn't open the capture in the editor.",

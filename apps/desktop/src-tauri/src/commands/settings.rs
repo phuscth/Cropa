@@ -2,10 +2,12 @@
 // macro cannot take references.
 #![allow(clippy::needless_pass_by_value)]
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
 
 use super::CommandError;
+use crate::i18n::{self, Lang};
+use crate::platform::OwnerWindow;
 use crate::platform::Platform;
 use crate::settings::{self, Settings, ThemePreference};
 use crate::shortcut::{self, ShortcutStatus};
@@ -123,4 +125,46 @@ pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, CommandError
     };
     result.map_err(|err| CommandError::Autostart(err.to_string()))?;
     get_autostart(app)
+}
+
+/// Where the user can sponsor Cropa.
+const SPONSORS_URL: &str = "https://github.com/sponsors/phuscth";
+
+/// Pick the folder Ctrl+S saves into. `None` when the user cancels.
+#[tauri::command]
+#[specta::specta]
+pub async fn choose_save_folder(
+    app: AppHandle,
+    window: WebviewWindow,
+) -> Result<Option<Settings>, CommandError> {
+    let owner = OwnerWindow::of(&window);
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppState>();
+        let current = state.lock().settings.save_folder.clone();
+        let text = i18n::save_dialog_text(Lang::detect());
+        let picked = crate::platform::current()
+            .pick_folder(owner, text.pick_folder_title, current.as_deref())
+            .map_err(|err| CommandError::SaveDialog(err.to_string()))?;
+        picked
+            .map(|dir| persist(&state, |s| s.save_folder = Some(dir)))
+            .transpose()
+    })
+    .await
+    .map_err(|err| CommandError::SaveDialog(err.to_string()))?
+}
+
+/// Forget the save folder: Cropa asks again the next time the user saves.
+#[tauri::command]
+#[specta::specta]
+pub fn reset_save_folder(state: State<'_, AppState>) -> Result<Settings, CommandError> {
+    persist(&state, |s| s.save_folder = None)
+}
+
+/// Open the GitHub Sponsors page in the default browser.
+#[tauri::command]
+#[specta::specta]
+pub fn open_sponsors_page() -> Result<(), CommandError> {
+    crate::platform::current()
+        .open_web_page(SPONSORS_URL)
+        .map_err(|err| CommandError::OpenWebPage(err.to_string()))
 }

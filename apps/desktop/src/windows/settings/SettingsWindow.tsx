@@ -1,4 +1,5 @@
 import { Button } from '@cropa/ui';
+import { getVersion } from '@tauri-apps/api/app';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -45,6 +46,7 @@ export function SettingsWindow() {
   const [status, setStatus] = useState<ShortcutStatus>();
   // Read from Windows, not from settings.json: the user can change it in Task Manager.
   const [autostart, setAutostart] = useState<boolean>();
+  const [version, setVersion] = useState<string>();
   const [error, setError] = useState<UserError>();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -74,6 +76,21 @@ export function SettingsWindow() {
       void unlistenAutostart.then((off) => { off(); });
     };
   }, [t]);
+
+  useEffect(() => {
+    getVersion()
+      .then(setVersion)
+      .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
+  }, [t]);
+
+  // The save folder can change from the editor while this window is open.
+  useEffect(() => {
+    const reload = () => {
+      commands.getSettings().then(setSettings).catch(() => undefined);
+    };
+    window.addEventListener('focus', reload);
+    return () => { window.removeEventListener('focus', reload); };
+  }, []);
 
   /** Run a command that returns a typed Result, mapping errors to the 3-part notice. */
   const run = useCallback(
@@ -165,6 +182,18 @@ export function SettingsWindow() {
     const next = await run(() => commands.setExcludeFromClipboardHistory(enabled));
     if (next) setSettings(next);
   };
+
+  const changeSaveFolder = async () => {
+    const next = await run(() => commands.chooseSaveFolder());
+    if (next) setSettings(next);
+  };
+
+  const resetSaveFolder = async () => {
+    const next = await run(() => commands.resetSaveFolder());
+    if (next) setSettings(next);
+  };
+
+  const openSponsorsPage = () => run(() => commands.openSponsorsPage());
 
   const changeAutostart = async (enabled: boolean) => {
     const next = await run(() => commands.setAutostart(enabled));
@@ -325,11 +354,51 @@ export function SettingsWindow() {
         </p>
       </div>
 
+      <section className="flex flex-col gap-2">
+        <span className="text-sm font-medium">{t('settings.saveFolder.label')}</span>
+        <p className="break-all text-sm text-muted-foreground">
+          {settings?.saveFolder ?? t('settings.saveFolder.notSet')}
+        </p>
+        <div className="flex gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            disabled={busy || !settings}
+            onClick={() => { void changeSaveFolder(); }}
+          >
+            {t('settings.saveFolder.change')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={busy || !settings?.saveFolder}
+            onClick={() => { void resetSaveFolder(); }}
+          >
+            {t('settings.saveFolder.reset')}
+          </Button>
+        </div>
+      </section>
+
       {saved && !notice && (
         <p role="status" className="text-sm text-muted-foreground">
           {t('settings.saved')}
         </p>
       )}
+
+      <section className="flex flex-col items-start gap-2 border-t pt-4">
+        <h2 className="text-sm font-medium">{t('settings.about.title')}</h2>
+        {version && (
+          <p className="text-sm text-muted-foreground">{t('settings.about.version', { version })}</p>
+        )}
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={busy}
+          onClick={() => { void openSponsorsPage(); }}
+        >
+          {t('settings.about.sponsor')}
+        </Button>
+      </section>
     </main>
   );
 }
