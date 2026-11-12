@@ -23,6 +23,7 @@ Working with a coding agent? [AGENTS.md](AGENTS.md) holds the rules it follows h
 pnpm lint
 pnpm typecheck
 pnpm test
+pnpm check:presets
 cargo fmt --all --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
@@ -30,6 +31,11 @@ cargo test --workspace
 
 CI runs the same steps on `windows-latest`, plus `cargo-deny` and the npm
 licence check.
+
+## Background presets
+
+A background preset is one JSON file in [`presets/`](presets/). The format, the
+rules and the steps to add one are in [`presets/README.md`](presets/README.md).
 
 ## Rules that are easy to miss
 

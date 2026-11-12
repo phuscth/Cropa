@@ -1,0 +1,45 @@
+{
+  "version": 1,
+  "id": "forest",
+  "name": {
+    "en": "Forest",
+    "vi": "Rừng"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "linear",
+        "angle": 160,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#12404a"
+          },
+          {
+            "offset": 1,
+            "color": "#1b5e3b"
+          }
+        ]
+      },
+      {
+        "type": "noise",
+        "opacity": 0.05,
+        "grain": 1.5,
+        "seed": 31
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

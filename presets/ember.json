@@ -1,0 +1,53 @@
+{
+  "version": 1,
+  "id": "ember",
+  "name": {
+    "en": "Ember",
+    "vi": "Than hồng"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "conic",
+        "cx": 500,
+        "cy": 500,
+        "angle": 0,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ff6b81"
+          },
+          {
+            "offset": 0.3,
+            "color": "#ffb347"
+          },
+          {
+            "offset": 0.6,
+            "color": "#ff5d73"
+          },
+          {
+            "offset": 1,
+            "color": "#ff6b81"
+          }
+        ]
+      },
+      {
+        "type": "blur",
+        "radius": 40
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}

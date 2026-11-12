@@ -16,3 +16,18 @@ export { render } from './render/render.ts';
 export { outputSize } from './render/layout.ts';
 export { edgeColor } from './render/edge-color.ts';
 export type { Canvas2D, CanvasImage, RenderEnv } from './render/canvas.ts';
+
+export {
+  PRESET_FILE_VERSION,
+  PRESET_MAX_BYTES,
+  PresetFile,
+  PresetId,
+  PresetName,
+  migratePresetFile,
+  importPreset,
+  exportPreset,
+  presetId,
+  presetName,
+} from './presets/file.ts';
+export type { Preset, PresetError, PresetResult } from './presets/file.ts';
+export { builtinPresets } from './presets/builtin.ts';

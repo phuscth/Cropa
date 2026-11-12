@@ -1,0 +1,39 @@
+{
+  "version": 1,
+  "id": "peach",
+  "name": {
+    "en": "Peach",
+    "vi": "Đào"
+  },
+  "background": {
+    "version": 1,
+    "viewBox": [
+      0,
+      0,
+      1000,
+      1000
+    ],
+    "layers": [
+      {
+        "type": "linear",
+        "angle": 135,
+        "stops": [
+          {
+            "offset": 0,
+            "color": "#ffc8d6"
+          },
+          {
+            "offset": 1,
+            "color": "#c4c9f5"
+          }
+        ]
+      }
+    ],
+    "animation": {
+      "type": "none",
+      "speed": 1,
+      "loop": true,
+      "durationMs": 4000
+    }
+  }
+}
