@@ -91,6 +91,16 @@ pub fn set_save_history(
     persist(&state, |s| s.save_history = enabled)
 }
 
+/// Keep captures out of Windows clipboard history and cloud sync, or not.
+#[tauri::command]
+#[specta::specta]
+pub fn set_exclude_from_clipboard_history(
+    state: State<'_, AppState>,
+    enabled: bool,
+) -> Result<Settings, CommandError> {
+    persist(&state, |s| s.exclude_from_clipboard_history = enabled)
+}
+
 /// Whether Cropa starts at sign-in, read from Windows each time: the user can
 /// change it outside Cropa (Task Manager › Startup apps).
 #[tauri::command]

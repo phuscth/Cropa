@@ -24,7 +24,15 @@ fn os_error(err: impl ToString) -> PlatformError {
     PlatformError::Os(err.to_string())
 }
 
-pub fn copy_image(image: &RgbaImage) -> Result<()> {
+/// Registered formats that tell Windows clipboard history, cloud sync and
+/// clipboard monitors to leave the content alone. Each holds a DWORD `0`.
+const PRIVACY_FORMATS: [::windows::core::PCWSTR; 3] = [
+    w!("ExcludeClipboardContentFromMonitorProcessing"),
+    w!("CanIncludeInClipboardHistory"),
+    w!("CanUploadToCloudClipboard"),
+];
+
+pub fn copy_image(image: &RgbaImage, exclude_from_history: bool) -> Result<()> {
     let mut png = Vec::new();
     PngEncoder::new(&mut png)
         .write_image(
@@ -39,6 +47,18 @@ pub fn copy_image(image: &RgbaImage) -> Result<()> {
     let _clipboard = Clipboard::open()?;
     // SAFETY: the clipboard is open and owned by this thread through the guard.
     unsafe { EmptyClipboard() }.map_err(os_error)?;
+    // The privacy flags go first, so a failure later never leaves an image on
+    // the clipboard without them.
+    if exclude_from_history {
+        for name in PRIVACY_FORMATS {
+            // SAFETY: the format names are null-terminated literals.
+            let format = unsafe { RegisterClipboardFormatW(name) };
+            if format == 0 {
+                return Err(os_error(::windows::core::Error::from_thread()));
+            }
+            set_data(format, &0u32.to_le_bytes())?;
+        }
+    }
     // SAFETY: the format name is a null-terminated literal.
     let png_format = unsafe { RegisterClipboardFormatW(w!("PNG")) };
     if png_format == 0 {

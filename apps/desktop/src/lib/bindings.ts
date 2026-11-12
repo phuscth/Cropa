@@ -32,6 +32,8 @@ export const commands = {
 	 *  in the history stay.
 	 */
 	setSaveHistory: (enabled: boolean) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_save_history", { enabled })),
+	/**  Keep captures out of Windows clipboard history and cloud sync, or not. */
+	setExcludeFromClipboardHistory: (enabled: boolean) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_exclude_from_clipboard_history", { enabled })),
 	listHistory: () => typedError<HistoryItem[], CommandError>(__TAURI_INVOKE("list_history")),
 	/**  The thumbnail of one capture as a `data:` URL. */
 	getHistoryThumbnail: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("get_history_thumbnail", { id })),
@@ -102,6 +104,8 @@ export type Settings = {
 	autostartAsked: boolean,
 	/**  Whether each capture is also kept in the history folder. */
 	saveHistory: boolean,
+	/**  Whether captures are kept out of Windows clipboard history and cloud sync. */
+	excludeFromClipboardHistory: boolean,
 };
 
 export type ShortcutErrorKind = 

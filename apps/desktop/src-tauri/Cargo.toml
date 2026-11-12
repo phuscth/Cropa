@@ -32,12 +32,14 @@ base64 = "0.23"
 image = { version = "0.25", default-features = false, features = ["png"] }
 
 [target.'cfg(windows)'.dependencies]
+windows-numerics = "0.3.1"
 xcap = { version = "0.9.10", default-features = false, features = ["wgc"] }
 windows = { version = "0.62.2", features = [
   "Foundation_Numerics",
   "Win32_Foundation",
   "Win32_Graphics_Direct2D",
   "Win32_Graphics_Direct2D_Common",
+  "Win32_Graphics_Dwm",
   "Win32_Graphics_DirectWrite",
   "Win32_Graphics_Dxgi_Common",
   "Win32_Graphics_Gdi",

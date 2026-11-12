@@ -11,6 +11,7 @@ fn main() {
         "get_autostart",
         "set_autostart",
         "set_save_history",
+        "set_exclude_from_clipboard_history",
         "list_history",
         "get_history_thumbnail",
         "copy_history_image",

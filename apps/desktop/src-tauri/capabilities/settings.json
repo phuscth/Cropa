@@ -13,6 +13,7 @@
     "allow-set-theme",
     "allow-get-autostart",
     "allow-set-autostart",
-    "allow-set-save-history"
+    "allow-set-save-history",
+    "allow-set-exclude-from-clipboard-history"
   ]
 }

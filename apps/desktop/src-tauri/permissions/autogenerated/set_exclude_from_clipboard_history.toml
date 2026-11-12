@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-set-exclude-from-clipboard-history"
+description = "Enables the set_exclude_from_clipboard_history command without any pre-configured scope."
+commands.allow = ["set_exclude_from_clipboard_history"]
+
+[[permission]]
+identifier = "deny-set-exclude-from-clipboard-history"
+description = "Denies the set_exclude_from_clipboard_history command without any pre-configured scope."
+commands.deny = ["set_exclude_from_clipboard_history"]

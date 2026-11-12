@@ -107,6 +107,25 @@ pub const fn capture_text(lang: Lang) -> CaptureText {
     }
 }
 
+pub struct PreviewText {
+    /// The window's name, read out by screen readers.
+    pub title: &'static str,
+    pub edit: &'static str,
+}
+
+pub const fn preview_text(lang: Lang) -> PreviewText {
+    match lang {
+        Lang::En => PreviewText {
+            title: "Cropa preview",
+            edit: "Edit",
+        },
+        Lang::Vi => PreviewText {
+            title: "Xem trước Cropa",
+            edit: "Sửa",
+        },
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum CaptureFailure {
     Capture,

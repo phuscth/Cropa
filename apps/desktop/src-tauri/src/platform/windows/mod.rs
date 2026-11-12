@@ -1,6 +1,6 @@
 //! Windows: screen capture through `xcap` with Windows Graphics Capture, the
-//! region-selection overlay (`overlay`, Direct2D), the clipboard (`clipboard`),
-//! and native dialogs and Settings pages through Win32.
+//! region-selection overlay (`overlay`, Direct2D), the floating preview
+//! (`preview`), the clipboard (`clipboard`), and native dialogs and Settings pages through Win32.
 //!
 //! Minimal for now. Testing mixed DPI and negative coordinates will decide
 //! whether monitor geometry should come straight from Win32 instead.
@@ -17,11 +17,13 @@ use ::windows::core::{HSTRING, w};
 use xcap::{Monitor, Window, XCapError};
 
 mod clipboard;
+mod dpi;
 mod overlay;
+mod preview;
 
 use super::{
-    MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, Result, RgbaImage,
-    Selection, WindowInfo,
+    MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, PreviewHandle, Result,
+    RgbaImage, Selection, WindowInfo,
 };
 
 pub struct WindowsPlatform;
@@ -137,7 +139,11 @@ impl Platform for WindowsPlatform {
         overlay::select_region(shots)
     }
 
-    fn copy_image(&self, image: &RgbaImage) -> Result<()> {
-        clipboard::copy_image(image)
+    fn copy_image(&self, image: &RgbaImage, exclude_from_history: bool) -> Result<()> {
+        clipboard::copy_image(image, exclude_from_history)
+    }
+
+    fn show_preview(&self, image: &RgbaImage, on: &MonitorInfo) -> Result<PreviewHandle> {
+        preview::show_preview(image, on)
     }
 }

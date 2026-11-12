@@ -49,6 +49,8 @@ pub struct Settings {
     pub autostart_asked: bool,
     /// Whether each capture is also kept in the history folder.
     pub save_history: bool,
+    /// Whether captures are kept out of Windows clipboard history and cloud sync.
+    pub exclude_from_clipboard_history: bool,
 }
 
 impl Default for Settings {
@@ -59,6 +61,7 @@ impl Default for Settings {
             theme: ThemePreference::default(),
             autostart_asked: false,
             save_history: true,
+            exclude_from_clipboard_history: false,
         }
     }
 }
@@ -109,6 +112,8 @@ fn v2_to_v3(mut value: serde_json::Value) -> serde_json::Value {
     if let Some(file) = value.as_object_mut() {
         file.insert("version".into(), 3.into());
         file.entry("saveHistory").or_insert(true.into());
+        file.entry("excludeFromClipboardHistory")
+            .or_insert(false.into());
     }
     value
 }
@@ -209,6 +214,7 @@ mod tests {
             theme: ThemePreference::Dark,
             autostart_asked: true,
             save_history: false,
+            exclude_from_clipboard_history: true,
             ..Settings::default()
         };
         save(&path, &settings).unwrap();
@@ -218,6 +224,7 @@ mod tests {
         assert_eq!(on_disk["version"], 3);
         assert_eq!(on_disk["autostartAsked"], true);
         assert_eq!(on_disk["saveHistory"], false);
+        assert_eq!(on_disk["excludeFromClipboardHistory"], true);
         assert_eq!(load(&path), settings);
     }
 
@@ -286,6 +293,7 @@ mod tests {
         let migrated = migrate(v2).unwrap();
         assert_eq!(migrated.version, 3);
         assert!(migrated.save_history);
+        assert!(!migrated.exclude_from_clipboard_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::Dark);
         assert!(!migrated.autostart_asked);
@@ -295,6 +303,12 @@ mod tests {
     fn a_version_3_file_keeps_history_off() {
         let off = serde_json::json!({ "version": 3, "saveHistory": false });
         assert!(!migrate(off).unwrap().save_history);
+    }
+
+    #[test]
+    fn a_version_3_file_keeps_clipboard_privacy_on() {
+        let on = serde_json::json!({ "version": 3, "excludeFromClipboardHistory": true });
+        assert!(migrate(on).unwrap().exclude_from_clipboard_history);
     }
 
     #[test]

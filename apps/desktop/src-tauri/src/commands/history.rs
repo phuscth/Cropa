@@ -11,6 +11,7 @@ use super::{CommandError, png_data_url};
 use crate::editor;
 use crate::history::{History, HistoryChanged, HistoryError, HistoryItem};
 use crate::platform::{self, Platform};
+use crate::state::AppState;
 
 fn read_error(err: HistoryError) -> CommandError {
     match err {
@@ -64,13 +65,18 @@ pub async fn get_history_thumbnail(app: AppHandle, id: String) -> Result<String,
 #[tauri::command]
 #[specta::specta]
 pub async fn copy_history_image(app: AppHandle, id: String) -> Result<(), CommandError> {
+    let exclude = app
+        .state::<AppState>()
+        .lock()
+        .settings
+        .exclude_from_clipboard_history;
     blocking(&app, move |history| {
         let png = history.original(&id).map_err(read_error)?;
         let image = image::load_from_memory_with_format(&png, image::ImageFormat::Png)
             .map_err(|err| CommandError::HistoryRead(err.to_string()))?
             .into_rgba8();
         platform::current()
-            .copy_image(&image)
+            .copy_image(&image, exclude)
             .map_err(|err| CommandError::Clipboard(err.to_string()))
     })
     .await

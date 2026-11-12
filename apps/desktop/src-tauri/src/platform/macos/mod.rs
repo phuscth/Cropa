@@ -1,8 +1,8 @@
 //! macOS: stub until sponsored (planned: ScreenCaptureKit, Screen Recording permission).
 
 use super::{
-    MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, Result, RgbaImage,
-    Selection, WindowInfo,
+    MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, PreviewHandle, Result,
+    RgbaImage, Selection, WindowInfo,
 };
 
 pub struct MacosPlatform;
@@ -44,7 +44,11 @@ impl Platform for MacosPlatform {
         Err(PlatformError::Unsupported)
     }
 
-    fn copy_image(&self, _image: &RgbaImage) -> Result<()> {
+    fn copy_image(&self, _image: &RgbaImage, _exclude_from_history: bool) -> Result<()> {
+        Err(PlatformError::Unsupported)
+    }
+
+    fn show_preview(&self, _image: &RgbaImage, _on: &MonitorInfo) -> Result<PreviewHandle> {
         Err(PlatformError::Unsupported)
     }
 }
