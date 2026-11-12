@@ -8,9 +8,12 @@ import {
   type CommandError,
   type Settings,
   type ShortcutStatus,
+  type ThemePreference,
 } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+
+const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 
 export function SettingsWindow() {
   const { t } = useTranslation();
@@ -70,6 +73,11 @@ export function SettingsWindow() {
     }
   };
 
+  const changeTheme = async (value: ThemePreference) => {
+    const next = await run(() => commands.setTheme(value));
+    if (next) setSettings(next);
+  };
+
   const changeAutostart = async (enabled: boolean) => {
     const next = await run(() => commands.setAutostart(enabled));
     if (next !== undefined) setAutostart(next);
@@ -114,6 +122,32 @@ export function SettingsWindow() {
         />
         <p className="text-xs text-muted-foreground">{t('settings.shortcut.description')}</p>
       </section>
+
+      <fieldset className="flex flex-col gap-2">
+        <legend className="text-sm font-medium">{t('settings.theme.label')}</legend>
+        <div className="inline-flex w-fit gap-0.5 rounded-md border bg-muted p-0.5">
+          {THEMES.map((value) => (
+            <label
+              key={value}
+              className="inline-flex h-7 cursor-pointer items-center rounded-sm px-3 text-sm not-has-[:checked]:hover:bg-accent has-[:checked]:bg-selected has-[:checked]:text-selected-foreground has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50"
+            >
+              <input
+                type="radio"
+                name="theme"
+                value={value}
+                className="sr-only"
+                checked={settings?.theme === value}
+                // Not disabled while saving: arrow keys move through the group,
+                // and disabling the focused radio would drop the focus.
+                disabled={!settings}
+                onChange={() => { void changeTheme(value); }}
+              />
+              {t(`settings.theme.${value}`)}
+            </label>
+          ))}
+        </div>
+        <p className="text-xs text-muted-foreground">{t('settings.theme.description')}</p>
+      </fieldset>
 
       <label className="flex items-center gap-3 text-sm">
         <input

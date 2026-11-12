@@ -6,7 +6,7 @@ use tauri::{AppHandle, State};
 use tauri_plugin_autostart::ManagerExt;
 
 use super::CommandError;
-use crate::settings::{self, Settings};
+use crate::settings::{self, Settings, ThemePreference};
 use crate::shortcut::{self, ShortcutStatus};
 use crate::state::AppState;
 
@@ -51,6 +51,19 @@ pub fn set_capture_shortcut(
             Err(err)
         }
     }
+}
+
+/// Change the colour theme and apply it to every window, open or opened later.
+#[tauri::command]
+#[specta::specta]
+pub fn set_theme(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    theme: ThemePreference,
+) -> Result<Settings, CommandError> {
+    let saved = persist(&state, |s| s.theme = theme)?;
+    app.set_theme(theme.to_tauri());
+    Ok(saved)
 }
 
 /// Whether Cropa starts at sign-in, read from Windows each time: the user can

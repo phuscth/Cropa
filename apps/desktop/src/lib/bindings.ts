@@ -13,6 +13,8 @@ export const commands = {
 	 *  `settings.json` is unchanged.
 	 */
 	setCaptureShortcut: (accelerator: string) => typedError<ShortcutStatus_Serialize, CommandError>(__TAURI_INVOKE("set_capture_shortcut", { accelerator })),
+	/**  Change the colour theme and apply it to every window, open or opened later. */
+	setTheme: (theme: ThemePreference) => typedError<Settings, CommandError>(__TAURI_INVOKE("set_theme", { theme })),
 	/**
 	 *  Whether Cropa starts at sign-in, read from Windows each time: the user can
 	 *  change it outside Cropa (Task Manager › Startup apps).
@@ -49,6 +51,8 @@ export type Settings = {
 	version: number,
 	/**  Global shortcut for region capture, in Tauri accelerator syntax. */
 	captureShortcut: string,
+	/**  Colour theme; a file written before this field existed gets `System`. */
+	theme: ThemePreference,
 };
 
 export type ShortcutErrorKind = 
@@ -70,6 +74,11 @@ export type ShortcutStatus_Serialize = {
 	registered: boolean,
 	error: ShortcutErrorKind | null,
 };
+
+/**  Colour theme of every window. On disk: `"system"`, `"light"` or `"dark"`. */
+export type ThemePreference = 
+/**  Follow the light or dark mode set in Windows. */
+"system" | "light" | "dark";
 
 /* Tauri Specta runtime */
 async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {

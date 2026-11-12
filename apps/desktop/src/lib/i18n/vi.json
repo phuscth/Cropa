@@ -21,6 +21,13 @@
       "registered": "Đang hoạt động",
       "notRegistered": "Chưa hoạt động"
     },
+    "theme": {
+      "label": "Giao diện",
+      "system": "Theo hệ thống",
+      "light": "Sáng",
+      "dark": "Tối",
+      "description": "Theo hệ thống sẽ dùng chế độ sáng hoặc tối đã chọn trong Windows."
+    },
     "autostart": {
       "label": "Mở Cropa khi đăng nhập Windows"
     },
