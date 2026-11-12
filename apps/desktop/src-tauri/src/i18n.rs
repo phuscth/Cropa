@@ -86,6 +86,55 @@ pub fn autostart_failed_text(lang: Lang, enabled: bool, detail: &str) -> String 
     }
 }
 
+pub struct CaptureText {
+    pub title: &'static str,
+    pub hint: &'static str,
+}
+
+pub const fn capture_text(lang: Lang) -> CaptureText {
+    match lang {
+        Lang::En => CaptureText {
+            title: "Cropa",
+            hint: "Drag to capture · Esc to cancel",
+        },
+        Lang::Vi => CaptureText {
+            title: "Cropa",
+            hint: "Kéo để chụp · Esc để hủy",
+        },
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum CaptureFailure {
+    Capture,
+    Overlay,
+    Clipboard,
+}
+
+/// The notice shown when a capture fails: what happened, why, what to do.
+pub fn capture_failed_text(lang: Lang, failure: CaptureFailure, detail: &str) -> String {
+    match (lang, failure) {
+        (Lang::En, CaptureFailure::Capture) => format!(
+            "Cropa couldn't capture the screen.\n\nWindows refused the screen capture ({detail}).\n\nTry again. If it keeps failing, restart Cropa."
+        ),
+        (Lang::En, CaptureFailure::Overlay) => format!(
+            "Cropa couldn't open the region selection.\n\nWindows refused to show it ({detail}).\n\nTry again. If it keeps failing, restart Cropa."
+        ),
+        (Lang::En, CaptureFailure::Clipboard) => format!(
+            "Cropa couldn't copy the capture.\n\nAnother app may be holding the clipboard ({detail}).\n\nClose that app or try the capture again."
+        ),
+        (Lang::Vi, CaptureFailure::Capture) => format!(
+            "Cropa không chụp được màn hình.\n\nWindows từ chối việc chụp màn hình ({detail}).\n\nHãy thử lại. Nếu vẫn lỗi, hãy khởi động lại Cropa."
+        ),
+        (Lang::Vi, CaptureFailure::Overlay) => format!(
+            "Cropa không mở được màn chọn vùng.\n\nWindows từ chối hiển thị nó ({detail}).\n\nHãy thử lại. Nếu vẫn lỗi, hãy khởi động lại Cropa."
+        ),
+        (Lang::Vi, CaptureFailure::Clipboard) => format!(
+            "Cropa không sao chép được ảnh chụp.\n\nCó thể một ứng dụng khác đang giữ clipboard ({detail}).\n\nHãy đóng ứng dụng đó hoặc chụp lại."
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::Lang;

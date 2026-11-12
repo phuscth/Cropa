@@ -2,7 +2,7 @@
 
 use super::{
     MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, Result, RgbaImage,
-    WindowInfo,
+    Selection, WindowInfo,
 };
 
 pub struct MacosPlatform;
@@ -37,6 +37,14 @@ impl Platform for MacosPlatform {
     }
 
     fn show_warning(&self, _title: &str, _text: &str) -> Result<()> {
+        Err(PlatformError::Unsupported)
+    }
+
+    fn select_region(&self, _shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Selection>> {
+        Err(PlatformError::Unsupported)
+    }
+
+    fn copy_image(&self, _image: &RgbaImage) -> Result<()> {
         Err(PlatformError::Unsupported)
     }
 }
