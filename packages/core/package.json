@@ -1,0 +1,19 @@
+{
+  "name": "@cropa/core",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "lint": "eslint .",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "@cropa/config": "workspace:*",
+    "eslint": "10.14.0",
+    "vitest": "5.1.0"
+  }
+}

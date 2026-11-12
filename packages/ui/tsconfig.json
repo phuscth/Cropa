@@ -1,0 +1,10 @@
+{
+  "extends": "@cropa/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist/types",
+    "rootDir": "src",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src"]
+}

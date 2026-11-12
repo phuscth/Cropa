@@ -1,0 +1,56 @@
+{
+  "app": {
+    "name": "Cropa"
+  },
+  "editor": {
+    "title": "Editor",
+    "empty": "Chưa có ảnh chụp.",
+    "hint": "Bấm {{shortcut}} hoặc chọn “Chụp vùng” ở khay hệ thống.",
+    "captureReceived": "Đã nhận yêu cầu chụp (từ {{source}}) lúc {{time}}. Chụp vùng sẽ có ở Phase 1.",
+    "source": {
+      "Hotkey": "phím tắt",
+      "Tray": "menu khay"
+    }
+  },
+  "settings": {
+    "title": "Cài đặt",
+    "shortcut": {
+      "label": "Phím tắt chụp",
+      "description": "Bấm vào ô, rồi nhấn tổ hợp phím mới.",
+      "recording": "Nhấn phím… (Esc để hủy)",
+      "registered": "Đang hoạt động",
+      "notRegistered": "Chưa hoạt động"
+    },
+    "autostart": {
+      "label": "Mở Cropa khi đăng nhập Windows"
+    },
+    "saved": "Đã lưu."
+  },
+  "errors": {
+    "ShortcutInvalid": {
+      "what": "Không dùng được tổ hợp phím này.",
+      "why": "Phím tắt toàn cục cần ít nhất một phím bổ trợ (Ctrl, Alt, Shift hoặc Win) và một phím chính.",
+      "next": "Thử một tổ hợp như Alt+Shift+S."
+    },
+    "ShortcutInUse": {
+      "what": "Phím tắt chụp chưa hoạt động.",
+      "why": "Một ứng dụng khác đang dùng {{shortcut}}.",
+      "next": "Chọn tổ hợp khác bên dưới, hoặc đóng ứng dụng kia rồi mở lại Cropa."
+    },
+    "SaveSettings": {
+      "what": "Chưa lưu được cài đặt.",
+      "why": "Cropa không ghi được file cài đặt ({{detail}}).",
+      "next": "Kiểm tra thư mục người dùng còn chỗ trống và không bị khóa ghi, rồi thử lại."
+    },
+    "Autostart": {
+      "what": "Không đổi được chế độ mở khi đăng nhập.",
+      "why": "Windows từ chối thay đổi ({{detail}}).",
+      "next": "Thử lại, hoặc bật trong Windows Settings › Apps › Startup."
+    },
+    "Unexpected": {
+      "what": "Đã có lỗi xảy ra.",
+      "why": "{{detail}}",
+      "next": "Thử lại. Nếu vẫn lỗi, hãy mở lại Cropa."
+    }
+  }
+}

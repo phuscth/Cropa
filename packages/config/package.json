@@ -1,0 +1,19 @@
+{
+  "name": "@cropa/config",
+  "version": "0.0.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./eslint": "./eslint.config.js",
+    "./tailwind.css": "./tailwind.css"
+  },
+  "dependencies": {
+    "@eslint/js": "10.0.1",
+    "eslint": "10.14.0",
+    "eslint-plugin-react-hooks": "7.1.1",
+    "globals": "17.14.0",
+    "typescript-eslint": "8.72.2"
+  }
+}

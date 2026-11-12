@@ -1,0 +1,12 @@
+{
+  "extends": "@cropa/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist/types/app",
+    "rootDir": "src",
+    "lib": ["ES2023", "DOM", "DOM.Iterable"],
+    "types": ["vite/client"],
+    "jsx": "react-jsx"
+  },
+  "include": ["src", "src/**/*.json"],
+  "references": [{ "path": "../../packages/core" }, { "path": "../../packages/ai" }, { "path": "../../packages/ui" }]
+}

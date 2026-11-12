@@ -1,0 +1,5 @@
+@import 'tailwindcss';
+@import '@cropa/config/tailwind.css';
+
+/* Tailwind only scans this app by default; include the shared components. */
+@source '../../../packages/ui/src';

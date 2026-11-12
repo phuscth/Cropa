@@ -1,0 +1,23 @@
+{
+  "name": "cropa",
+  "private": true,
+  "license": "MIT",
+  "packageManager": "pnpm@11.21.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "dev": "pnpm --filter @cropa/desktop tauri dev",
+    "build": "turbo run build",
+    "tauri": "pnpm --filter @cropa/desktop tauri",
+    "lint": "turbo run lint",
+    "typecheck": "tsc -b",
+    "test": "turbo run test",
+    "check:licenses": "node tools/license-check/check-npm-licenses.mjs"
+  },
+  "devDependencies": {
+    "@cropa/config": "workspace:*",
+    "turbo": "2.11.10",
+    "typescript": "6.0.3"
+  }
+}

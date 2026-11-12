@@ -1,0 +1,14 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "settings",
+  "description": "Settings window: reads and changes user settings.",
+  "windows": ["settings"],
+  "permissions": [
+    "core:event:allow-listen",
+    "core:event:allow-unlisten",
+    "allow-get-settings",
+    "allow-get-shortcut-status",
+    "allow-set-capture-shortcut",
+    "allow-set-autostart"
+  ]
+}

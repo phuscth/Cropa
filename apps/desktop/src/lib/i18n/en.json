@@ -1,0 +1,56 @@
+{
+  "app": {
+    "name": "Cropa"
+  },
+  "editor": {
+    "title": "Editor",
+    "empty": "No screenshot yet.",
+    "hint": "Press {{shortcut}} or choose “Capture region” in the tray.",
+    "captureReceived": "Capture request received ({{source}}) at {{time}}. Region capture arrives in Phase 1.",
+    "source": {
+      "Hotkey": "shortcut",
+      "Tray": "tray menu"
+    }
+  },
+  "settings": {
+    "title": "Settings",
+    "shortcut": {
+      "label": "Capture shortcut",
+      "description": "Click the box, then press the new key combination.",
+      "recording": "Press keys… (Esc to cancel)",
+      "registered": "Active",
+      "notRegistered": "Not active"
+    },
+    "autostart": {
+      "label": "Start Cropa when I sign in"
+    },
+    "saved": "Saved."
+  },
+  "errors": {
+    "ShortcutInvalid": {
+      "what": "That key combination can't be used.",
+      "why": "A global shortcut needs at least one modifier (Ctrl, Alt, Shift or Win) and one main key.",
+      "next": "Try something like Alt+Shift+S."
+    },
+    "ShortcutInUse": {
+      "what": "The capture shortcut isn't working.",
+      "why": "Another app already uses {{shortcut}}.",
+      "next": "Pick a different combination below, or close the other app and restart Cropa."
+    },
+    "SaveSettings": {
+      "what": "Settings weren't saved.",
+      "why": "Cropa couldn't write its settings file ({{detail}}).",
+      "next": "Check that your user folder isn't full or read-only, then try again."
+    },
+    "Autostart": {
+      "what": "Couldn't change start-at-login.",
+      "why": "Windows refused the change ({{detail}}).",
+      "next": "Try again, or turn it on in Windows Settings › Apps › Startup."
+    },
+    "Unexpected": {
+      "what": "Something went wrong.",
+      "why": "{{detail}}",
+      "next": "Try again. If it keeps happening, restart Cropa."
+    }
+  }
+}
