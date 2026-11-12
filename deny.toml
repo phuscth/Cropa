@@ -6,6 +6,13 @@ all-features = false
 [advisories]
 version = 2
 yanked = "deny"
+# Each ignore names the advisory, why it is safe for now, and when to revisit.
+ignore = [
+  # `paste` is archived (unmaintained, no vulnerability). It only comes in
+  # through specta / tauri-specta =2.0.0-rc.28 (ADR 0001), as a proc-macro at
+  # build time. Revisit when specta leaves rc or drops `paste`.
+  { id = "RUSTSEC-2024-0436", reason = "unmaintained build-time macro via pinned specta rc; no fix available" },
+]
 
 [licenses]
 version = 2
