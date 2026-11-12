@@ -16,3 +16,13 @@ apps/desktop/src-tauri/gen/schemas/
 .idea/
 .DS_Store
 Thumbs.db
+/.playwright-mcp/
+
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx

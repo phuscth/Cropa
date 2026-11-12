@@ -1,13 +1,21 @@
 # Contributing to Cropa
 
-Thanks for helping. The plan and the decisions already made live in
-[ROADMAP.md](ROADMAP.md); please read §2 (decisions) and §4 (engineering
-standards) before a larger change.
+Thanks for helping. For anything larger than a small fix, open an issue first
+so we can agree on the approach. [AGENTS.md](AGENTS.md) lists the module
+boundaries and the rules every change follows.
 
 ## Setup
 
 See [README.md](README.md#develop). `pnpm i && pnpm dev` should open the app
 from a clean clone.
+
+`pnpm i` also installs the git hooks ([lefthook](lefthook.yml)): on commit,
+`rustfmt` formats staged Rust files and [gitleaks](https://github.com/gitleaks/gitleaks)
+scans for secrets when it is on your `PATH`
+(`winget install --id Gitleaks.Gitleaks --version 8.30.1 --exact`); on push,
+`pnpm lint` runs. CI scans for secrets again.
+
+Working with a coding agent? [AGENTS.md](AGENTS.md) holds the rules it follows here.
 
 ## Before you open a PR
 
@@ -38,9 +46,11 @@ licence check.
 - **No GPL/AGPL dependencies.** Record any new external model or binary, with
   the licence of both code and weights, in `THIRD_PARTY_NOTICES.md`.
 - **No telemetry**, and logs never contain image content or prompts.
-- **New decisions** get a short ADR in `docs/decisions/` and a row in ROADMAP §2.
 - Data written to disk carries a `version` and goes through a migrate function.
 
 ## Commits
 
-Small, focused commits with a message that says why. One logical change per PR.
+Small, focused commits with a message that says why. One logical change per PR,
+with a [Conventional Commits](https://www.conventionalcommits.org/en/v1.0.0/)
+title such as `fix(capture): keep the DPI scale per monitor`, and the PR
+template filled in.
