@@ -6,8 +6,8 @@ use tauri::{AppHandle, Manager, State, WebviewWindow};
 use tauri_plugin_autostart::ManagerExt;
 
 use super::CommandError;
-use super::export::owner_of;
 use crate::i18n::{self, Lang};
+use crate::platform::OwnerWindow;
 use crate::platform::Platform;
 use crate::settings::{self, Settings, ThemePreference};
 use crate::shortcut::{self, ShortcutStatus};
@@ -137,7 +137,7 @@ pub async fn choose_save_folder(
     app: AppHandle,
     window: WebviewWindow,
 ) -> Result<Option<Settings>, CommandError> {
-    let owner = owner_of(&window);
+    let owner = OwnerWindow::of(&window);
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppState>();
         let current = state.lock().settings.save_folder.clone();

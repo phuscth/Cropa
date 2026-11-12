@@ -21,7 +21,23 @@ use std::path::{Path, PathBuf};
 /// An opaque native handle to the window a dialog belongs to (the HWND, as an
 /// integer, on Windows).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub struct OwnerWindow(pub isize);
+pub struct OwnerWindow(isize);
+
+impl OwnerWindow {
+    /// The native handle of a Tauri window, for the dialogs it owns. `None`
+    /// when the OS has no handle for it or the platform does not use one.
+    pub fn of<R: tauri::Runtime>(window: &tauri::WebviewWindow<R>) -> Option<Self> {
+        #[cfg(windows)]
+        {
+            window.hwnd().ok().map(|hwnd| Self(hwnd.0 as isize))
+        }
+        #[cfg(not(windows))]
+        {
+            let _ = window;
+            None
+        }
+    }
+}
 
 /// One entry of the file-type list in a save dialog.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]

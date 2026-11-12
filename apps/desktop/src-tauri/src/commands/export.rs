@@ -88,19 +88,6 @@ fn saved_file(id: u32, path: &Path) -> SavedFile {
     }
 }
 
-/// The native handle of the window that called a command, to own its dialogs.
-pub(crate) fn owner_of(window: &WebviewWindow) -> Option<OwnerWindow> {
-    #[cfg(windows)]
-    {
-        window.hwnd().ok().map(|hwnd| OwnerWindow(hwnd.0 as isize))
-    }
-    #[cfg(not(windows))]
-    {
-        let _ = window;
-        None
-    }
-}
-
 fn save_folder(app: &AppHandle) -> Option<PathBuf> {
     app.state::<AppState>().lock().settings.save_folder.clone()
 }
@@ -188,7 +175,7 @@ pub async fn quick_save(
     captured_at: Option<f64>,
     session_file: Option<u32>,
 ) -> Result<SaveOutcome, CommandError> {
-    let owner = owner_of(&window);
+    let owner = OwnerWindow::of(&window);
     tauri::async_runtime::spawn_blocking(move || {
         let bytes = decode_data_url(&image, format)?;
         quick_save_blocking(&app, owner, &bytes, format, captured_at, session_file)
@@ -207,7 +194,7 @@ pub async fn choose_save_as_path(
     suggested_name: String,
     format: ExportFormat,
 ) -> Result<SaveAsChoice, CommandError> {
-    let owner = owner_of(&window);
+    let owner = OwnerWindow::of(&window);
     tauri::async_runtime::spawn_blocking(move || {
         let saved_files = app.state::<SavedFiles>();
         let text = i18n::save_dialog_text(Lang::detect());
