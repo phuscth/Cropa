@@ -1,5 +1,5 @@
 //! Cropa desktop: the thin layer that wires Tauri to the platform code and
-//! the pure crates (ROADMAP §3).
+//! the pure crates.
 
 mod app_windows;
 mod capture;
@@ -93,7 +93,7 @@ pub fn run() {
         })
         .on_window_event(|window, event| {
             // Cropa lives in the tray: closing a window hides it, and it is
-            // destroyed a few minutes later unless reopened (D28).
+            // destroyed a few minutes later unless reopened.
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
                 app_windows::hide_then_destroy(window);

@@ -1,5 +1,5 @@
-//! Capture entry point. Phase 0 only proves the shortcut and tray reach the
-//! app: it emits [`CaptureRequested`] and shows the editor. Phase 1 replaces the
+//! Capture entry point. For now it only proves the shortcut and tray reach the
+//! app: it emits [`CaptureRequested`] and shows the editor. Region capture replaces the
 //! body with "capture all monitors → overlay → clipboard → floating preview".
 
 use serde::Serialize;

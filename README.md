@@ -3,8 +3,8 @@
 **C**apture · **R**ender · **O**verlay · **P**olish · **A**I
 
 Open-source (MIT) screenshot tool that beautifies captures, with optional AI
-features. Windows only for now; macOS if sponsored. Status: **Phase 0 (foundation)**; see
-[ROADMAP.md](ROADMAP.md).
+features. Windows only for now; macOS if sponsored. Status: **early development**,
+not released yet.
 
 ## Develop
 
@@ -39,7 +39,6 @@ packages/config     shared tsconfig, ESLint, Tailwind tokens
 crates/cropa-agent  drives the user's Codex / Claude Code CLI
 crates/cropa-gif    animated GIF writer
 crates/cropa-matte  background removal: applies the AI cut-out's alpha to the original
-docs/decisions      ADRs
 ```
 
 ## License

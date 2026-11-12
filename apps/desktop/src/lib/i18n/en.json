@@ -6,7 +6,7 @@
     "title": "Editor",
     "empty": "No screenshot yet.",
     "hint": "Press {{shortcut}} or choose “Capture region” in the tray.",
-    "captureReceived": "Capture request received ({{source}}) at {{time}}. Region capture arrives in Phase 1.",
+    "captureReceived": "Capture request received ({{source}}) at {{time}}. Region capture is not available yet.",
     "source": {
       "Hotkey": "shortcut",
       "Tray": "tray menu"

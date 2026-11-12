@@ -1,5 +1,5 @@
 //! User settings persisted as versioned JSON in the app config directory.
-//! Every file on disk carries `version` and goes through [`migrate`] (ROADMAP §3.2).
+//! Every file on disk carries `version` and goes through [`migrate`].
 
 use std::fs;
 use std::io;

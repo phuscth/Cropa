@@ -1,5 +1,5 @@
 //! Animated GIF writer: shared palette across the loop (`quantette`) and
-//! frame encoding (`gif`), per decision D4. Implemented in Phase 7c.
+//! frame encoding (`gif`). Not implemented yet.
 
 /// Frame delay in GIF units (hundredths of a second) for a frame rate,
 /// rounded to the nearest unit and never below 1.

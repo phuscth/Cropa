@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 
 import type { CommandError } from './bindings.ts';
 
-/** Every user-facing error has three parts (ROADMAP §4). */
+/** Every user-facing error has three parts: what happened, why, what to do next. */
 export interface UserError {
   what: string;
   why: string;

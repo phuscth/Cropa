@@ -1,4 +1,4 @@
-//! The global capture shortcut (D13): register, report conflicts, change.
+//! The global capture shortcut: register, report conflicts, change.
 
 use std::str::FromStr;
 

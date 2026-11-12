@@ -1,7 +1,7 @@
-//! Windows: screen capture through `xcap` with Windows Graphics Capture (D10).
+//! Windows: screen capture through `xcap` with Windows Graphics Capture.
 //!
-//! Minimal for Phase 0. Spike S1 (mixed DPI, negative coordinates) decides in
-//! Phase 1 whether monitor geometry should come straight from Win32 instead.
+//! Minimal for now. Testing mixed DPI and negative coordinates will decide
+//! whether monitor geometry should come straight from Win32 instead.
 
 use xcap::{Monitor, Window, XCapError};
 
