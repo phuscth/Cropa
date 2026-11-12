@@ -17,6 +17,8 @@
     "shortcut": {
       "label": "Capture shortcut",
       "description": "Click the box, then press the new key combination.",
+      "usePrintScreen": "Use PrtScn",
+      "printScreenHint": "Cropa opens a Windows setting so you can stop Windows from using PrtScn for its own screen capture.",
       "recording": "Press keys… (Esc to cancel)",
       "registered": "Active",
       "notRegistered": "Not active"
@@ -27,6 +29,10 @@
       "light": "Light",
       "dark": "Dark",
       "description": "System follows the light or dark mode set in Windows."
+    },
+    "printScreen": {
+      "retry": "Try again",
+      "openSetting": "Open Windows setting"
     },
     "autostart": {
       "label": "Start Cropa when I sign in"
@@ -43,6 +49,16 @@
       "what": "The capture shortcut isn't working.",
       "why": "Another app already uses {{shortcut}}.",
       "next": "Pick a different combination below, or close the other app and restart Cropa."
+    },
+    "PrintScreenInUse": {
+      "what": "PrtScn isn't working as the capture key.",
+      "why": "Windows uses PrtScn to open its own screen snipping, or another screenshot app has taken the key.",
+      "next": "In the Windows Keyboard settings, turn off the switch that uses the Print Screen key to open screen snipping, then come back to Cropa: it tries again on its own. Close any other screenshot app that uses PrtScn."
+    },
+    "OpenSystemSetting": {
+      "what": "Couldn't open the Windows setting.",
+      "why": "Windows didn't open the Settings app ({{detail}}).",
+      "next": "Open Settings › Ease of Access › Keyboard yourself (Accessibility › Keyboard on Windows 11) and turn off the Print Screen switch."
     },
     "SaveSettings": {
       "what": "Settings weren't saved.",

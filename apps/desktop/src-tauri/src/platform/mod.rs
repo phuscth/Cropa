@@ -71,6 +71,14 @@ pub trait Platform {
     fn windows(&self) -> Result<Vec<WindowInfo>>;
     fn permissions(&self) -> PermissionStatus;
     fn request_permission(&self, permission: Permission) -> Result<()>;
+    /// Open the OS page where the user can stop the OS from using the Print
+    /// Screen key.
+    fn open_print_screen_setting(&self) -> Result<()>;
+    /// Modal native question with Yes as the default button. Blocks the
+    /// calling thread until the user answers.
+    fn ask_yes_no(&self, title: &str, text: &str) -> Result<bool>;
+    /// Modal native notice with an OK button. Blocks the calling thread.
+    fn show_warning(&self, title: &str, text: &str) -> Result<()>;
 }
 
 /// The implementation for the OS this binary was built for.

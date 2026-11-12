@@ -27,4 +27,16 @@ impl Platform for MacosPlatform {
     fn request_permission(&self, _permission: Permission) -> Result<()> {
         Err(PlatformError::Unsupported)
     }
+
+    fn open_print_screen_setting(&self) -> Result<()> {
+        Err(PlatformError::Unsupported)
+    }
+
+    fn ask_yes_no(&self, _title: &str, _text: &str) -> Result<bool> {
+        Err(PlatformError::Unsupported)
+    }
+
+    fn show_warning(&self, _title: &str, _text: &str) -> Result<()> {
+        Err(PlatformError::Unsupported)
+    }
 }

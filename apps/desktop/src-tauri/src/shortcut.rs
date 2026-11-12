@@ -5,7 +5,7 @@ use std::str::FromStr;
 use serde::Serialize;
 use specta::Type;
 use tauri::{AppHandle, Manager, Runtime};
-use tauri_plugin_global_shortcut::{GlobalShortcutExt, Shortcut, ShortcutState};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Shortcut, ShortcutState};
 use tauri_specta::Event;
 
 use crate::capture::{self, CaptureSource};
@@ -17,6 +17,9 @@ pub enum ShortcutErrorKind {
     Invalid,
     /// The OS refused it, almost always because another app holds it.
     InUse,
+    /// Windows (its own screen snipping on `PrtScn`) or another screenshot app
+    /// holds the `PrtScn` key.
+    PrintScreenInUse,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Type, Event)]
@@ -53,9 +56,10 @@ impl ShortcutStatus {
 
 /// Parse an accelerator. Only combinations with at least one modifier are
 /// accepted: a bare key as a global shortcut would swallow normal typing.
+/// Print Screen is the one exception, since it types nothing.
 pub fn parse(accelerator: &str) -> Result<Shortcut, ShortcutErrorKind> {
     let shortcut = Shortcut::from_str(accelerator).map_err(|_| ShortcutErrorKind::Invalid)?;
-    if shortcut.mods.is_empty() {
+    if shortcut.mods.is_empty() && shortcut.key != Code::PrintScreen {
         return Err(ShortcutErrorKind::Invalid);
     }
     Ok(shortcut)
@@ -70,7 +74,11 @@ fn register<R: Runtime>(app: &AppHandle<R>, shortcut: Shortcut) -> Result<(), Sh
         })
         .map_err(|err| {
             log::warn!("global shortcut registration failed: {err}");
-            ShortcutErrorKind::InUse
+            if shortcut.mods.is_empty() && shortcut.key == Code::PrintScreen {
+                ShortcutErrorKind::PrintScreenInUse
+            } else {
+                ShortcutErrorKind::InUse
+            }
         })
 }
 
@@ -167,6 +175,15 @@ mod tests {
         assert_eq!(parse("Alt+Shift"), Err(ShortcutErrorKind::Invalid));
         assert_eq!(parse("NotAKey+S"), Err(ShortcutErrorKind::Invalid));
         assert_eq!(parse("S"), Err(ShortcutErrorKind::Invalid));
+    }
+
+    #[test]
+    fn print_screen_is_the_only_bare_key() {
+        assert!(parse("PrintScreen").is_ok());
+        assert_eq!(parse("PrintScreen"), parse("printscreen"));
+        assert!(parse("Ctrl+PrintScreen").is_ok());
+        assert_eq!(parse("F5"), Err(ShortcutErrorKind::Invalid));
+        assert_eq!(parse("Escape"), Err(ShortcutErrorKind::Invalid));
     }
 
     #[test]

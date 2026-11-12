@@ -6,11 +6,15 @@ use tauri::{AppHandle, State};
 use tauri_plugin_autostart::ManagerExt;
 
 use super::CommandError;
+use crate::platform::Platform;
 use crate::settings::{self, Settings, ThemePreference};
 use crate::shortcut::{self, ShortcutStatus};
 use crate::state::AppState;
 
-fn persist(state: &AppState, update: impl FnOnce(&mut Settings)) -> Result<Settings, CommandError> {
+pub(crate) fn persist(
+    state: &AppState,
+    update: impl FnOnce(&mut Settings),
+) -> Result<Settings, CommandError> {
     let mut inner = state.lock();
     let mut next = inner.settings.clone();
     update(&mut next);
@@ -51,6 +55,16 @@ pub fn set_capture_shortcut(
             Err(err)
         }
     }
+}
+
+/// Open the Windows page where the user can stop Windows from using the Print
+/// Screen key for its own screen snipping.
+#[tauri::command]
+#[specta::specta]
+pub fn open_print_screen_setting() -> Result<(), CommandError> {
+    crate::platform::current()
+        .open_print_screen_setting()
+        .map_err(|err| CommandError::OpenSystemSetting(err.to_string()))
 }
 
 /// Change the colour theme and apply it to every window, open or opened later.

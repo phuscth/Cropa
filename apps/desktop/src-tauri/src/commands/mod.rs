@@ -22,6 +22,10 @@ pub enum CommandError {
     SaveSettings(String),
     #[error("could not change start-at-login: {0}")]
     Autostart(String),
+    #[error("Windows or another app already uses the Print Screen key")]
+    PrintScreenInUse,
+    #[error("could not open the Windows setting: {0}")]
+    OpenSystemSetting(String),
 }
 
 impl From<ShortcutErrorKind> for CommandError {
@@ -29,6 +33,7 @@ impl From<ShortcutErrorKind> for CommandError {
         match kind {
             ShortcutErrorKind::Invalid => Self::ShortcutInvalid,
             ShortcutErrorKind::InUse => Self::ShortcutInUse,
+            ShortcutErrorKind::PrintScreenInUse => Self::PrintScreenInUse,
         }
     }
 }

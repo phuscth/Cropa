@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-pub const CURRENT_VERSION: u32 = 1;
+pub const CURRENT_VERSION: u32 = 2;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
@@ -45,6 +45,8 @@ pub struct Settings {
     pub capture_shortcut: String,
     /// Colour theme; a file written before this field existed gets `System`.
     pub theme: ThemePreference,
+    /// Whether the first-launch "Start with Windows?" question has been answered.
+    pub autostart_asked: bool,
 }
 
 impl Default for Settings {
@@ -53,6 +55,7 @@ impl Default for Settings {
             version: CURRENT_VERSION,
             capture_shortcut: DEFAULT_CAPTURE_SHORTCUT.to_owned(),
             theme: ThemePreference::default(),
+            autostart_asked: false,
         }
     }
 }
@@ -72,17 +75,29 @@ pub enum MigrateError {
 /// Within a version, the file is laid over the defaults: a field the file lacks
 /// (added later) takes its default and a field this build does not know
 /// (removed later) is dropped, so adding or removing a field never throws the
-/// user's file away. A field whose meaning changes needs a new version and a
-/// step here.
+/// user's file away. A field whose meaning changes, or whose default differs
+/// for existing files, needs a new version and a step here.
 pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
     let version = value
         .get("version")
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => over_defaults(value),
+        1 => over_defaults(v1_to_v2(value)),
+        2 => over_defaults(value),
         other => Err(MigrateError::TooNew(other)),
     }
+}
+
+/// A version 1 file is only written from the Settings window, which already
+/// shows the start-at-login toggle, so that user has seen the choice and is not
+/// asked again at launch.
+fn v1_to_v2(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(file) = value.as_object_mut() {
+        file.insert("version".into(), 2.into());
+        file.entry("autostartAsked").or_insert(true.into());
+    }
+    value
 }
 
 fn over_defaults(file: serde_json::Value) -> Result<Settings, MigrateError> {
@@ -179,12 +194,15 @@ mod tests {
         let settings = Settings {
             capture_shortcut: "Ctrl+Shift+2".into(),
             theme: ThemePreference::Dark,
+            autostart_asked: true,
             ..Settings::default()
         };
         save(&path, &settings).unwrap();
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["theme"], "dark");
+        assert_eq!(on_disk["version"], 2);
+        assert_eq!(on_disk["autostartAsked"], true);
         assert_eq!(load(&path), settings);
     }
 
@@ -218,20 +236,45 @@ mod tests {
     fn missing_and_unknown_fields_keep_the_rest() {
         // A file from a build that had a field this one dropped (`autostart`).
         let old =
-            serde_json::json!({ "version": 1, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
+            serde_json::json!({ "version": 2, "captureShortcut": "Ctrl+Alt+P", "autostart": true });
         let migrated = migrate(old).unwrap();
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::System);
         // A file written before a field existed gets that field's default.
-        let sparse = serde_json::json!({ "version": 1 });
+        let sparse = serde_json::json!({ "version": 2 });
         assert_eq!(migrate(sparse).unwrap(), Settings::default());
+    }
+
+    #[test]
+    fn a_version_1_file_migrates_and_is_not_asked_again() {
+        let with_theme = serde_json::json!({
+            "version": 1, "captureShortcut": "Ctrl+Alt+P", "theme": "light", "autostart": true
+        });
+        let migrated = migrate(with_theme).unwrap();
+        assert_eq!(migrated.version, 2);
+        assert!(migrated.autostart_asked);
+        assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
+        assert_eq!(migrated.theme, ThemePreference::Light);
+
+        let without_theme = serde_json::json!({ "version": 1, "captureShortcut": "Ctrl+Alt+P" });
+        let migrated = migrate(without_theme).unwrap();
+        assert!(migrated.autostart_asked);
+        assert_eq!(migrated.theme, ThemePreference::System);
+    }
+
+    #[test]
+    fn a_newer_version_is_rejected() {
+        assert!(matches!(
+            migrate(serde_json::json!({ "version": 3 })),
+            Err(MigrateError::TooNew(3))
+        ));
     }
 
     #[test]
     fn a_file_missing_a_field_is_not_backed_up() {
         let dir = TempDir::new("sparse");
         let path = dir.0.join(FILE_NAME);
-        fs::write(&path, r#"{ "version": 1 }"#).unwrap();
+        fs::write(&path, r#"{ "version": 2 }"#).unwrap();
         assert_eq!(load(&path), Settings::default());
         assert!(path.exists());
         assert!(!dir.0.join("settings.json.bak").exists());

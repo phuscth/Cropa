@@ -1,8 +1,18 @@
-//! Windows: screen capture through `xcap` with Windows Graphics Capture.
+//! Windows: screen capture through `xcap` with Windows Graphics Capture, and
+//! native dialogs and Settings pages through Win32.
 //!
 //! Minimal for now. Testing mixed DPI and negative coordinates will decide
 //! whether monitor geometry should come straight from Win32 instead.
+// The Win32 calls below are the only unsafe code in the app; each block says
+// why it is sound.
+#![allow(unsafe_code)]
 
+use ::windows::Win32::UI::Shell::ShellExecuteW;
+use ::windows::Win32::UI::WindowsAndMessaging::{
+    IDYES, MB_DEFBUTTON1, MB_ICONQUESTION, MB_ICONWARNING, MB_OK, MB_SETFOREGROUND, MB_TOPMOST,
+    MB_YESNO, MESSAGEBOX_STYLE, MessageBoxW, SW_SHOWNORMAL,
+};
+use ::windows::core::{HSTRING, w};
 use xcap::{Monitor, Window, XCapError};
 
 use super::{
@@ -28,6 +38,24 @@ fn monitor_info(monitor: &Monitor) -> Result<MonitorInfo> {
         scale_factor: monitor.scale_factor().map_err(os_error)?,
         is_primary: monitor.is_primary().map_err(os_error)?,
     })
+}
+
+/// Ease of Access > Keyboard on Windows 10, Accessibility > Keyboard on
+/// Windows 11; both hold the switch for the Print Screen key.
+const KEYBOARD_SETTINGS_URI: &str = "ms-settings:easeofaccess-keyboard";
+
+/// Show a modal message box and return the button the user pressed.
+fn message_box(title: &str, text: &str, style: MESSAGEBOX_STYLE) -> Result<i32> {
+    let title = HSTRING::from(title);
+    let text = HSTRING::from(text);
+    // SAFETY: both strings are null-terminated and outlive the call; no owner window.
+    let answer = unsafe { MessageBoxW(None, &text, &title, style | MB_SETFOREGROUND | MB_TOPMOST) };
+    if answer.0 == 0 {
+        return Err(PlatformError::Os(
+            ::windows::core::Error::from_thread().to_string(),
+        ));
+    }
+    Ok(answer.0)
 }
 
 fn window_info(window: &Window) -> Result<WindowInfo> {
@@ -77,5 +105,27 @@ impl Platform for WindowsPlatform {
 
     fn request_permission(&self, _permission: Permission) -> Result<()> {
         Ok(())
+    }
+
+    fn open_print_screen_setting(&self) -> Result<()> {
+        let uri = HSTRING::from(KEYBOARD_SETTINGS_URI);
+        // SAFETY: the strings are null-terminated and outlive the call; the
+        // target is a fixed Settings URI, nothing comes from the WebView.
+        let result = unsafe { ShellExecuteW(None, w!("open"), &uri, None, None, SW_SHOWNORMAL) };
+        // ShellExecuteW reports success with a value above 32.
+        let code = result.0 as isize;
+        if code <= 32 {
+            return Err(PlatformError::Os(format!("ShellExecute error {code}")));
+        }
+        Ok(())
+    }
+
+    fn ask_yes_no(&self, title: &str, text: &str) -> Result<bool> {
+        let answer = message_box(title, text, MB_YESNO | MB_ICONQUESTION | MB_DEFBUTTON1)?;
+        Ok(answer == IDYES.0)
+    }
+
+    fn show_warning(&self, title: &str, text: &str) -> Result<()> {
+        message_box(title, text, MB_OK | MB_ICONWARNING).map(|_| ())
     }
 }
