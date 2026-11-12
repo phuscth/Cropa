@@ -114,6 +114,25 @@ describe('field ranges', () => {
   });
 });
 
+describe('annotation style', () => {
+  const styled = (style: object) => ({ ...annotation(), style });
+
+  it('accepts every style field', () => {
+    const style = { color: '#112233', strokeWidth: 3, fontSize: 20, fill: '#11223344', radius: 8, strength: 16 };
+    expect(migrateAnnotation(styled(style))).toEqual({ ok: true, value: styled(style) });
+  });
+
+  it.each([
+    ['strength below 1', { strength: 0 }],
+    ['strength above 256', { strength: 257 }],
+    ['negative radius', { radius: -1 }],
+    ['radius above 4096', { radius: 5000 }],
+    ['a fill that is not hex', { fill: 'red' }],
+  ])('rejects %s', (_label, style) => {
+    expect(migrateAnnotation(styled(style))).toMatchObject({ ok: false, error: { kind: 'invalid' } });
+  });
+});
+
 describe('nested documents in a scene', () => {
   it('reports a too-new background as a too-new scene', () => {
     const result = migrateScene({ ...scene(), background: { ...background(), version: 2 } });

@@ -32,6 +32,11 @@ export interface Canvas2D {
   shadowOffsetX: number;
   shadowOffsetY: number;
   lineWidth: number;
+  lineCap: string;
+  lineJoin: string;
+  font: string;
+  textAlign: string;
+  textBaseline: string;
 
   save(): void;
   restore(): void;
@@ -46,6 +51,7 @@ export interface Canvas2D {
   lineTo(x: number, y: number): void;
   arcTo(x1: number, y1: number, x2: number, y2: number, radius: number): void;
   rect(x: number, y: number, w: number, h: number): void;
+  arc(x: number, y: number, radius: number, startAngle: number, endAngle: number): void;
   ellipse(
     x: number,
     y: number,
@@ -60,6 +66,8 @@ export interface Canvas2D {
   clip(): void;
   fillRect(x: number, y: number, w: number, h: number): void;
   clearRect(x: number, y: number, w: number, h: number): void;
+  fillText(text: string, x: number, y: number): void;
+  measureText(text: string): { readonly width: number };
 
   drawImage(image: object, dx: number, dy: number, dw: number, dh: number): void;
   drawImage(
