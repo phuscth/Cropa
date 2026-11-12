@@ -1,0 +1,15 @@
+pre-commit:
+  jobs:
+    - name: rustfmt
+      glob: '*.rs'
+      run: rustfmt --edition 2024 {staged_files}
+      stage_fixed: true
+    - name: secrets
+      run: gitleaks git --pre-commit --staged --redact --no-banner --verbose
+      skip:
+        - run: '! command -v gitleaks'
+
+pre-push:
+  jobs:
+    - name: lint
+      run: pnpm run lint

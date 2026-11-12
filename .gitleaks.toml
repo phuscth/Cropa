@@ -1,0 +1,6 @@
+# gitleaks configuration: the default rules.
+# Read by the lefthook pre-commit job (lefthook.yml) and by CI (the `secrets` job).
+# A false positive goes in an [[allowlists]] entry here, with a comment saying why.
+
+[extend]
+useDefault = true
