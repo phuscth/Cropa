@@ -11,30 +11,7 @@
   },
   "app": {
     "withGlobalTauri": false,
-    "windows": [
-      {
-        "label": "editor",
-        "title": "Cropa",
-        "url": "src/windows/editor/index.html",
-        "width": 1100,
-        "height": 720,
-        "minWidth": 720,
-        "minHeight": 480,
-        "center": true,
-        "visible": false
-      },
-      {
-        "label": "settings",
-        "title": "Cropa Settings",
-        "url": "src/windows/settings/index.html",
-        "width": 560,
-        "height": 520,
-        "resizable": false,
-        "maximizable": false,
-        "center": true,
-        "visible": false
-      }
-    ],
+    "windows": [],
     "security": {
       "csp": {
         "default-src": "'self'",

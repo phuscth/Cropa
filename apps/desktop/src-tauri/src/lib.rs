@@ -80,6 +80,7 @@ pub fn run() {
             let settings_path = app.path().app_config_dir()?.join(settings::FILE_NAME);
             let loaded = settings::load(&settings_path);
             app.manage(AppState::new(settings_path, loaded));
+            app.manage(app_windows::CloseTimers::default());
 
             tray::create(app.handle(), i18n::Lang::detect())?;
 
@@ -91,12 +92,11 @@ pub fn run() {
             Ok(())
         })
         .on_window_event(|window, event| {
-            // Cropa lives in the tray: closing a window only hides it.
+            // Cropa lives in the tray: closing a window hides it, and it is
+            // destroyed a few minutes later unless reopened (D28).
             if let WindowEvent::CloseRequested { api, .. } = event {
                 api.prevent_close();
-                if let Err(err) = window.hide() {
-                    log::warn!("could not hide window: {err}");
-                }
+                app_windows::hide_then_destroy(window);
             }
         })
         .build(tauri::generate_context!())
