@@ -37,7 +37,7 @@ pub enum CommandError {
     HistoryDelete(String),
     #[error("could not copy to the clipboard: {0}")]
     Clipboard(String),
-    #[error("the preset name must have 1 to 60 characters and no control characters")]
+    #[error("the preset name must have 1 to 40 characters and no control characters")]
     UserPresetName,
     #[error("the preset background is not valid: {0}")]
     UserPresetInvalid(String),
