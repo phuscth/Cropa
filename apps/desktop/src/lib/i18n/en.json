@@ -6,7 +6,61 @@
     "title": "Editor",
     "empty": "No screenshot yet.",
     "hint": "Press {{shortcut}} or choose “Capture region” in the tray.",
-    "imageAlt": "The capture shown in the editor"
+    "undo": "Undo",
+    "redo": "Redo",
+    "previewAlt": "Preview of the framed screenshot",
+    "units": {
+      "px": "{{value}} px",
+      "deg": "{{value}}°"
+    },
+    "background": {
+      "title": "Background",
+      "type": "Type",
+      "kind": {
+        "none": "None",
+        "solid": "Solid",
+        "linear": "Linear gradient",
+        "radial": "Radial gradient",
+        "conic": "Conic gradient",
+        "mesh": "Mesh",
+        "image": "Image (the capture, blurred)"
+      },
+      "color": "Colour {{n}}",
+      "colorPicker": "Pick colour {{n}}",
+      "colorHex": "Colour {{n}} as hex",
+      "angle": "Angle",
+      "blur": "Blur",
+      "matchImage": "Match image colour"
+    },
+    "frame": {
+      "title": "Frame",
+      "padding": "Padding",
+      "radius": "Corner radius",
+      "shadow": "Shadow",
+      "shadowLevel": {
+        "none": "None",
+        "soft": "Soft",
+        "medium": "Medium",
+        "strong": "Strong"
+      },
+      "border": "Border",
+      "borderColor": "Border colour",
+      "borderColorPicker": "Pick the border colour",
+      "borderColorHex": "Border colour as hex",
+      "inset": "Inset",
+      "insetColor": "Inset colour",
+      "insetAuto": "Auto",
+      "insetCustom": "Custom",
+      "insetColorPicker": "Pick the inset colour",
+      "insetColorHex": "Inset colour as hex"
+    },
+    "aspect": {
+      "title": "Aspect ratio",
+      "auto": "Auto",
+      "custom": "Custom",
+      "width": "Ratio width",
+      "height": "Ratio height"
+    }
   },
   "history": {
     "title": "History",
@@ -110,6 +164,16 @@
       "what": "Couldn't copy the capture.",
       "why": "Another app may be holding the clipboard ({{detail}}).",
       "next": "Close that app or try again."
+    },
+    "EditorImage": {
+      "what": "Couldn't open the capture in the editor.",
+      "why": "The image could not be decoded ({{detail}}).",
+      "next": "Capture again, or open another capture from History."
+    },
+    "OutputTooLarge": {
+      "what": "That change wasn't applied.",
+      "why": "The image would be larger than 16384 pixels on one side.",
+      "next": "Reduce the padding or choose another aspect ratio."
     },
     "Unexpected": {
       "what": "Something went wrong.",
