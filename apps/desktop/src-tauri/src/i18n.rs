@@ -91,7 +91,15 @@ pub fn autostart_failed_text(lang: Lang, enabled: bool, detail: &str) -> String 
 
 pub struct CaptureText {
     pub title: &'static str,
+    /// The hint for region mode.
     pub hint: &'static str,
+    pub region: &'static str,
+    pub window: &'static str,
+    pub full_screen: &'static str,
+    pub cancel: &'static str,
+    pub window_hint: &'static str,
+    pub full_screen_hint: &'static str,
+    pub keys_hint: &'static str,
 }
 
 pub const fn capture_text(lang: Lang) -> CaptureText {
@@ -99,10 +107,24 @@ pub const fn capture_text(lang: Lang) -> CaptureText {
         Lang::En => CaptureText {
             title: "Cropa",
             hint: "Drag to capture · Esc to cancel",
+            region: "Region",
+            window: "Window",
+            full_screen: "Full screen",
+            cancel: "Cancel",
+            window_hint: "Click a window to capture · Esc to cancel",
+            full_screen_hint: "Click a screen to capture it · Esc to cancel",
+            keys_hint: "R, W, F switch mode",
         },
         Lang::Vi => CaptureText {
             title: "Cropa",
             hint: "Kéo để chụp · Esc để hủy",
+            region: "Vùng",
+            window: "Cửa sổ",
+            full_screen: "Toàn màn hình",
+            cancel: "Hủy",
+            window_hint: "Bấm vào một cửa sổ để chụp · Esc để hủy",
+            full_screen_hint: "Bấm vào một màn hình để chụp · Esc để hủy",
+            keys_hint: "R, W, F để đổi chế độ",
         },
     }
 }

@@ -1,6 +1,6 @@
-//! Region capture: the capture key or tray item freezes every monitor, the
-//! platform overlay lets the user drag a region over the frozen picture, and
-//! the cropped pixels go to the clipboard. Esc leaves the clipboard untouched.
+//! Screen capture: the capture key or tray item freezes every monitor, the
+//! platform overlay lets the user drag a region, pick a window or pick a whole
+//! monitor on the frozen picture, and the cropped pixels go to the clipboard. Esc leaves the clipboard untouched.
 //! A small floating preview of the capture then waits in the screen corner
 //! until the user opens it in the editor, dismisses it, or captures again.
 //!
@@ -149,7 +149,8 @@ fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) -> Option<PendingPrevie
         return None;
     }
     log::info!(
-        "region {}×{} copied to the clipboard {} ms after mouse release",
+        "{} {}×{} copied to the clipboard {} ms after mouse release",
+        selection.mode.log_name(),
         image.width(),
         image.height(),
         selection.released_at.elapsed().as_millis()
@@ -257,8 +258,9 @@ mod tests {
     use image::Rgba;
 
     use super::*;
-    use crate::platform::PixelRect;
-    use crate::platform::geometry::{Point, crop_rect};
+    use crate::platform::geometry::{DesktopRect, Point, crop_rect};
+    use crate::platform::window_pick::window_on_monitor;
+    use crate::platform::{CaptureMode, PixelRect};
 
     fn monitor(x: i32, y: i32, width: u32, height: u32) -> MonitorInfo {
         MonitorInfo {
@@ -299,6 +301,7 @@ mod tests {
         let selection = Selection {
             monitor: 0,
             rect,
+            mode: CaptureMode::Region,
             released_at: Instant::now(),
         };
 
@@ -307,6 +310,32 @@ mod tests {
         assert_eq!((image.width(), image.height()), (500, 300));
         assert_eq!(*image.get_pixel(0, 0), pixel_at(400, 200));
         assert_eq!(*image.get_pixel(499, 299), pixel_at(899, 499));
+    }
+
+    #[test]
+    fn a_window_crop_covers_exactly_the_window_on_that_monitor() {
+        let info = monitor(-2400, -300, 2400, 1350);
+        let shots = vec![(info.clone(), coordinate_image(2400, 1350))];
+        // A window that hangs over the monitor's right edge.
+        let window = DesktopRect {
+            x: -400,
+            y: -200,
+            width: 600,
+            height: 250,
+        };
+        let (_, rect) = window_on_monitor(window, &info, 2400, 1350).expect("it reaches");
+        let selection = Selection {
+            monitor: 0,
+            rect,
+            mode: CaptureMode::Window,
+            released_at: Instant::now(),
+        };
+
+        let image = crop(&shots, &selection).expect("the selection fits");
+
+        assert_eq!((image.width(), image.height()), (400, 250));
+        assert_eq!(*image.get_pixel(0, 0), pixel_at(2000, 100));
+        assert_eq!(*image.get_pixel(399, 249), pixel_at(2399, 349));
     }
 
     #[test]
@@ -321,6 +350,7 @@ mod tests {
                 width,
                 height: 10,
             },
+            mode: CaptureMode::Region,
             released_at: Instant::now(),
         };
 

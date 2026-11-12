@@ -20,6 +20,7 @@ mod clipboard;
 mod dpi;
 mod overlay;
 mod preview;
+mod window_list;
 
 use super::{
     MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, PreviewHandle, Result,
