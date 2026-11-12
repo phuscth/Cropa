@@ -16,3 +16,6 @@ export { render } from './render/render.ts';
 export { outputSize } from './render/layout.ts';
 export { edgeColor } from './render/edge-color.ts';
 export type { Canvas2D, CanvasImage, RenderEnv } from './render/canvas.ts';
+
+export { PLATFORM_SIZES, PLATFORM_IDS, applyPlatformSize } from './export/platform-sizes.ts';
+export type { PlatformId, PlatformSize } from './export/platform-sizes.ts';
