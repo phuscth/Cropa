@@ -13,7 +13,9 @@ export {
 } from './schema/json-schema.ts';
 
 export { render } from './render/render.ts';
-export { outputSize } from './render/layout.ts';
+export { outputSize, screenshotRect } from './render/layout.ts';
+export { ANNOTATION_DEFAULTS, ANNOTATION_FONT } from './render/annotations.ts';
+export { annotationBounds, hitTest } from './render/hit-test.ts';
 export { edgeColor } from './render/edge-color.ts';
 export type { Canvas2D, CanvasImage, RenderEnv } from './render/canvas.ts';
 

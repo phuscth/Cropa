@@ -6,7 +6,61 @@
     "title": "Editor",
     "empty": "Chưa có ảnh chụp.",
     "hint": "Bấm {{shortcut}} hoặc chọn “Chụp vùng” ở khay hệ thống.",
-    "imageAlt": "Ảnh chụp đang hiển thị trong editor"
+    "undo": "Hoàn tác",
+    "redo": "Làm lại",
+    "previewAlt": "Xem trước ảnh chụp đã đóng khung",
+    "units": {
+      "px": "{{value}} px",
+      "deg": "{{value}}°"
+    },
+    "background": {
+      "title": "Nền",
+      "type": "Loại",
+      "kind": {
+        "none": "Không có",
+        "solid": "Màu đơn",
+        "linear": "Chuyển màu thẳng",
+        "radial": "Chuyển màu tròn",
+        "conic": "Chuyển màu xoay",
+        "mesh": "Lưới màu",
+        "image": "Ảnh (chính ảnh chụp, làm mờ)"
+      },
+      "color": "Màu {{n}}",
+      "colorPicker": "Chọn màu {{n}}",
+      "colorHex": "Mã hex của màu {{n}}",
+      "angle": "Góc",
+      "blur": "Làm mờ",
+      "matchImage": "Khớp màu ảnh"
+    },
+    "frame": {
+      "title": "Khung",
+      "padding": "Đệm",
+      "radius": "Bo góc",
+      "shadow": "Đổ bóng",
+      "shadowLevel": {
+        "none": "Không",
+        "soft": "Nhẹ",
+        "medium": "Vừa",
+        "strong": "Đậm"
+      },
+      "border": "Viền",
+      "borderColor": "Màu viền",
+      "borderColorPicker": "Chọn màu viền",
+      "borderColorHex": "Mã hex của màu viền",
+      "inset": "Lề trong",
+      "insetColor": "Màu lề trong",
+      "insetAuto": "Tự động",
+      "insetCustom": "Tùy chọn",
+      "insetColorPicker": "Chọn màu lề trong",
+      "insetColorHex": "Mã hex của màu lề trong"
+    },
+    "aspect": {
+      "title": "Tỉ lệ khung hình",
+      "auto": "Tự động",
+      "custom": "Tùy chọn",
+      "width": "Chiều rộng của tỉ lệ",
+      "height": "Chiều cao của tỉ lệ"
+    }
   },
   "history": {
     "title": "Lịch sử",
@@ -110,6 +164,16 @@
       "what": "Không sao chép được ảnh chụp.",
       "why": "Có thể một ứng dụng khác đang giữ clipboard ({{detail}}).",
       "next": "Đóng ứng dụng đó hoặc thử lại."
+    },
+    "EditorImage": {
+      "what": "Không mở được ảnh chụp trong trình chỉnh sửa.",
+      "why": "Không giải mã được ảnh ({{detail}}).",
+      "next": "Hãy chụp lại, hoặc mở một ảnh khác từ Lịch sử."
+    },
+    "OutputTooLarge": {
+      "what": "Thay đổi đó chưa được áp dụng.",
+      "why": "Ảnh sẽ lớn hơn 16384 pixel ở một cạnh.",
+      "next": "Hãy giảm độ đệm hoặc chọn tỉ lệ khung hình khác."
     },
     "UserPresetName": {
       "what": "Chưa lưu được preset.",

@@ -3,22 +3,36 @@
 //   PowerShell: $env:UPDATE_SNAPSHOTS=1; pnpm --filter @cropa/core test
 //   POSIX:      UPDATE_SNAPSHOTS=1 pnpm --filter @cropa/core test
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 
-import { createCanvas, loadImage } from '@napi-rs/canvas';
+import { GlobalFonts, createCanvas, loadImage } from '@napi-rs/canvas';
 import type { Canvas } from '@napi-rs/canvas';
 import { describe, expect, it } from 'vitest';
 
 import { builtinPresets } from '../presets/builtin.ts';
+import type { Annotation } from '../schema/annotation.ts';
 import { defaultScene } from '../schema/scene.ts';
 import type { Scene } from '../schema/scene.ts';
 import type { BackgroundLayer } from '../schema/background.ts';
 import type { RenderEnv } from './canvas.ts';
-import { outputSize } from './layout.ts';
+import { outputSize, screenshotRect } from './layout.ts';
 import { render } from './render.ts';
 
 const SNAPSHOT_DIR = join(import.meta.dirname, '__snapshots__');
+
+// Text snapshots need the same glyphs on every machine. The Inter weights the
+// renderer asks for come from the @fontsource/inter dev dependency (OFL-1.1, never
+// shipped); a missing font fails here instead of silently falling back.
+const interDir = join(
+  dirname(createRequire(import.meta.url).resolve('@fontsource/inter/package.json')),
+  'files',
+);
+for (const weight of [600, 700]) {
+  GlobalFonts.registerFromPath(join(interDir, `inter-latin-${weight}-normal.woff2`), 'Inter');
+}
+if (!GlobalFonts.has('Inter')) throw new Error('The Inter test font did not load');
 
 function makeScreenshot(width = 160, height = 100): Canvas {
   const canvas = createCanvas(width, height);
@@ -384,6 +398,273 @@ describe('built-in presets', () => {
   });
 });
 
+/** A screenshot with fine detail (stripes and text) so a redaction is easy to see. */
+function makeDetailedScreenshot(): Canvas {
+  const canvas = createCanvas(160, 100);
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#f4f4f5';
+  ctx.fillRect(0, 0, 160, 100);
+  ctx.fillStyle = '#1e293b';
+  for (let x = 0; x < 160; x += 6) ctx.fillRect(x, 0, 2, 22);
+  ctx.fillStyle = '#0ea5e9';
+  ctx.fillRect(0, 22, 160, 8);
+  ctx.fillStyle = '#111827';
+  ctx.font = '600 12px Inter';
+  ctx.fillText('Card 4242 1234', 10, 48);
+  ctx.fillText('Name: A. Reader', 10, 64);
+  ctx.fillStyle = '#16a34a';
+  for (let x = 100; x < 150; x += 4) ctx.fillRect(x, 40, 2, 50);
+  return canvas;
+}
+
+function mark(type: Annotation['type'], box: Annotation['box'], rest: Partial<Annotation> = {}): Annotation {
+  return { version: 1, type, box, ...rest };
+}
+
+function renderWith(
+  renderEnv: RenderEnv,
+  scene: Scene,
+  scale = 1,
+): { canvas: Canvas; rect: ReturnType<typeof screenshotRect> } {
+  const size = outputSize(scene, scale);
+  const canvas = createCanvas(size.width, size.height);
+  render(scene, 0, canvas.getContext('2d'), renderEnv);
+  return { canvas, rect: screenshotRect(scene, size.width, size.height) };
+}
+
+describe('annotations', () => {
+  const detailEnv: RenderEnv = { ...env, screenshot: makeDetailedScreenshot() };
+  const withMarks = (
+    annotations: Annotation[],
+    patch: Parameters<typeof sceneWith>[0] = {},
+  ): Scene => ({ ...sceneWith({ frame: { radius: 6 }, ...patch }), annotations });
+
+  const mixed = [
+    mark('blur', [10, 36, 100, 32], { style: { strength: 8 } }),
+    mark('pixelate', [112, 40, 40, 50], { style: { strength: 8 } }),
+    mark('rect', [6, 4, 148, 90], { style: { color: '#f59e0b', strokeWidth: 3, radius: 8 } }),
+    mark('arrow', [140, 8, -40, 24], { style: { color: '#2563eb', strokeWidth: 3 } }),
+    mark('step', [4, 70, 22, 22]),
+    mark('text', [34, 72, 0, 0], {
+      text: 'Hide this',
+      style: { fontSize: 11, color: '#ffffff', fill: '#111827' },
+    }),
+  ];
+
+  const cases: [string, Scene, number?][] = [
+    [
+      'ann-arrow',
+      withMarks([
+        mark('arrow', [15, 85, 60, -60]),
+        mark('arrow', [145, 15, -60, 50], { style: { color: '#2563eb', strokeWidth: 6 } }),
+        mark('arrow', [20, 20, 100, 0], { style: { color: '#16a34a', strokeWidth: 2 } }),
+        mark('arrow', [90, 92, -75, 0], { style: { color: '#7c3aed', strokeWidth: 3 } }),
+      ]),
+    ],
+    [
+      'ann-rect',
+      withMarks([
+        mark('rect', [10, 10, 60, 40]),
+        mark('rect', [90, 60, -70, -40], {
+          style: { color: '#2563eb', fill: '#2563eb33', strokeWidth: 3, radius: 10 },
+        }),
+        mark('rect', [100, 15, 50, 30], { style: { fill: '#facc1599', strokeWidth: 1 } }),
+      ]),
+    ],
+    [
+      'ann-text',
+      withMarks([
+        mark('text', [10, 8, 0, 0], { text: 'Plain label', style: { fontSize: 14 } }),
+        mark('text', [10, 34, 0, 0], {
+          text: 'Two lines\nwith a pill',
+          style: { fontSize: 14, color: '#ffffff', fill: '#111827' },
+        }),
+        mark('text', [10, 80, 140, 16], {
+          text: 'Box wider than text',
+          style: { fontSize: 11, color: '#111827', fill: '#fde68a' },
+        }),
+      ]),
+    ],
+    [
+      'ann-step',
+      withMarks([
+        mark('step', [12, 10, 24, 24]),
+        mark('step', [60, 40, 24, 24], { style: { color: '#16a34a' } }),
+        mark('step', [110, 66, 24, 24], { style: { color: '#facc15' } }),
+        mark('step', [100, 10, 30, 30], { text: 'A', style: { color: '#2563eb' } }),
+      ]),
+    ],
+    ['ann-blur', withMarks([mark('blur', [8, 36, 100, 32], { style: { strength: 8 } })])],
+    ['ann-pixelate', withMarks([mark('pixelate', [8, 36, 100, 32], { style: { strength: 8 } })])],
+    ['ann-mixed-2x', withMarks(mixed), 2],
+    [
+      'ann-mixed-aspect',
+      withMarks(mixed, {
+        frame: { radius: 10, padding: 24, inset: 6, insetColor: '#ffffff', border: { width: 3, color: '#facc15' } },
+        output: { aspectRatio: [16, 9] },
+      }),
+    ],
+  ];
+
+  it.each(cases)('snapshot: %s', async (name, scene, scale = 1) => {
+    await expectMatchesSnapshot(name, renderWith(detailEnv, scene, scale).canvas);
+  });
+
+  it('derives the automatic inset colour from the redacted screenshot', () => {
+    const src = createCanvas(64, 64);
+    const sctx = src.getContext('2d');
+    sctx.fillStyle = '#000000';
+    sctx.fillRect(0, 0, 64, 64);
+    sctx.fillStyle = '#ffffff';
+    sctx.fillRect(0, 0, 64, 8);
+    sctx.fillRect(0, 56, 64, 8);
+    sctx.fillRect(0, 0, 8, 64);
+    sctx.fillRect(56, 0, 8, 64);
+    const base = defaultScene({ width: 64, height: 64 });
+    const scene: Scene = {
+      ...base,
+      frame: { ...base.frame, padding: 20, inset: 10, insetColor: 'auto', radius: 0, shadows: [] },
+      annotations: [mark('pixelate', [0, 0, 64, 64], { style: { strength: 256 } })],
+    };
+    const { canvas } = renderWith({ ...env, screenshot: src }, scene);
+    // The inset ring sits at x 20..30; the white edge must not leak into it.
+    const p = canvas.getContext('2d').getImageData(25, 50, 1, 1).data;
+    expect(p[0]).toBeGreaterThan(90);
+    expect(p[0]).toBeLessThan(135);
+  });
+
+  describe('alignment', () => {
+    const flat = createCanvas(160, 100);
+    const flatCtx = flat.getContext('2d');
+    flatCtx.fillStyle = '#f4f4f5';
+    flatCtx.fillRect(0, 0, 160, 100);
+    const flatEnv: RenderEnv = { ...env, screenshot: flat };
+
+    // A 1-px stroke on x = 10.5 covers image column 10 exactly. The expected canvas
+    // columns follow from the layout arithmetic written out here, not from the renderer.
+    it.each([
+      ['padding, 1x', {}, 1, 20, 20],
+      ['padding, 2x', {}, 2, 40, 40],
+      ['3:1 aspect, 1x', { output: { aspectRatio: [3, 1] as [number, number] } }, 1, 130, 20],
+      ['3:1 aspect, 2x', { output: { aspectRatio: [3, 1] as [number, number] } }, 2, 260, 40],
+    ])('lands a rect edge on the right pixels: %s', (_name, patch, scale, shotX, shotY) => {
+      const scene = {
+        ...sceneWith(patch),
+        annotations: [
+          mark('rect', [10.5, 10.5, 20, 20], { style: { color: '#ff0000', strokeWidth: 1 } }),
+        ],
+      };
+      const { canvas } = renderWith(flatEnv, scene, scale);
+      const ctx = canvas.getContext('2d');
+      const isRed = (x: number): boolean => {
+        const p = ctx.getImageData(x, shotY + 20 * scale, 1, 1).data;
+        return (p[0] ?? 0) > 240 && (p[1] ?? 255) < 20;
+      };
+      const first = shotX + 10 * scale;
+      const last = first + scale - 1;
+      expect(isRed(first - 1)).toBe(false);
+      for (let x = first; x <= last; x += 1) expect(isRed(x)).toBe(true);
+      expect(isRed(last + 1)).toBe(false);
+    });
+  });
+
+  describe('redaction', () => {
+    const W = 128;
+    const H = 96;
+    const BOX: Annotation['box'] = [8, 8, 112, 80];
+    // Pixels this far from the box edge are unaffected by edge clamping.
+    const MARGIN = 16;
+
+    function checkerEnv(phase: number): RenderEnv {
+      const canvas = createCanvas(W, H);
+      const ctx = canvas.getContext('2d');
+      for (let y = 0; y < H; y += 1) {
+        for (let x = 0; x < W; x += 1) {
+          ctx.fillStyle = (x + y + phase) % 2 === 0 ? '#000000' : '#ffffff';
+          ctx.fillRect(x, y, 1, 1);
+        }
+      }
+      return { ...env, screenshot: canvas };
+    }
+
+    function redactScene(type: 'blur' | 'pixelate', width: number | null): Scene {
+      const base = defaultScene({ width: W, height: H });
+      return {
+        ...base,
+        frame: { ...base.frame, padding: 20, radius: 0, shadows: [] },
+        annotations: [mark(type, BOX, { style: { strength: 8 } })],
+        output: { ...base.output, width },
+      };
+    }
+
+    const cases: [string, 'blur' | 'pixelate', number | null, number][] = [];
+    for (const type of ['blur', 'pixelate'] as const) {
+      cases.push([`${type} 1x`, type, null, 1], [`${type} 2x`, type, null, 2]);
+      cases.push([`${type} odd output width`, type, 247, 1]);
+    }
+
+    it.each(cases)('removes the pattern under a box: %s', (_name, type, width, scale) => {
+      const { canvas, rect } = renderWith(checkerEnv(0), redactScene(type, width), scale);
+      const ctx = canvas.getContext('2d');
+      const k = rect.w / W;
+      const x0 = Math.ceil(rect.x + (BOX[0] + MARGIN) * k);
+      const y0 = Math.ceil(rect.y + (BOX[1] + MARGIN) * k);
+      const x1 = Math.floor(rect.x + (BOX[0] + BOX[2] - MARGIN) * k);
+      const y1 = Math.floor(rect.y + (BOX[1] + BOX[3] - MARGIN) * k);
+      const data = ctx.getImageData(x0, y0, x1 - x0, y1 - y0).data;
+      for (let c = 0; c < 3; c += 1) {
+        let min = 255;
+        let max = 0;
+        for (let i = c; i < data.length; i += 4) {
+          min = Math.min(min, data[i] ?? 0);
+          max = Math.max(max, data[i] ?? 0);
+        }
+        expect(max - min).toBeLessThanOrEqual(8);
+      }
+    });
+
+    it.each(['blur', 'pixelate'] as const)(
+      'changes every pixel in the box and leaves the rest alone at 1x: %s',
+      (type) => {
+        const source = checkerEnv(0);
+        const { canvas } = renderWith(source, redactScene(type, null));
+        const got = canvas.getContext('2d').getImageData(20, 20, W, H).data;
+        const want = (source.screenshot as Canvas).getContext('2d').getImageData(0, 0, W, H).data;
+        for (let y = 0; y < H; y += 1) {
+          for (let x = 0; x < W; x += 1) {
+            const i = (y * W + x) * 4;
+            const inBox = x >= BOX[0] && x < BOX[0] + BOX[2] && y >= BOX[1] && y < BOX[1] + BOX[3];
+            const diff = Math.max(
+              ...[0, 1, 2].map((c) => Math.abs((got[i + c] ?? 0) - (want[i + c] ?? 0))),
+            );
+            if (inBox) expect(diff).toBeGreaterThan(60);
+            else expect(diff).toBe(0);
+          }
+        }
+      },
+    );
+
+    it.each(['blur', 'pixelate'] as const)(
+      'does not depend on the original pixels under the box: %s',
+      (type) => {
+        const scene = redactScene(type, null);
+        const a = renderWith(checkerEnv(0), scene, 2);
+        const b = renderWith(checkerEnv(1), scene, 2);
+        const k = a.rect.w / W;
+        const x = Math.ceil(a.rect.x + (BOX[0] + MARGIN) * k);
+        const y = Math.ceil(a.rect.y + (BOX[1] + MARGIN) * k);
+        const w = Math.floor((BOX[2] - 2 * MARGIN) * k);
+        const h = Math.floor((BOX[3] - 2 * MARGIN) * k);
+        const da = a.canvas.getContext('2d').getImageData(x, y, w, h).data;
+        const db = b.canvas.getContext('2d').getImageData(x, y, w, h).data;
+        let worst = 0;
+        for (let i = 0; i < da.length; i += 1) worst = Math.max(worst, Math.abs((da[i] ?? 0) - (db[i] ?? 0)));
+        expect(worst).toBeLessThanOrEqual(4);
+      },
+    );
+  });
+});
+
 describe('performance', () => {
   it('logs render time at 2x for a 1920x1080 screenshot', { timeout: 60_000 }, () => {
     const big = makeScreenshot(1920, 1080);
@@ -422,5 +703,17 @@ describe('performance', () => {
     };
     console.log(`render 1920x1080 @2x, default scene: ${timeIt(plain).toFixed(0)} ms`);
     console.log(`render 1920x1080 @2x, mesh + noise + blur: ${timeIt(heavy).toFixed(0)} ms`);
+    const annotated: Scene = {
+      ...plain,
+      annotations: [
+        mark('blur', [200, 200, 400, 200]),
+        mark('pixelate', [800, 500, 400, 200]),
+        mark('arrow', [100, 900, 300, -200]),
+        mark('text', [700, 100, 0, 0], { text: 'Annotated', style: { fontSize: 48 } }),
+      ],
+    };
+    console.log(
+      `render 1920x1080 @2x, two 400x200 redactions + arrow + text: ${timeIt(annotated).toFixed(0)} ms`,
+    );
   });
 });

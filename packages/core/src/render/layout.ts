@@ -48,6 +48,46 @@ export function computeLayout(scene: Scene): Layout {
   return { w, h, outer, card, shot };
 }
 
+/** Where the frame lands on a canvas of a given size. */
+export interface Placement {
+  layout: Layout;
+  /** Uniform scale from scene units to canvas pixels. */
+  s: number;
+  /** Offset of the frame's top-left corner on the canvas. */
+  ox: number;
+  oy: number;
+  /** The screenshot in whole canvas pixels. */
+  shot: Box;
+}
+
+/**
+ * Scales the frame uniformly to fit a `cw` x `ch` canvas and centres it. The
+ * screenshot is rounded to whole canvas pixels, so a 1x export with integer
+ * padding copies the pixels exactly.
+ */
+export function placeFrame(scene: Scene, cw: number, ch: number): Placement {
+  const layout = computeLayout(scene);
+  const s = Math.min(cw / layout.w, ch / layout.h);
+  const ox = (cw - layout.w * s) / 2;
+  const oy = (ch - layout.h * s) / 2;
+  const shot = {
+    x: Math.round(ox + layout.shot.x * s),
+    y: Math.round(oy + layout.shot.y * s),
+    w: Math.max(1, Math.round(layout.shot.w * s)),
+    h: Math.max(1, Math.round(layout.shot.h * s)),
+  };
+  return { layout, s, ox, oy, shot };
+}
+
+/**
+ * The screenshot's rectangle on a `canvasWidth` x `canvasHeight` canvas, in canvas
+ * pixels, exactly as `render` draws it. An image point (ix, iy) lands at
+ * `x + ix * w / screenshot.width`, `y + iy * h / screenshot.height`.
+ */
+export function screenshotRect(scene: Scene, canvasWidth: number, canvasHeight: number): Box {
+  return placeFrame(scene, canvasWidth, canvasHeight).shot;
+}
+
 /**
  * Pixel size of the exported image. A fixed `output.width` wins over the natural
  * size and keeps the aspect; `scale` multiplies the result (for example 2 for a 2x export).
