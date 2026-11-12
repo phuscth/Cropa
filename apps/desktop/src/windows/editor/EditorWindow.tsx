@@ -8,7 +8,7 @@ interface LastCapture {
   at: Date;
 }
 
-/** Phase 0 placeholder: proves the shortcut and tray reach the WebView. */
+/** Placeholder: proves the shortcut and tray reach the WebView. */
 export function EditorWindow() {
   const { t, i18n } = useTranslation();
   const [shortcut, setShortcut] = useState<string>();

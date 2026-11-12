@@ -1,4 +1,4 @@
 // @cropa/core: schema, renderer, colour and export presets.
-// Phase 0 only lays the package out; Scene v1 and BackgroundSpec v1 arrive in Phase 1c.
+// Only the package layout so far; Scene v1 and BackgroundSpec v1 come next.
 
 export { clamp } from './math.ts';

@@ -1,6 +1,6 @@
 /**
  * Error kinds a provider run can end with. Mirrors `AgentError` in the
- * `cropa-agent` crate (ROADMAP §3.3); keep both lists in step.
+ * `cropa-agent` crate; keep both lists in step.
  */
 export const AGENT_ERROR_KINDS = [
   'NotInstalled',

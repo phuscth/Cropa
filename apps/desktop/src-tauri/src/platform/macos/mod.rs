@@ -1,4 +1,4 @@
-//! macOS: stub until sponsored (ROADMAP D19: ScreenCaptureKit, Screen Recording permission).
+//! macOS: stub until sponsored (planned: ScreenCaptureKit, Screen Recording permission).
 
 use super::{
     MonitorInfo, Permission, PermissionStatus, Platform, PlatformError, Result, RgbaImage,

@@ -1,7 +1,7 @@
 name: Build Windows
 
-# Unsigned NSIS installer as a workflow artifact for self-testing (D7, D8).
-# No GitHub Release is created before Phase 4.
+# Unsigned NSIS installer as a workflow artifact for self-testing.
+# No GitHub Release is created yet.
 # Actions are pinned to a commit SHA; the comment gives the tag it came from.
 on:
   push:

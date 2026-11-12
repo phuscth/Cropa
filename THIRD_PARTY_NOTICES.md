@@ -8,9 +8,9 @@ dependencies (those are checked automatically by `cargo-deny` and
 For models, both the licence of the code and the licence of the weights are
 recorded.
 
-| Component | Used for | Licence (code) | Licence (weights) | Shipped how | Since |
-|---|---|---|---|---|---|
-| Microsoft Edge WebView2 Runtime | App UI | Microsoft software licence | n/a | Installed by the NSIS bootstrapper if missing | Phase 0 |
+| Component | Used for | Licence (code) | Licence (weights) | Shipped how |
+|---|---|---|---|---|
+| Microsoft Edge WebView2 Runtime | App UI | Microsoft software licence | n/a | Installed by the NSIS bootstrapper if missing |
 
-Planned entries (added when the phase that uses them lands): ffmpeg LGPL
-build (Phase 7), `gif` and `quantette` crates (Phase 7c).
+Planned entries (added when the feature that uses them lands): an ffmpeg LGPL
+build, and the `gif` and `quantette` crates.

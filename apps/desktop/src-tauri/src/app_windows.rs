@@ -1,4 +1,4 @@
-//! The app's WebView windows (editor, settings), created on demand (D28).
+//! The app's WebView windows (editor, settings), created on demand.
 //!
 //! Nothing is created at startup, so a Cropa that only sits in the tray holds
 //! no WebView. Closing a window hides it; if it is not shown again within

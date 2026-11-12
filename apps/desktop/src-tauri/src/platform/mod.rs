@@ -1,9 +1,9 @@
 //! Everything that differs between operating systems sits behind [`Platform`].
 //!
 //! Coordinates are always **physical pixels**; conversion to logical units only
-//! happens at the UI edge (ROADMAP §3.1).
+//! happens at the UI edge.
 //!
-//! Phase 0 defines the contract only; Phase 1 (capture) is the first caller.
+//! This defines the contract only; region capture will be the first caller.
 #![allow(dead_code)]
 
 #[cfg(not(any(windows, target_os = "macos")))]

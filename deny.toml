@@ -1,4 +1,4 @@
-# cargo-deny: licences, advisories, sources. Runs in CI (ROADMAP §4).
+# cargo-deny: licences, advisories, sources. Runs in CI.
 [graph]
 targets = ["x86_64-pc-windows-msvc", "aarch64-apple-darwin", "x86_64-apple-darwin"]
 all-features = false
@@ -9,7 +9,7 @@ yanked = "deny"
 # Each ignore names the advisory, why it is safe for now, and when to revisit.
 ignore = [
   # `paste` is archived (unmaintained, no vulnerability). It only comes in
-  # through specta / tauri-specta =2.0.0-rc.28 (ADR 0001), as a proc-macro at
+  # through specta / tauri-specta =2.0.0-rc.28, as a proc-macro at
   # build time. Revisit when specta leaves rc or drops `paste`.
   { id = "RUSTSEC-2024-0436", reason = "unmaintained build-time macro via pinned specta rc; no fix available" },
 ]
@@ -18,7 +18,7 @@ ignore = [
 version = 2
 confidence-threshold = 0.9
 # Permissive and weak-copyleft (file-level) only. GPL/AGPL/LGPL are not allowed
-# for crates; LGPL ffmpeg (D11) is an external binary, not a crate.
+# for crates; LGPL ffmpeg is an external binary, not a crate.
 allow = [
   "MIT",
   "MIT-0",

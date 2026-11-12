@@ -6,7 +6,7 @@
     "title": "Editor",
     "empty": "Chưa có ảnh chụp.",
     "hint": "Bấm {{shortcut}} hoặc chọn “Chụp vùng” ở khay hệ thống.",
-    "captureReceived": "Đã nhận yêu cầu chụp (từ {{source}}) lúc {{time}}. Chụp vùng sẽ có ở Phase 1.",
+    "captureReceived": "Đã nhận yêu cầu chụp (từ {{source}}) lúc {{time}}. Chụp vùng chưa có.",
     "source": {
       "Hotkey": "phím tắt",
       "Tray": "menu khay"

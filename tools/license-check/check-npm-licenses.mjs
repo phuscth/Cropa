@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // Fails when a production npm dependency uses a licence outside the allowlist
-// (ROADMAP §4: block GPL/AGPL). Usage: node tools/license-check/check-npm-licenses.mjs
+// (blocks GPL/AGPL). Usage: node tools/license-check/check-npm-licenses.mjs
 import { execFileSync } from 'node:child_process';
 
 const ALLOWED = new Set([

@@ -6,7 +6,7 @@ import { defineConfig } from 'vitest/config';
 
 const host = process.env['TAURI_DEV_HOST'];
 
-// One Vite entry per window (ROADMAP §3.5). The HTML path is also the window URL in tauri.conf.json.
+// One Vite entry per window. The HTML path is also the window URL in tauri.conf.json.
 export default defineConfig({
   plugins: [react(), tailwindcss()],
   clearScreen: false,
