@@ -33,15 +33,15 @@ export function EditorWindow() {
   return (
     <main className="flex h-screen flex-col">
       <header className="border-b px-4 py-3 text-sm font-medium">{t('editor.title')}</header>
-      <section className="flex flex-1 flex-col items-center justify-center gap-3 p-8 text-center">
-        <p className="text-lg">{t('editor.empty')}</p>
+      <section className="flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
+        <p className="text-lg text-foreground">{t('editor.empty')}</p>
         {shortcut && (
-          <p className="text-muted-foreground">
+          <p>
             {t('editor.hint', { shortcut })}
           </p>
         )}
         {last && (
-          <p role="status" className="mt-4 rounded-md bg-muted px-3 py-2 text-sm">
+          <p role="status" className="mt-4 rounded-md bg-card px-3 py-2 text-sm text-card-foreground shadow-sm">
             {t('editor.captureReceived', {
               source: t(`editor.source.${last.source}`),
               time: last.at.toLocaleTimeString(i18n.language),

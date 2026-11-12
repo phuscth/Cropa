@@ -35,7 +35,7 @@ export function ShortcutField({ value, disabled = false, onChange }: Props) {
       onBlur={() => { setRecording(false); }}
       onKeyDown={onKeyDown}
       className={cn(
-        'h-9 w-full rounded-md border bg-background px-3 text-left font-mono text-sm shadow-xs outline-none',
+        'h-8 w-full rounded-md border bg-background px-3 text-left font-mono text-sm shadow-xs outline-none',
         'focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:opacity-50',
         recording && 'ring-[3px] ring-ring/50',
       )}
