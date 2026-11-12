@@ -2,13 +2,13 @@
 //!
 //! Coordinates are always **physical pixels**; conversion to logical units only
 //! happens at the UI edge.
-//!
-//! This defines the contract only; region capture will be the first caller.
+// Part of the contract has no caller yet (window mode, permissions).
 #![allow(dead_code)]
 
 #[cfg(not(any(windows, target_os = "macos")))]
 compile_error!("Cropa supports Windows and macOS only");
 
+pub(crate) mod geometry;
 #[cfg(target_os = "macos")]
 mod macos;
 #[cfg(windows)]
@@ -28,6 +28,25 @@ pub struct MonitorInfo {
     pub height: u32,
     pub scale_factor: f32,
     pub is_primary: bool,
+}
+
+/// A rectangle in physical pixels, half-open: covers x..x+width, y..y+height.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct PixelRect {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
+}
+
+/// What the user selected: an index into the `shots` given to `select_region`,
+/// and the rectangle in that monitor's capture, in the capture's own pixels.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Selection {
+    pub monitor: usize,
+    pub rect: PixelRect,
+    /// When the mouse button was released, to measure how long the copy takes.
+    pub released_at: std::time::Instant,
 }
 
 /// A top-level window, used later for window-mode capture (bbox crop).
@@ -79,6 +98,12 @@ pub trait Platform {
     fn ask_yes_no(&self, title: &str, text: &str) -> Result<bool>;
     /// Modal native notice with an OK button. Blocks the calling thread.
     fn show_warning(&self, title: &str, text: &str) -> Result<()>;
+    /// Cover every monitor with its frozen capture and let the user drag a region.
+    /// Blocks the calling thread (which must not be the UI event loop) until the
+    /// user releases the mouse (`Some`) or presses Esc (`None`).
+    fn select_region(&self, shots: &[(MonitorInfo, RgbaImage)]) -> Result<Option<Selection>>;
+    /// Put an image on the clipboard, replacing its contents.
+    fn copy_image(&self, image: &RgbaImage) -> Result<()>;
 }
 
 /// The implementation for the OS this binary was built for.
