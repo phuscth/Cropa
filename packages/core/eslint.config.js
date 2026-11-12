@@ -1,3 +1,5 @@
+import { builtinModules } from 'node:module';
+
 import { cropaEslint } from '@cropa/config/eslint';
 
 const boundary =
@@ -6,19 +8,26 @@ const boundary =
 export default [
   ...cropaEslint({ tsconfigRootDir: import.meta.dirname }),
   {
+    // The tests live in their own tsconfig (with Node typings), which the
+    // project service would not find from tsconfig.json.
+    files: ['src/**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: false,
+        project: ['./tsconfig.json', './tsconfig.test.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
     files: ['src/**/*.ts'],
     ignores: ['src/**/*.test.ts'],
     rules: {
       'no-restricted-imports': [
         'error',
         {
-          patterns: [
-            { group: ['node:*', '@tauri-apps/*', '@napi-rs/*'], message: boundary },
-            {
-              group: ['fs', 'path', 'os', 'child_process', 'http', 'https', 'net'],
-              message: boundary,
-            },
-          ],
+          paths: builtinModules.map((name) => ({ name, message: boundary })),
+          patterns: [{ group: ['node:*', '@tauri-apps/*', '@napi-rs/*'], message: boundary }],
         },
       ],
       'no-restricted-globals': [

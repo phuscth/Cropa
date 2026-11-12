@@ -1,0 +1,10 @@
+{
+  "extends": "@cropa/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist/types-test",
+    "rootDir": "src",
+    "types": ["node"]
+  },
+  "include": ["src/**/*.test.ts"],
+  "references": [{ "path": "./tsconfig.json" }]
+}
