@@ -5,17 +5,20 @@
 //! The work runs on its own thread because the overlay pumps its own message
 //! loop and must never share the UI event loop.
 
+use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
 
 use image::RgbaImage;
 use serde::Serialize;
 use specta::Type;
-use tauri::{AppHandle, Runtime};
+use tauri::{AppHandle, Manager, Runtime};
 use tauri_specta::Event;
 
+use crate::history::{History, HistoryChanged};
 use crate::i18n::{CaptureFailure, Lang, capture_failed_text, capture_text};
 use crate::platform::{self, MonitorInfo, Platform, Selection};
+use crate::state::AppState;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Type)]
 pub enum CaptureSource {
@@ -59,18 +62,19 @@ pub fn request<R: Runtime>(app: &AppHandle<R>, source: CaptureSource) {
         log::warn!("could not emit capture request: {err}");
     }
     let pressed = Instant::now();
+    let app = app.clone();
     let spawned = std::thread::Builder::new()
         .name("cropa-capture".into())
         .spawn(move || {
             let _guard = guard;
-            run(pressed);
+            run(&app, pressed);
         });
     if let Err(err) = spawned {
         log::warn!("could not start the capture thread: {err}");
     }
 }
 
-fn run(pressed: Instant) {
+fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) {
     let platform = platform::current();
 
     let shots = match platform.capture_all() {
@@ -105,6 +109,37 @@ fn run(pressed: Instant) {
         image.height(),
         selection.released_at.elapsed().as_millis()
     );
+
+    let image = Arc::new(image);
+    if app.state::<AppState>().lock().settings.save_history {
+        save_to_history(app, image);
+    }
+}
+
+/// Keep the capture in the history folder. It runs on its own thread, after
+/// the clipboard already holds the capture, and a failure is only logged.
+fn save_to_history<R: Runtime>(app: &AppHandle<R>, image: Arc<RgbaImage>) {
+    let app = app.clone();
+    let spawned = std::thread::Builder::new()
+        .name("cropa-history".into())
+        .spawn(move || {
+            let started = Instant::now();
+            match app.state::<History>().save(&image, SystemTime::now()) {
+                Ok(_) => {
+                    log::info!(
+                        "capture saved to history in {} ms",
+                        started.elapsed().as_millis()
+                    );
+                    if let Err(err) = HistoryChanged.emit(&app) {
+                        log::warn!("could not emit the history change: {err}");
+                    }
+                }
+                Err(err) => log::warn!("could not save the capture to history: {err}"),
+            }
+        });
+    if let Err(err) = spawned {
+        log::warn!("could not start the history thread: {err}");
+    }
 }
 
 /// Log the failure and tell the user what happened.

@@ -10,6 +10,14 @@ fn main() {
         "set_theme",
         "get_autostart",
         "set_autostart",
+        "set_save_history",
+        "list_history",
+        "get_history_thumbnail",
+        "copy_history_image",
+        "delete_history_image",
+        "delete_all_history",
+        "open_history_in_editor",
+        "get_editor_image",
     ]);
 
     // tauri-build embeds its Windows manifest (Common Controls v6) only into

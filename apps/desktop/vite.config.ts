@@ -23,6 +23,7 @@ export default defineConfig({
     rolldownOptions: {
       input: {
         editor: resolve(import.meta.dirname, 'src/windows/editor/index.html'),
+        history: resolve(import.meta.dirname, 'src/windows/history/index.html'),
         settings: resolve(import.meta.dirname, 'src/windows/settings/index.html'),
       },
     },

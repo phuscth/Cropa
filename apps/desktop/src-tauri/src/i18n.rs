@@ -26,6 +26,7 @@ impl Lang {
 pub struct TrayText {
     pub tooltip: &'static str,
     pub capture: &'static str,
+    pub history: &'static str,
     pub editor: &'static str,
     pub settings: &'static str,
     pub quit: &'static str,
@@ -36,6 +37,7 @@ pub const fn tray_text(lang: Lang) -> TrayText {
         Lang::En => TrayText {
             tooltip: "Cropa screenshot",
             capture: "Capture region",
+            history: "History",
             editor: "Open editor",
             settings: "Settings",
             quit: "Quit Cropa",
@@ -43,6 +45,7 @@ pub const fn tray_text(lang: Lang) -> TrayText {
         Lang::Vi => TrayText {
             tooltip: "Cropa screenshot",
             capture: "Chụp vùng",
+            history: "Lịch sử",
             editor: "Mở editor",
             settings: "Cài đặt",
             quit: "Thoát Cropa",

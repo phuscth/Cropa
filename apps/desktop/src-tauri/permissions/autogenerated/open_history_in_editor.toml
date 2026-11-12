@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-history-in-editor"
+description = "Enables the open_history_in_editor command without any pre-configured scope."
+commands.allow = ["open_history_in_editor"]
+
+[[permission]]
+identifier = "deny-open-history-in-editor"
+description = "Denies the open_history_in_editor command without any pre-configured scope."
+commands.deny = ["open_history_in_editor"]

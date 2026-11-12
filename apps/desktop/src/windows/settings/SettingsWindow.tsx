@@ -156,6 +156,11 @@ export function SettingsWindow() {
     if (next) setSettings(next);
   };
 
+  const changeSaveHistory = async (enabled: boolean) => {
+    const next = await run(() => commands.setSaveHistory(enabled));
+    if (next) setSettings(next);
+  };
+
   const changeAutostart = async (enabled: boolean) => {
     const next = await run(() => commands.setAutostart(enabled));
     if (next !== undefined) setAutostart(next);
@@ -284,6 +289,20 @@ export function SettingsWindow() {
         />
         {t('settings.autostart.label')}
       </label>
+
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={settings?.saveHistory ?? true}
+            disabled={busy || !settings}
+            onChange={(event) => { void changeSaveHistory(event.target.checked); }}
+          />
+          {t('settings.history.label')}
+        </label>
+        <p className="pl-7 text-xs text-muted-foreground">{t('settings.history.description')}</p>
+      </div>
 
       {saved && !notice && (
         <p role="status" className="text-sm text-muted-foreground">
