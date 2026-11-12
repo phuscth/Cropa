@@ -9,6 +9,7 @@ mod first_run;
 mod history;
 mod i18n;
 mod platform;
+mod presets;
 mod settings;
 mod shortcut;
 mod state;
@@ -40,6 +41,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::history::delete_all_history,
             commands::history::open_history_in_editor,
             commands::editor::get_editor_image,
+            commands::presets::list_user_presets,
+            commands::presets::save_user_preset,
+            commands::presets::delete_user_preset,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -103,6 +107,9 @@ pub fn run() {
             app.manage(editor::EditorImage::default());
             app.manage(history::History::new(
                 app.path().app_local_data_dir()?.join("history"),
+            ));
+            app.manage(presets::UserPresets::new(
+                app.path().app_config_dir()?.join(presets::FILE_NAME),
             ));
             // Captures past their 30 days go even when nothing new is captured.
             std::thread::spawn({
