@@ -1,44 +1,30 @@
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { parseArgs } from 'node:util';
 
-import { z } from 'zod';
-
-import { MockTransport } from '../src/mock-transport.ts';
-import type { MockStep } from '../src/mock-transport.ts';
-import { paletteNameTask } from '../src/tasks/palette-name.ts';
 import type { Provider } from '../src/task.ts';
 import type { Transport } from '../src/transport.ts';
+import { buildTurnBinary, createAgentTransport } from './agent-transport.ts';
+import type { RealProvider } from './agent-transport.ts';
 import { runEval } from './eval.ts';
+import { EVAL_TASKS, loadCases } from './registry.ts';
 
-const CasesFile = z.object({
-  task: z.string(),
-  cases: z.array(z.object({ id: z.string(), input: z.unknown() })),
-});
+const PROVIDERS = ['mock', 'codex', 'claude'];
 
-const TASKS = {
-  'palette-name': { task: paletteNameTask, cases: 'cases/palette-name.json' },
-};
+const HELP = `Usage: pnpm --filter @cropa/ai eval --task <task> --provider <provider> [options]
 
-// Until the desktop transport exists, only the scripted one can run.
-const PROVIDERS = ['mock'];
+  --task      ${Object.keys(EVAL_TASKS).join(' | ')}
+  --provider  mock    scripted answers, no CLI, free (what the tests use)
+              codex   one real turn per case through the Codex CLI you are logged in to
+              claude  one real turn per case through the Claude Code CLI you are logged in to
+  --limit N   run only the first N cases
+  --cases a,b run only the cases with these ids
 
-/** Valid answers, a small fixed delay, and a bad first answer for every fourth case. */
-function mockTransport(): Transport {
-  // A retry repeats the first prompt followed by a note, so the first
-  // paragraph identifies the case.
-  const order = new Map<string, number>();
-  const attempts = new Map<number, number>();
-  return new MockTransport((req): MockStep => {
-    const key = req.prompt.split('\n\n')[0] ?? '';
-    if (!order.has(key)) order.set(key, order.size);
-    const index = order.get(key) ?? 0;
-    const seen = (attempts.get(index) ?? 0) + 1;
-    attempts.set(index, seen);
-    const delayMs = 5 + (index % 3) * 4;
-    if (index % 4 === 3 && seen === 1) return { json: { name: 7 }, delayMs };
-    return { json: { name: `Eval Palette ${String(index + 1)}`, mood: 'calm' }, delayMs };
-  });
-}
+Real providers spend your own quota and take minutes: run them by hand, never in CI. The
+first real run builds crates/cropa-agent/examples/turn.rs with cargo.
+
+Every answer is code written by a model, and the eval runs it to check it. That happens in a
+child Node process under the permission model (read-only access to the checker's own files, no
+file writes, no child processes, no workers, an empty environment), killed on a time limit.`;
 
 function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
@@ -50,34 +36,56 @@ function fail(message: string): never {
 }
 
 const { values } = parseArgs({
-  options: { task: { type: 'string' }, provider: { type: 'string' } },
+  options: {
+    task: { type: 'string' },
+    provider: { type: 'string' },
+    limit: { type: 'string' },
+    cases: { type: 'string' },
+    help: { type: 'boolean' },
+  },
 });
 
-const taskIds = Object.keys(TASKS);
-if (!values.task || !(values.task in TASKS)) {
-  fail(`Missing or unknown --task. Valid tasks: ${taskIds.join(', ')}`);
+if (values.help) {
+  console.log(HELP);
+  process.exit(0);
+}
+if (!values.task || !(values.task in EVAL_TASKS)) {
+  fail(`Missing or unknown --task. Valid tasks: ${Object.keys(EVAL_TASKS).join(', ')}\n\n${HELP}`);
 }
 if (!values.provider || !PROVIDERS.includes(values.provider)) {
-  fail(
-    `Missing or unknown --provider. Valid providers: ${PROVIDERS.join(', ')} ` +
-      '(real providers arrive with the desktop transport)',
-  );
+  fail(`Missing or unknown --provider. Valid providers: ${PROVIDERS.join(', ')}\n\n${HELP}`);
 }
 
-const entry = TASKS[values.task as keyof typeof TASKS];
-const file = CasesFile.parse(
-  JSON.parse(readFileSync(new URL(entry.cases, import.meta.url), 'utf8')),
-);
-if (file.task !== entry.task.id) fail(`Cases file is for task ${file.task}, not ${entry.task.id}`);
+const entry = EVAL_TASKS[values.task];
+if (!entry) fail(`Unknown task ${values.task}`);
+
+let cases = loadCases(entry.cases, entry.task.id);
+if (values.cases !== undefined) {
+  const wanted = new Set(values.cases.split(',').map((id) => id.trim()));
+  cases = cases.filter((c) => wanted.has(c.id));
+  if (cases.length === 0) fail(`No case matches --cases ${values.cases}`);
+}
+if (values.limit !== undefined) {
+  const limit = Number(values.limit);
+  if (!Number.isInteger(limit) || limit < 1) fail('--limit must be a positive integer');
+  cases = cases.slice(0, limit);
+}
+
+const transport: Transport =
+  values.provider === 'mock'
+    ? entry.mock()
+    : createAgentTransport(values.provider as RealProvider, buildTurnBinary());
 
 const provider: Provider = { name: values.provider, capabilities: [] };
 const report = await runEval({
   task: entry.task,
-  cases: file.cases,
-  transport: mockTransport(),
+  cases,
+  transport,
   provider,
+  ...(entry.validate ? { validate: entry.validate } : {}),
 });
 
+const v = report.validation;
 console.table([
   {
     task: report.task,
@@ -92,6 +100,18 @@ console.table([
     p95Ms: report.p95Ms,
   },
 ]);
+if (v) {
+  console.table([
+    {
+      runnableFirstTry: v.runnableFirstTry,
+      runnableAfterRetry: v.runnableAfterRetry,
+      loopClosedFirstTry: v.loopClosedFirstTry,
+      loopClosedAfterRetry: v.loopClosedAfterRetry,
+      maxFrameMs: v.maxFrameMs,
+      p95FrameMs: v.p95FrameMs,
+    },
+  ]);
+}
 console.log('notices:', JSON.stringify(report.notices));
 
 const dir = new URL('results/', import.meta.url);

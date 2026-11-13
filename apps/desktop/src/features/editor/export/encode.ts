@@ -2,7 +2,13 @@ import { render, type Scene } from '@cropa/core';
 
 import type { ExportFormat } from '../../../lib/bindings.ts';
 import { ExportEncodeError } from '../../../lib/errors.ts';
-import { closeCodeFrames, codeEnv, renderCodeFrames, type CodeFrames } from '../code-frames.ts';
+import {
+  closeCodeFrames,
+  codeEnv,
+  codePalette,
+  renderCodeFrames,
+  type CodeFrames,
+} from '../code-frames.ts';
 import { loadInter } from '../fonts.ts';
 import { renderEnv } from '../render-env.ts';
 import { exportPlan, type ExportScale } from './plan.ts';
@@ -25,22 +31,33 @@ function toDataUrl(blob: Blob): Promise<string> {
   });
 }
 
-/** Renders the scene with the shared renderer and encodes it as a data URL. */
+export interface RenderedImage {
+  dataUrl: string;
+  /** The scene has a code layer that could not be rendered, so the image lacks it. */
+  codeLayerFailed: boolean;
+}
+
+/**
+ * Renders the scene with the shared renderer and encodes it as a data URL. A code layer that
+ * fails to render is left out and reported in `codeLayerFailed`; the rest still exports.
+ */
 export async function renderImage(
   scene: Scene,
   bitmap: ImageBitmap,
   format: ExportFormat,
   scale: ExportScale,
-): Promise<string> {
+): Promise<RenderedImage> {
   await loadInter();
   const plan = exportPlan(scene, format, scale);
   const canvas = new OffscreenCanvas(plan.width, plan.height);
   let frames: CodeFrames | null = null;
+  let codeLayerFailed = false;
   try {
-    frames = await renderCodeFrames(scene, plan.width, plan.height, 0);
+    frames = await renderCodeFrames(scene, plan.width, plan.height, 0, codePalette(bitmap));
   } catch {
     // The layers below the code layer still export.
     console.error('The code layer could not be rendered for export');
+    codeLayerFailed = true;
   }
   try {
     render(scene, 0, context(canvas), codeEnv(renderEnv(bitmap), frames));
@@ -62,5 +79,5 @@ export async function renderImage(
     plan.quality === undefined ? { type: plan.mime } : { type: plan.mime, quality: plan.quality },
   );
   if (blob.type !== plan.mime) throw new ExportEncodeError(format);
-  return toDataUrl(blob);
+  return { dataUrl: await toDataUrl(blob), codeLayerFailed };
 }

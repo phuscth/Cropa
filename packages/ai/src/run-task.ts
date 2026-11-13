@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-import { toAgentErrorKind } from './errors.ts';
+import { TaskOutputError, toAgentErrorKind } from './errors.ts';
 import type { AiErrorKind } from './errors.ts';
 import type { Provider, Task } from './task.ts';
 import type { Transport, TransportEvent, TransportOutput, TransportRequest } from './transport.ts';
@@ -22,9 +22,16 @@ export interface TaskResult<T> {
 
 export type TaskEvent =
   | { type: 'attempt'; attempt: 1 | 2 }
+  | { type: 'validating'; attempt: 1 | 2 }
   | { type: 'transport'; event: TransportEvent };
 
-export interface RunTaskOptions {
+/**
+ * The verdict of a validator. A failed answer is sent back once with the message, unless
+ * `retry` is false (the problem is in the environment, so another answer would not help).
+ */
+export type Validation = { ok: true } | { ok: false; message: string; retry?: boolean };
+
+export interface RunTaskOptions<T = unknown> {
   transport: Transport;
   provider: Provider;
   signal?: AbortSignal;
@@ -32,6 +39,8 @@ export interface RunTaskOptions {
   /** Asks the user before images leave the machine. Required by `image-in` tasks. */
   confirmImages?: (images: readonly string[]) => Promise<boolean>;
   timeoutMs?: number;
+  /** Checks the postprocessed result, for what a schema cannot say (for example that code runs). */
+  validate?: (result: T, ctx: { attempt: 1 | 2; signal?: AbortSignal }) => Promise<Validation>;
 }
 
 export interface TaskRun<T> {
@@ -44,7 +53,7 @@ export interface TaskRun<T> {
 export function runTask<I, S extends z.ZodType, T>(
   task: Task<I, S, T>,
   input: I,
-  opts: RunTaskOptions,
+  opts: RunTaskOptions<T>,
 ): TaskRun<T> {
   const fallback = task.fallback(input);
 
@@ -109,40 +118,80 @@ export function runTask<I, S extends z.ZodType, T>(
       }
     };
 
+    type Checked =
+      | { kind: 'done'; value: TaskResult<T> }
+      | { kind: 'again'; note: string; notice: TaskNotice; retry: boolean };
+
+    // Schema, postprocess and the optional validator, in that order, for one answer.
+    const check = async (out: TransportOutput, attempt: 1 | 2): Promise<Checked> => {
+      const parsed = task.schema.safeParse(out.json);
+      if (!parsed.success) {
+        return {
+          kind: 'again',
+          note: retryNote(parsed.error),
+          notice: { kind: 'InvalidOutput', detail: errorSummary(parsed.error) },
+          retry: true,
+        };
+      }
+      let result: T;
+      try {
+        const image = out.image;
+        result = task.postprocess(parsed.data, image === undefined ? { input } : { input, image });
+      } catch (err) {
+        if (err instanceof TaskOutputError) {
+          const message = err.message.slice(0, MAX_DETAIL_CHARS);
+          return {
+            kind: 'again',
+            note: validationRetryNote(message),
+            notice: { kind: 'InvalidOutput', detail: message },
+            retry: true,
+          };
+        }
+        return { kind: 'done', value: fail({ kind: 'InvalidOutput', detail: messageOf(err) }) };
+      }
+      const { validate } = opts;
+      if (!validate) return { kind: 'done', value: { result, source: 'ai' } };
+
+      opts.onEvent?.({ type: 'validating', attempt });
+      let verdict: Validation | typeof ABORTED;
+      try {
+        verdict = await raceAbort(validate(result, signal ? { attempt, signal } : { attempt }), signal);
+      } catch (err) {
+        return { kind: 'done', value: fail({ kind: 'Protocol', detail: messageOf(err) }) };
+      }
+      if (verdict === ABORTED || aborted()) {
+        return { kind: 'done', value: fail({ kind: 'Cancelled' }) };
+      }
+      if (verdict.ok) return { kind: 'done', value: { result, source: 'ai' } };
+      const message = verdict.message.slice(0, MAX_DETAIL_CHARS);
+      return {
+        kind: 'again',
+        note: validationRetryNote(message),
+        notice: { kind: 'InvalidOutput', detail: message },
+        retry: verdict.retry !== false,
+      };
+    };
+
     const first = await send(1, request);
     if ('notice' in first) return fail(first.notice);
-
     if (wantImage && first.out.image === undefined) {
       return fail({ kind: 'Protocol', detail: 'the provider returned no image' });
     }
+    const checkedFirst = await check(first.out, 1);
+    if (checkedFirst.kind === 'done') return checkedFirst.value;
+    if (!checkedFirst.retry) return fail(checkedFirst.notice);
 
-    const parsed = task.schema.safeParse(first.out.json);
-    if (parsed.success) return accept(first.out, parsed.data);
-
-    const retryRequest: TransportRequest = {
+    const second = await send(2, {
       ...request,
-      prompt: `${request.prompt}\n\n${retryNote(parsed.error)}`,
-    };
-    const second = await send(2, retryRequest);
+      prompt: `${request.prompt}\n\n${checkedFirst.note}`,
+    });
     if ('notice' in second) return fail(second.notice);
-
     if (wantImage && second.out.image === undefined) {
       return fail({ kind: 'Protocol', detail: 'the provider returned no image' });
     }
-
-    const reparsed = task.schema.safeParse(second.out.json);
-    if (reparsed.success) return accept(second.out, reparsed.data);
-    return fail({ kind: 'InvalidOutput', detail: errorSummary(reparsed.error) });
-
-    function accept(out: TransportOutput, data: z.output<S>): TaskResult<T> {
-      try {
-        const image = out.image;
-        const result = task.postprocess(data, image === undefined ? { input } : { input, image });
-        return { result, source: 'ai' };
-      } catch (err) {
-        return fail({ kind: 'InvalidOutput', detail: messageOf(err) });
-      }
-    }
+    const checkedSecond = await check(second.out, 2);
+    if (checkedSecond.kind === 'done') return checkedSecond.value;
+    return fail(checkedSecond.notice);
   };
 
   const done = execute().catch((err: unknown) =>
@@ -180,6 +229,14 @@ function retryNote(error: z.ZodError): string {
     'Your previous reply did not match the JSON Schema.',
     errorSummary(error),
     'Reply again with JSON that matches the schema.',
+  ].join('\n');
+}
+
+function validationRetryNote(message: string): string {
+  return [
+    'Your previous answer did not pass the check:',
+    message,
+    'Reply again with JSON that matches the schema and fixes this.',
   ].join('\n');
 }
 

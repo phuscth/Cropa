@@ -8,6 +8,7 @@ import type { MockStep } from './mock-transport.ts';
 import { runTask } from './run-task.ts';
 import { defineTask } from './task.ts';
 import type { Capability, Provider } from './task.ts';
+import type { Validation } from './run-task.ts';
 import type { Transport } from './transport.ts';
 
 const Answer = z.object({ word: z.string() });
@@ -307,10 +308,103 @@ describe('runTask', () => {
         transport,
         provider: provider(),
         onEvent: (e) => {
-          seen.push(e.type === 'attempt' ? `attempt ${String(e.attempt)}` : e.event.type);
+          seen.push(e.type === 'attempt' ? `attempt ${String(e.attempt)}` : e.type === 'transport' ? e.event.type : e.type);
         },
       },
     ).done;
     expect(seen).toEqual(['attempt 1', 'tick', 'attempt 2']);
+  });
+
+  describe('validate', () => {
+    type Result = { word: string; image: string | undefined };
+    const run = (
+      transport: Transport,
+      validate: (result: Result, ctx: { attempt: 1 | 2; signal?: AbortSignal }) => Promise<Validation>,
+      extra: { signal?: AbortSignal; onEvent?: (e: string) => void } = {},
+    ) =>
+      runTask(
+        makeTask(),
+        {},
+        {
+          transport,
+          provider: provider(),
+          validate,
+          ...(extra.signal ? { signal: extra.signal } : {}),
+          onEvent: (e) => {
+            extra.onEvent?.(e.type === 'attempt' || e.type === 'validating' ? `${e.type} ${String(e.attempt)}` : e.event.type);
+          },
+        },
+      ).done;
+
+    it('accepts an answer the validator passes, with one call', async () => {
+      const transport = new MockTransport([valid]);
+      const seen: string[] = [];
+      const out = await run(transport, () => Promise.resolve({ ok: true }), {
+        onEvent: (e) => seen.push(e),
+      });
+      expect(out.source).toBe('ai');
+      expect(transport.calls).toHaveLength(1);
+      expect(seen).toEqual(['attempt 1', 'validating 1']);
+    });
+
+    it('sends a failed answer back once with the message, then accepts the next', async () => {
+      const transport = new MockTransport([valid, { json: { word: 'again' } }]);
+      const seen: string[] = [];
+      const out = await run(
+        transport,
+        (result, { attempt }) =>
+          Promise.resolve(
+            result.word === 'again' ? { ok: true } : { ok: false, message: `attempt ${String(attempt)} is too slow` },
+          ),
+        { onEvent: (e) => seen.push(e) },
+      );
+      expect(out.source).toBe('ai');
+      expect(out.result.word).toBe('again');
+      expect(transport.calls).toHaveLength(2);
+      const retry = transport.calls[1]?.prompt ?? '';
+      expect(retry.startsWith('say a word')).toBe(true);
+      expect(retry).toContain('did not pass the check');
+      expect(retry).toContain('attempt 1 is too slow');
+      expect(seen).toEqual(['attempt 1', 'validating 1', 'attempt 2', 'validating 2']);
+    });
+
+    it('falls back with InvalidOutput and the message when the retry fails too', async () => {
+      const transport = new MockTransport([valid, valid]);
+      const out = await run(transport, () => Promise.resolve({ ok: false, message: 'it does not loop' }));
+      expect(transport.calls).toHaveLength(2);
+      expect(out.source).toBe('fallback');
+      expect(out.notice).toEqual({ kind: 'InvalidOutput', detail: 'it does not loop' });
+    });
+
+    it('does not resend when the validator says retry is pointless', async () => {
+      const transport = new MockTransport([valid, valid]);
+      const out = await run(transport, () => Promise.resolve({ ok: false, retry: false, message: 'no WebGL' }));
+      expect(transport.calls).toHaveLength(1);
+      expect(out.source).toBe('fallback');
+      expect(out.notice).toEqual({ kind: 'InvalidOutput', detail: 'no WebGL' });
+    });
+
+    it('resolves Cancelled when the abort comes during validation', async () => {
+      const abort = new AbortController();
+      const transport = new MockTransport([valid, valid]);
+      const out = await run(
+        transport,
+        () => {
+          queueMicrotask(() => { abort.abort(); });
+          return new Promise<Validation>(() => undefined);
+        },
+        { signal: abort.signal },
+      );
+      expect(transport.calls).toHaveLength(1);
+      expect(out.source).toBe('fallback');
+      expect(out.notice?.kind).toBe('Cancelled');
+    });
+
+    it('falls back with Protocol when the validator throws', async () => {
+      const transport = new MockTransport([valid]);
+      const out = await run(transport, () => Promise.reject(new Error('sandbox crashed')));
+      expect(out.source).toBe('fallback');
+      expect(out.notice).toEqual({ kind: 'Protocol', detail: 'sandbox crashed' });
+    });
   });
 });

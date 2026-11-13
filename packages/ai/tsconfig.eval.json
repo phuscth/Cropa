@@ -2,11 +2,15 @@
   "extends": "@cropa/config/tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist/types-eval",
-    "rootDir": "evals",
+    "rootDir": "../..",
     "erasableSyntaxOnly": true,
     "lib": ["ES2023", "DOM"],
     "types": ["node"]
   },
-  "include": ["evals/**/*.ts"],
+  "include": [
+    "evals/**/*.ts",
+    "../../apps/desktop/src/features/code-sandbox/compose-worker.ts",
+    "../../apps/desktop/src/features/code-sandbox/errors.ts"
+  ],
   "references": [{ "path": "./tsconfig.json" }]
 }

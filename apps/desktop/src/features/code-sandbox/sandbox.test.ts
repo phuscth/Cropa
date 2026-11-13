@@ -10,6 +10,7 @@ import { BOOTSTRAP_CSP_HASH, BOOTSTRAP_SCRIPT, sandboxDocument } from './bootstr
 import { checkModule, framesMatch } from './check-module.ts';
 import { MAX_ERROR_MESSAGE_CHARS, CodeSandboxError } from './errors.ts';
 import { createIframeHost, type CreateHost, type HostMessage, type SandboxHost } from './host.ts';
+import { createSandboxFrameSource } from './frame-source.ts';
 import { createCodeSandbox, type CodeScene } from './sandbox.ts';
 import { MAX_SOURCE_BYTES } from './worker-source.ts';
 
@@ -587,6 +588,31 @@ describe('checkModule', () => {
     expect(hosts[0]?.disposed).toBe(true);
   });
 
+  it('disposes the sandbox as soon as the signal aborts, even in the middle of a frame', async () => {
+    const { createHost, hosts } = createWorld({ silentFrames: true });
+    const abort = new AbortController();
+    const pending = checkModule(moduleSource('function back(ctx, t, scene) {}'), scene, {
+      sandbox: { createHost, frameTimeoutMs: 60_000 },
+      readPixels,
+      signal: abort.signal,
+    });
+    await vi.waitFor(() => { expect(hosts[0]?.sent.some((m) => m.type === 'frame')).toBe(true); });
+    abort.abort();
+    expect(await pending).toMatchObject({ ok: false, error: { kind: 'disposed' } });
+    expect(hosts[0]?.disposed).toBe(true);
+  });
+
+  it('does not start work for a signal that is already aborted', async () => {
+    const { createHost, hosts } = createWorld();
+    const result = await checkModule(moduleSource('function back(ctx, t, scene) {}'), scene, {
+      sandbox: { createHost },
+      readPixels,
+      signal: AbortSignal.abort(),
+    });
+    expect(result).toMatchObject({ ok: false, error: { kind: 'disposed' } });
+    expect(hosts).toHaveLength(0);
+  });
+
   it('measures the slowest frame with the injected clock', async () => {
     const { createHost } = createWorld();
     let tick = 0;
@@ -602,6 +628,30 @@ describe('checkModule', () => {
       },
     });
     expect(result.maxFrameMs).toBe(40);
+  });
+});
+
+describe('createSandboxFrameSource', () => {
+  it('loads a module and renders t=0 at the scene size with the scene it was given', async () => {
+    const { createHost } = createWorld();
+    const source = createSandboxFrameSource({ createHost });
+    await source.load(
+      moduleSource(`function back(ctx, t, scene) { ${SOLID('scene.palette.length', 'scene.frame.width', 'scene.frame.height')} }`),
+    );
+    const frame = await source.renderFrame(0, scene);
+    expect(frame.back).toMatchObject({ width: scene.width, height: scene.height });
+    expect(pixel(frame.back)).toEqual([2, 2, 1, 255]);
+    expect(frame.front).toBeNull();
+    source.dispose();
+  });
+
+  it('reports a module error from load and from a frame', async () => {
+    const { createHost } = createWorld();
+    const source = createSandboxFrameSource({ createHost });
+    await expect(source.load('const meta = {')).rejects.toMatchObject({ kind: 'module-error' });
+    await source.load(moduleSource('function back(ctx, t, scene) { missing.call(); }'));
+    await expect(source.renderFrame(0, scene)).rejects.toMatchObject({ kind: 'module-error' });
+    source.dispose();
   });
 });
 

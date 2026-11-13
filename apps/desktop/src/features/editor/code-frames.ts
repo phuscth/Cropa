@@ -1,10 +1,14 @@
 import {
+  extractPalette,
   frameGeometry,
   type CodeLayer,
   type FrameGeometry,
+  type PaletteColour,
   type RenderEnv,
   type Scene,
 } from '@cropa/core';
+
+import { createSandboxFrameSource } from '../code-sandbox/index.ts';
 
 /** What a code layer needs to know about the canvas and the frame on it. */
 export interface CodeScene extends FrameGeometry {
@@ -32,15 +36,47 @@ export function codeLayerOf(scene: Scene): CodeLayer | undefined {
 }
 
 /**
- * A new source of code frames, or null when this build has none, in which case a code
- * layer draws nothing and the layers below it show.
+ * A new source of code frames for `sourceText`: the sandbox, or in development builds the
+ * stub when the source is the stub's marker. A release build never loads the stub.
  */
-export async function createCodeFrameSource(): Promise<CodeFrameSource | null> {
+export async function createCodeFrameSource(sourceText: string): Promise<CodeFrameSource | null> {
   if (import.meta.env.DEV) {
-    const { createDevCodeStub } = await import('./dev-code-stub.ts');
-    return createDevCodeStub();
+    const stub = await import('./dev-code-stub.ts');
+    if (stub.isDevCodeStubSource(sourceText)) return stub.createDevCodeStub();
   }
-  return null;
+  return createSandboxFrameSource();
+}
+
+const PALETTE_SIDE = 256;
+const palettes = new WeakMap<ImageBitmap, PaletteColour[]>();
+
+/**
+ * The dominant colours of the screenshot, heaviest first, found once per bitmap on a copy of
+ * at most 256 px on the long side. Empty when the pixels cannot be read.
+ */
+export function screenshotPalette(bitmap: ImageBitmap): PaletteColour[] {
+  const cached = palettes.get(bitmap);
+  if (cached) return cached;
+  let palette: PaletteColour[] = [];
+  try {
+    const scale = Math.min(1, PALETTE_SIDE / Math.max(bitmap.width, bitmap.height));
+    const width = Math.max(1, Math.round(bitmap.width * scale));
+    const height = Math.max(1, Math.round(bitmap.height * scale));
+    const ctx = new OffscreenCanvas(width, height).getContext('2d', { willReadFrequently: true });
+    if (ctx) {
+      ctx.drawImage(bitmap, 0, 0, width, height);
+      palette = extractPalette(ctx.getImageData(0, 0, width, height));
+    }
+  } catch {
+    // A code layer then draws without palette colours.
+  }
+  palettes.set(bitmap, palette);
+  return palette;
+}
+
+/** The palette's colours as hex strings, for `CodeScene.palette`. */
+export function codePalette(bitmap: ImageBitmap): string[] {
+  return screenshotPalette(bitmap).map((colour) => colour.hex);
 }
 
 /** `env` with the bitmaps of one rendered frame behind `env.code`. */
@@ -56,23 +92,24 @@ export function closeCodeFrames(frames: CodeFrames | null): void {
 }
 
 /**
- * Renders the code layer of `scene` once, for a canvas of `width` x `height`. The caller
- * closes the result. Null when there is no code layer, no source for it or no code to run.
+ * Renders the code layer of `scene` once, for a canvas of `width` x `height`, with the
+ * screenshot's `palette`. The caller closes the result. Null when there is no code layer,
+ * no source for it or no code to run.
  */
 export async function renderCodeFrames(
   scene: Scene,
   width: number,
   height: number,
   t: number,
+  palette: string[],
 ): Promise<CodeFrames | null> {
   const layer = codeLayerOf(scene);
   if (!layer) return null;
-  const source = await createCodeFrameSource();
+  const source = await createCodeFrameSource(layer.source);
   if (!source) return null;
   try {
     await source.load(layer.source);
-    // The palette stays empty until it is read from the screenshot.
-    return await source.renderFrame(t, { ...frameGeometry(scene, width, height), palette: [] });
+    return await source.renderFrame(t, { ...frameGeometry(scene, width, height), palette });
   } finally {
     source.dispose();
   }

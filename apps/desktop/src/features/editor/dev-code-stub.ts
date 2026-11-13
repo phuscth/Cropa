@@ -8,6 +8,11 @@ import type { CodeFrames, CodeFrameSource, CodeScene } from './code-frames.ts';
 
 const MARKER = 'cropa-dev-code-stub';
 
+/** True for the source of `devCodePreset`, which the stub draws instead of running it. */
+export function isDevCodeStubSource(source: string): boolean {
+  return source.includes(MARKER);
+}
+
 function canvasFor(scene: CodeScene): { canvas: OffscreenCanvas; ctx: OffscreenCanvasRenderingContext2D } {
   const canvas = new OffscreenCanvas(Math.max(1, scene.width), Math.max(1, scene.height));
   const ctx = canvas.getContext('2d');

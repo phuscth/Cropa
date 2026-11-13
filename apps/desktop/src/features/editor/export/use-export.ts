@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 
 import { commands, type CommandError, type ExportFormat, type SavedFile } from '../../../lib/bindings.ts';
 import {
+  describeCodeLayerSkipped,
   describeCommandError,
   describeExport,
   describeExportImageChanged,
@@ -47,6 +48,8 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<ExportNotice>();
   const [error, setError] = useState<UserError>();
+  // The export went ahead without something; shown next to errors, cleared by the next export.
+  const [warning, setWarning] = useState<UserError>();
 
   // The latest values, so the keyboard handler and the actions stay stable across edits.
   const latest = useRef({ scene, bitmap, imageId, capturedAt, t });
@@ -61,6 +64,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     setNotice(undefined);
   }, []);
   const dismissError = useCallback(() => { setError(undefined); }, []);
+  const dismissWarning = useCallback(() => { setWarning(undefined); }, []);
   useEffect(() => () => { window.clearTimeout(timer.current); }, []);
 
   const show = useCallback((next: ExportNotice) => {
@@ -76,6 +80,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
       if (running.current || !current.bitmap) return;
       running.current = true;
       setBusy(true);
+      setWarning(undefined);
       try {
         await job({ ...current, bitmap: current.bitmap });
       } catch (cause) {
@@ -95,7 +100,9 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
       scale: ExportScale,
     ): Promise<string | undefined> => {
       try {
-        return await renderImage(current.scene, current.bitmap, format, scale);
+        const image = await renderImage(current.scene, current.bitmap, format, scale);
+        if (image.codeLayerFailed) setWarning(describeCodeLayerSkipped(current.t));
+        return image.dataUrl;
       } catch (cause) {
         setError(describeExport(current.t, cause));
         return undefined;
@@ -234,5 +241,5 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     onLostPointerCapture: onDragPointerEnd,
   };
 
-  return { busy, notice, error, quickSave, saveAs, copy, reveal, dragHandlers, dismissNotice, dismissError };
+  return { busy, notice, error, warning, dismissWarning, quickSave, saveAs, copy, reveal, dragHandlers, dismissNotice, dismissError };
 }

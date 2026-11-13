@@ -37,6 +37,11 @@ export function describeEditorImage(t: TFunction, cause: unknown): UserError {
   return render(t, 'EditorImage', { detail });
 }
 
+/** An export went ahead without the animated background layer, which could not be drawn. */
+export function describeCodeLayerSkipped(t: TFunction): UserError {
+  return render(t, 'CodeLayerSkipped', {});
+}
+
 /** An edit was refused because the image would exceed the output size limit. */
 export function describeOutputTooLarge(t: TFunction): UserError {
   return render(t, 'OutputTooLarge', {});

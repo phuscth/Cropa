@@ -13,6 +13,20 @@
       "px": "{{value}} px",
       "deg": "{{value}}°"
     },
+    "aiBackground": {
+      "title": "AI background",
+      "label": "Describe the background",
+      "placeholder": "A meadow in light wind, or fireflies over a dark lake",
+      "generate": "Generate",
+      "cancel": "Cancel",
+      "writing": "Writing the background…",
+      "checking": "Checking that it runs…",
+      "noWebgl": {
+        "what": "This background needs 3D graphics.",
+        "why": "WebGL isn't available in this window, so a 3D background can't run here.",
+        "next": "Try a description without 3D objects. The closest preset stays in place."
+      }
+    },
     "background": {
       "title": "Background",
       "type": "Type",
@@ -308,6 +322,11 @@
       "what": "Couldn't open the capture in the editor.",
       "why": "The image could not be decoded ({{detail}}).",
       "next": "Capture again, or open another capture from History."
+    },
+    "CodeLayerSkipped": {
+      "what": "The image was exported without its animated background.",
+      "why": "The animated layer could not be drawn for the export, so only the layers under it are in the file.",
+      "next": "Choose another background, or try the export again."
     },
     "OutputTooLarge": {
       "what": "That change wasn't applied.",
