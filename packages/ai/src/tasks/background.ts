@@ -260,6 +260,7 @@ Module contract:
 - Declare at top level: const meta = { durationMs: N }, function back(ctx, t, scene) (draws behind the screenshot) and optionally function front(ctx, t, scene) (draws over it; keep it sparse and mostly transparent, and never cover the frame rect with opaque paint).
 - ctx is an OffscreenCanvasRenderingContext2D of scene.width x scene.height, already cleared. Do not resize ctx.canvas. Draw synchronously and return nothing.
 - t runs from 0 to 1 over meta.durationMs. The loop must close: the frames at t=0 and t=1 are identical, so every motion is sin/cos(2*Math.PI*k*t) with an integer k, or (x + speed*t) % span with whole cycles per loop.
+- Check every place t appears: each speed, frequency or cycle count that multiplies t must be a whole number, including per-item ones (1 + Math.floor(rand() * 3), never rand() * 2 or 0.25). Never take a fraction of an angle that moves with t (no Math.cos(angle * 0.5) or angle / 3 when angle grows with t), and never shift an offset by a fraction of a cycle.
 - Derive everything from t and scene. Randomness must be seeded: build a small seeded PRNG (mulberry32) at top level and precompute particles once. No Math.random inside back or front, no Date, no performance, no timers, no requestAnimationFrame, no animation loop of your own, no network, no DOM, no postMessage.
 - scene = { width, height, palette: string[] (hex, heaviest first), frame: { x, y, width, height, radius, border } }. Use scene.palette for colour harmony and scene.frame so effects follow the screenshot (circle it, glow around it). Scale every coordinate with the scene size: the same module draws the preview and a 4K export.
 - 3D: the global THREE (three.js r187) exists when the source mentions it. Create one THREE.WebGLRenderer({ canvas: new OffscreenCanvas(w, h), alpha: true, antialias: true }) lazily, render the scene for the given t, then ctx.drawImage(renderer.domElement, 0, 0). No THREE.Clock, no setAnimationLoop, no textures or loaders from URLs. Set threeD to true.
@@ -299,7 +300,7 @@ function describeInput(input: BackgroundInput): string {
 
 export const backgroundTask = defineTask({
   id: 'background',
-  version: 2,
+  version: 3,
   schema: Output,
   requires: [],
   timeoutMs: 180_000,

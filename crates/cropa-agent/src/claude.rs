@@ -175,14 +175,92 @@ struct ClaudeStream {
     started: bool,
     rate_limited: bool,
     result: Option<Value>,
+    /// One short label per line, for the diagnostic line of a failed turn.
+    #[cfg(feature = "diagnostics")]
+    events: Vec<String>,
+    /// A whitelisted summary of the `result` line.
+    #[cfg(feature = "diagnostics")]
+    summary: Option<Value>,
+}
+
+/// The most event labels kept.
+#[cfg(feature = "diagnostics")]
+const MAX_EVENT_LABELS: usize = 64;
+
+/// `type`, or `type/subtype`; for a message the block types follow in brackets, and a
+/// tool call carries the tool's name.
+#[cfg(feature = "diagnostics")]
+fn event_label(line: &Value) -> String {
+    let mut label = line["type"].as_str().unwrap_or("?").to_owned();
+    if let Some(subtype) = line["subtype"].as_str() {
+        label.push('/');
+        label.push_str(subtype);
+    }
+    if let Some(blocks) = line["message"]["content"].as_array() {
+        let names: Vec<String> = blocks
+            .iter()
+            .map(|block| {
+                let kind = block["type"].as_str().unwrap_or("?");
+                match block["name"].as_str() {
+                    Some(name) if kind == "tool_use" => format!("{kind}:{name}"),
+                    _ => kind.to_owned(),
+                }
+            })
+            .collect();
+        label.push('[');
+        label.push_str(&names.join(","));
+        label.push(']');
+    }
+    label
+}
+
+/// The fields of the `result` line that say why a turn ended as it did. The session id,
+/// usage and cost are left out.
+#[cfg(feature = "diagnostics")]
+fn result_summary(line: &Value) -> Value {
+    let mut keys: Vec<&str> = line
+        .as_object()
+        .map(|map| map.keys().map(String::as_str).collect())
+        .unwrap_or_default();
+    keys.sort_unstable();
+    json!({
+        "subtype": line["subtype"],
+        "is_error": line["is_error"],
+        "stop_reason": line["stop_reason"],
+        "num_turns": line["num_turns"],
+        "duration_ms": line["duration_ms"],
+        "result": line["result"].as_str().map(|text| crate::diag::head(text, 2000)),
+        "structured_output_bytes": match &line["structured_output"] {
+            Value::Null => Value::Null,
+            value => json!(value.to_string().len()),
+        },
+        "permission_denials": line["permission_denials"].as_array().map(Vec::len),
+        "errors": match &line["errors"] {
+            Value::Null => Value::Null,
+            value => json!(crate::diag::head(&value.to_string(), 2000)),
+        },
+        "keys": keys,
+    })
 }
 
 impl ClaudeStream {
+    #[cfg(feature = "diagnostics")]
+    fn note(&mut self, line: &Value) {
+        if self.events.len() < MAX_EVENT_LABELS {
+            self.events.push(event_label(line));
+        }
+        if line["type"] == "result" {
+            self.summary = Some(result_summary(line));
+        }
+    }
+
     fn push(&mut self, line: &Value, on_event: &mut dyn FnMut(Event)) -> LineFlow {
         if !self.started {
             self.started = true;
             on_event(Event::Started);
         }
+        #[cfg(feature = "diagnostics")]
+        self.note(line);
         match line["type"].as_str() {
             Some("rate_limit_event") => {
                 if line["rate_limit_info"]["status"] == "rejected" {
@@ -284,7 +362,17 @@ impl AgentCli for ClaudeCode {
         let process = run_process(&spec, dir.path(), cancel, &mut |line| {
             stream.push(&line, &mut *on_event)
         });
+        #[cfg(feature = "diagnostics")]
+        let (events, summary, stderr_tail) = (
+            stream.events.clone(),
+            stream.summary.clone(),
+            crate::diag::stderr_of(&process),
+        );
         let result = stream.finish(process, req.schema.is_some());
+        #[cfg(feature = "diagnostics")]
+        if let Err(error) = &result {
+            crate::diag::report("claude", error, &events, summary.as_ref(), &stderr_tail);
+        }
         log::debug!(
             "claude turn: {}",
             result
@@ -385,6 +473,22 @@ mod tests {
             stream.finish(exit(SCHEMA_INVALID), true).unwrap_err(),
             AgentError::Protocol("the CLI refused the schema".to_owned())
         );
+    }
+
+    #[cfg(feature = "diagnostics")]
+    #[test]
+    fn the_diagnostic_keeps_event_labels_and_a_result_summary_without_the_session() {
+        let (stream, _, _) = feed(SCHEMA_OK);
+        assert!(stream.events.contains(&"system/init".to_owned()));
+        assert!(stream.events.contains(&"result/success".to_owned()));
+        assert_eq!(stream.events.last().unwrap(), "result/success");
+
+        let (stream, _, _) = feed(IMAGE_OK);
+        let summary = stream.summary.unwrap();
+        assert!(summary["structured_output_bytes"].is_null());
+        assert_eq!(summary["subtype"], "success");
+        assert!(summary.get("session_id").is_none());
+        assert!(!summary.to_string().contains("00000000-0000"));
     }
 
     #[test]

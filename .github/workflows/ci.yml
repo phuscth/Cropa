@@ -71,6 +71,9 @@ jobs:
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
       - run: cargo test --workspace --locked
+      # The eval's diagnostics feature is off for the app, so it is built and tested on its own.
+      - run: cargo clippy -p cropa-agent --all-targets --features diagnostics --locked -- -D warnings
+      - run: cargo test -p cropa-agent --features diagnostics --lib --locked
 
   deny:
     name: cargo-deny

@@ -19,6 +19,35 @@
       )
       .replace(/-?\d+\.\d+(?:e[+-]?\d+)?/gi, (n) => String(round(Number(n))));
 
+  // Angles are compared modulo a full turn: rotate(2πkt) draws the same pixels at t=0 and t=1,
+  // and the app's check compares pixels. An angle just under a full turn counts as 0, so float
+  // noise on either side of the wrap still compares equal after rounding.
+  const TAU = 2 * Math.PI;
+  const turnOf = (angle) => {
+    if (typeof angle !== 'number' || !Number.isFinite(angle)) return 0;
+    const wrapped = angle - TAU * Math.floor(angle / TAU);
+    return angle - wrapped + (wrapped >= TAU - 0.05 ? TAU : 0);
+  };
+  const wrapAngle = (angle) => (typeof angle === 'number' ? angle - turnOf(angle) : angle);
+  // The start and end of an arc move by the same whole turns, so the arc's sweep is kept.
+  const wrapArc = (args, at) => {
+    const out = args.slice();
+    const turn = turnOf(args[at]);
+    for (const i of [at, at + 1]) if (typeof out[i] === 'number') out[i] -= turn;
+    return out;
+  };
+  const ANGLE_ARGS = {
+    rotate: (args) => [wrapAngle(args[0]), ...args.slice(1)],
+    arc: (args) => wrapArc(args, 3),
+    ellipse: (args) => {
+      const out = wrapArc(args, 5);
+      out[4] = wrapAngle(out[4]);
+      return out;
+    },
+    createConicGradient: (args) => [wrapAngle(args[0]), ...args.slice(1)],
+  };
+  const withAngles = (name, args) => (Object.hasOwn(ANGLE_ARGS, name) ? ANGLE_ARGS[name](args) : args);
+
   class RecordedGradient {
     constructor(canvas, id) {
       this.canvas = canvas;
@@ -47,7 +76,7 @@
     'rect', 'roundRect', 'closePath', 'addPath',
   ]) {
     RecordedPath.prototype[name] = function record(...args) {
-      this.ops.push([name, ...args.map(norm)]);
+      this.ops.push([name, ...withAngles(name, args).map(norm)]);
     };
   }
 
@@ -139,7 +168,7 @@
       },
       createLinearGradient: (...args) => gradient('createLinearGradient', args),
       createRadialGradient: (...args) => gradient('createRadialGradient', args),
-      createConicGradient: (...args) => gradient('createConicGradient', args),
+      createConicGradient: (...args) => gradient('createConicGradient', withAngles('createConicGradient', args)),
       createPattern: (...args) => {
         const id = canvas.gradients++;
         record('createPattern', id, args[1]);
@@ -180,7 +209,7 @@
             return state.has(prop) ? state.get(prop) : ATTRIBUTE_DEFAULTS.get(prop);
           }
           return (...args) => {
-            record(prop, ...args);
+            record(prop, ...withAngles(prop, args));
           };
         },
         set(_target, prop, value) {
