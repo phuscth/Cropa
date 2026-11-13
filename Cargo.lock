@@ -741,6 +741,13 @@ dependencies = [
 [[package]]
 name = "cropa-agent"
 version = "0.0.0"
+dependencies = [
+ "log",
+ "serde",
+ "serde_json",
+ "thiserror 2.0.21",
+ "windows",
+]
 
 [[package]]
 name = "cropa-desktop"
@@ -748,6 +755,7 @@ version = "0.0.0"
 dependencies = [
  "base64 0.23.1",
  "chrono",
+ "cropa-agent",
  "image",
  "log",
  "serde",
