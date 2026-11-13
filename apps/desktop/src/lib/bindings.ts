@@ -81,6 +81,12 @@ export const commands = {
 	saveUserPreset: (id: string | null, name: string, background: Json) => typedError<UserPreset, CommandError>(__TAURI_INVOKE("save_user_preset", { id, name, background })),
 	/**  Deletes a saved preset. A preset that is already gone is not an error. */
 	deleteUserPreset: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_user_preset", { id })),
+	/**
+	 *  Exports a preset: shows a Save dialog for a `.json` file and writes `text`
+	 *  there. `None` when the user cancels. The text is the preset file the WebView
+	 *  built.
+	 */
+	savePresetFile: (suggestedName: string, text: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("save_preset_file", { suggestedName, text })),
 };
 
 /** Events */

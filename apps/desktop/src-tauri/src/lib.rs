@@ -53,6 +53,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::presets::list_user_presets,
             commands::presets::save_user_preset,
             commands::presets::delete_user_preset,
+            commands::presets::save_preset_file,
         ])
         .events(collect_events![
             capture::CaptureRequested,

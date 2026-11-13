@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 
 import type { CommandError, ExportFormat } from './bindings.ts';
+import type { PresetFileProblem } from '../features/editor/presets/preset-file.ts';
 
 /** Every user-facing error has three parts: what happened, why, what to do next. */
 export interface UserError {
@@ -64,4 +65,12 @@ export function describeExport(t: TFunction, cause: unknown): UserError {
   }
   const detail = cause instanceof Error ? cause.message : String(cause);
   return render(t, 'ExportRender', { detail });
+}
+
+/** A preset file the user picked could not be imported. */
+export function describePresetFile(t: TFunction, problem: PresetFileProblem): UserError {
+  const { kind } = problem;
+  if (problem.kind === 'PresetFileTooLarge') return render(t, kind, { limit: String(problem.limitKb) });
+  if (problem.kind === 'PresetFileInvalid') return render(t, kind, { detail: problem.detail });
+  return render(t, kind, {});
 }

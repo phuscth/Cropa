@@ -151,6 +151,8 @@ pub const fn preview_text(lang: Lang) -> PreviewText {
 pub struct SaveDialogText {
     pub pick_folder_title: &'static str,
     pub save_as_title: &'static str,
+    pub preset_title: &'static str,
+    pub preset_file: &'static str,
     pub png: &'static str,
     pub jpeg: &'static str,
     pub webp: &'static str,
@@ -161,6 +163,8 @@ pub const fn save_dialog_text(lang: Lang) -> SaveDialogText {
         Lang::En => SaveDialogText {
             pick_folder_title: "Choose a folder for your Cropa images",
             save_as_title: "Save image as",
+            preset_title: "Export preset",
+            preset_file: "Cropa preset",
             png: "PNG image",
             jpeg: "JPEG image",
             webp: "WebP image",
@@ -168,6 +172,8 @@ pub const fn save_dialog_text(lang: Lang) -> SaveDialogText {
         Lang::Vi => SaveDialogText {
             pick_folder_title: "Chọn thư mục lưu ảnh Cropa",
             save_as_title: "Lưu ảnh thành",
+            preset_title: "Xuất preset",
+            preset_file: "Preset Cropa",
             png: "Ảnh PNG",
             jpeg: "Ảnh JPEG",
             webp: "Ảnh WebP",
