@@ -86,7 +86,14 @@ export function AiOnboarding({ mode, onSaved, onCancel }: Props) {
   const statusText = (detection: AiDetection) => t(`ai.status.${cliStatus(detection)}`);
 
   return (
-    <section className="flex flex-col gap-3 rounded-md border p-4" aria-labelledby="ai-onboarding">
+    <section
+      className={
+        mode === 'first'
+          ? 'flex flex-col gap-4 rounded-xl border bg-card p-5'
+          : 'flex flex-col gap-4'
+      }
+      aria-labelledby="ai-onboarding"
+    >
       <h2 id="ai-onboarding" className="text-sm font-medium">
         {t('ai.onboarding.title')}
       </h2>
@@ -99,14 +106,14 @@ export function AiOnboarding({ mode, onSaved, onCancel }: Props) {
           {t('ai.onboarding.checking')}
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
+        <ul className="flex flex-col gap-3">
           {providers.map(({ provider, detection }) => {
             const status = cliStatus(detection);
             return (
               <li key={provider} className="flex flex-wrap items-center justify-between gap-2 text-sm">
                 <div className="flex flex-col">
                   <span className="font-medium">{providerName(t, provider)}</span>
-                  <span className="text-xs text-muted-foreground">{statusText(detection)}</span>
+                  <span className="text-sm text-muted-foreground">{statusText(detection)}</span>
                 </div>
                 <div className="flex gap-2">
                   {status === 'ready' && (

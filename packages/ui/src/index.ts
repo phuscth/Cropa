@@ -8,6 +8,7 @@ export {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.tsx';
+export { Card, CardRow } from './components/card.tsx';
 export { Input } from './components/input.tsx';
 export {
   Popover,
@@ -22,6 +23,8 @@ export {
   SelectTrigger,
   SelectValue,
 } from './components/select.tsx';
+export { NavRail, NavRailItem } from './components/nav-rail.tsx';
 export { SegmentedControl, SegmentedControlItem } from './components/segmented-control.tsx';
 export { Slider } from './components/slider.tsx';
+export { Switch } from './components/switch.tsx';
 export { cn } from './lib/utils.ts';

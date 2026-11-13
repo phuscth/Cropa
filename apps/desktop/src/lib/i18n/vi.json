@@ -182,6 +182,12 @@
       "step": "Bước {{n}}"
     }
   },
+  "rail": {
+    "label": "Cropa",
+    "editor": "Trình chỉnh sửa",
+    "history": "Lịch sử",
+    "settings": "Cài đặt"
+  },
   "history": {
     "title": "Lịch sử",
     "count": "Đã lưu {{total}}",
@@ -201,6 +207,11 @@
   },
   "settings": {
     "title": "Cài đặt",
+    "sections": {
+      "capture": "Chụp màn hình",
+      "appearance": "Giao diện",
+      "general": "Chung"
+    },
     "shortcut": {
       "label": "Phím tắt chụp",
       "description": "Bấm vào ô, rồi nhấn tổ hợp phím mới.",
@@ -505,6 +516,11 @@
       "what": "Không tìm thấy công cụ dòng lệnh.",
       "why": "Nó không nằm trong PATH nên Cropa không thể mở phần đăng nhập của nó.",
       "next": "Hãy cài đặt theo hướng dẫn, rồi kiểm tra lại."
+    },
+    "OpenWindow": {
+      "what": "Không mở được cửa sổ.",
+      "why": "Cropa không thể tạo hoặc hiển thị nó.",
+      "next": "Hãy thử lại. Nếu vẫn lỗi, hãy khởi động lại Cropa từ khay hệ thống."
     },
     "OpenTerminal": {
       "what": "Không mở được terminal.",

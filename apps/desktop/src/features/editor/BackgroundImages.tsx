@@ -77,9 +77,9 @@ function UserThumb({ imageRef }: { imageRef: string }) {
     return () => { alive = false; };
   }, [imageRef]);
   return url ? (
-    <img src={url} alt="" draggable={false} className="h-12 w-16 rounded-md object-cover" />
+    <img src={url} alt="" draggable={false} className="h-12 w-16 rounded-lg object-cover" />
   ) : (
-    <div className="h-12 w-16 rounded-md bg-secondary" />
+    <div className="h-12 w-16 rounded-lg bg-secondary" />
   );
 }
 
@@ -100,7 +100,7 @@ function Tile({ name, selected, onSelect, children, action }: TileProps) {
         title={name}
         aria-pressed={selected}
         onClick={onSelect}
-        className={`block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        className={`block rounded-lg outline-none focus-visible:ring-4 focus-visible:ring-primary/16 ${
           selected ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'
         }`}
       >
@@ -220,7 +220,7 @@ export function BackgroundImages({ history }: Props) {
           selected={current === CAPTURE_REF}
           onSelect={() => { void choose(CAPTURE_REF); }}
         >
-          <div className="flex h-12 w-16 items-center justify-center rounded-md bg-secondary text-muted-foreground">
+          <div className="flex h-12 w-16 items-center justify-center rounded-lg bg-secondary text-muted-foreground">
             <ScreenshotIcon />
           </div>
         </Tile>
@@ -237,7 +237,7 @@ export function BackgroundImages({ history }: Props) {
                 src={builtinUrl(name)}
                 alt=""
                 draggable={false}
-                className="h-12 w-16 rounded-md bg-secondary object-cover"
+                className="h-12 w-16 rounded-lg bg-secondary object-cover"
               />
             </Tile>
           );
@@ -246,7 +246,7 @@ export function BackgroundImages({ history }: Props) {
 
       {images.length > 0 && (
         <>
-          <h4 className="text-xs text-muted-foreground">{t('editor.background.images.yours')}</h4>
+          <h4 className="text-sm text-muted-foreground">{t('editor.background.images.yours')}</h4>
           <div className="grid grid-cols-4 gap-2">
             {images.map((image) => (
               <Tile

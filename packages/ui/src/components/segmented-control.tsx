@@ -22,7 +22,7 @@ function SegmentedControl({ className, value, onValueChange, ...props }: Segment
       onValueChange={(next) => {
         if (next !== '') onValueChange(next);
       }}
-      className={cn('grid w-full grid-flow-col gap-1 rounded-md bg-secondary p-0.5', className)}
+      className={cn('grid w-full grid-flow-col gap-1 rounded-full bg-secondary p-1', className)}
       {...props}
     />
   );
@@ -33,7 +33,7 @@ function SegmentedControlItem({ className, ...props }: ComponentProps<typeof Tog
     <ToggleGroup.Item
       data-slot="segmented-control-item"
       className={cn(
-        'inline-flex h-7 min-w-0 items-center justify-center rounded-md px-2 text-sm whitespace-nowrap outline-none transition-colors hover:bg-accent focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-selected data-[state=on]:text-selected-foreground',
+        'inline-flex h-8 min-w-0 items-center justify-center rounded-full px-3 text-sm font-medium whitespace-nowrap text-muted-foreground outline-none transition-[color,background-color,box-shadow] duration-150 ease-enter hover:text-foreground focus-visible:ring-4 focus-visible:ring-primary/16 disabled:pointer-events-none disabled:opacity-50 data-[state=on]:bg-card data-[state=on]:text-foreground data-[state=on]:shadow-xs',
         className,
       )}
       {...props}

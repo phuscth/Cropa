@@ -1,9 +1,11 @@
-import { Button } from '@cropa/ui';
+import { Button, SegmentedControl, SegmentedControlItem, Switch } from '@cropa/ui';
 import { getVersion } from '@tauri-apps/api/app';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AiSettingsSection } from '../../features/ai/AiSettingsSection.tsx';
+import { SettingRow, SettingsSection } from '../../features/settings/SettingsLayout.tsx';
+import { AppRail } from '../../features/shell/AppRail.tsx';
 import { ShortcutField } from '../../features/settings/ShortcutField.tsx';
 import {
   commands,
@@ -226,183 +228,191 @@ export function SettingsWindow() {
   }, [waitingForPrintScreen, registerPrintScreen]);
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-6 p-6">
-      <h1 className="text-xl font-semibold">{t('settings.title')}</h1>
+    <div className="flex h-screen">
+      <AppRail current="Settings" />
+      <main className="min-w-0 flex-1 overflow-y-auto">
+        <div className="mx-auto flex max-w-[680px] flex-col gap-8 px-8 py-10">
+          <header className="flex items-baseline justify-between gap-4">
+            <h1 className="text-title">{t('settings.title')}</h1>
+            {saved && !notice && (
+              <p role="status" className="text-sm text-muted-foreground">
+                {t('settings.saved')}
+              </p>
+            )}
+          </header>
 
-      {notice && <ErrorNotice error={notice} />}
+          {notice && <ErrorNotice error={notice} />}
 
-
-      {waitingForPrintScreen && (
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={busy}
-            onClick={() => { void registerPrintScreen('user'); }}
-          >
-            {t('settings.printScreen.retry')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy}
-            onClick={() => { void openPrintScreenSetting(); }}
-          >
-            {t('settings.printScreen.openSetting')}
-          </Button>
-        </div>
-      )}
-
-      <section className="flex flex-col gap-2">
-        <div className="flex items-center justify-between">
-          <span className="text-sm font-medium">{t('settings.shortcut.label')}</span>
-          {status && (
-            <span
-              className={
-                status.registered ? 'text-xs text-muted-foreground' : 'text-xs text-destructive'
+          <SettingsSection title={t('settings.sections.capture')}>
+            <SettingRow
+              stacked
+              label={t('settings.shortcut.label')}
+              description={t('settings.shortcut.description')}
+              aside={
+                status && (
+                  <span
+                    className={
+                      status.registered
+                        ? 'text-xs text-muted-foreground'
+                        : 'text-xs text-destructive'
+                    }
+                  >
+                    {status.registered
+                      ? t('settings.shortcut.registered')
+                      : t('settings.shortcut.notRegistered')}
+                  </span>
+                )
               }
             >
-              {status.registered
-                ? t('settings.shortcut.registered')
-                : t('settings.shortcut.notRegistered')}
-            </span>
-          )}
-        </div>
-        <ShortcutField
-          value={status?.accelerator ?? settings?.captureShortcut ?? ''}
-          disabled={busy || !settings}
-          onChange={(accelerator) => { void changeShortcut(accelerator); }}
-        />
-        <p className="text-xs text-muted-foreground">{t('settings.shortcut.description')}</p>
-        {!printScreenActive && (
-          <div className="flex flex-col items-start gap-1">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={busy || !settings}
-              onClick={() => { void choosePrintScreen(); }}
+              <div className="flex flex-col gap-3">
+                <ShortcutField
+                  value={status?.accelerator ?? settings?.captureShortcut ?? ''}
+                  disabled={busy || !settings}
+                  onChange={(accelerator) => { void changeShortcut(accelerator); }}
+                />
+                {waitingForPrintScreen && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => { void registerPrintScreen('user'); }}
+                    >
+                      {t('settings.printScreen.retry')}
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      disabled={busy}
+                      onClick={() => { void openPrintScreenSetting(); }}
+                    >
+                      {t('settings.printScreen.openSetting')}
+                    </Button>
+                  </div>
+                )}
+                {!printScreenActive && (
+                  <div className="flex flex-col items-start gap-2">
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      disabled={busy || !settings}
+                      onClick={() => { void choosePrintScreen(); }}
+                    >
+                      {t('settings.shortcut.usePrintScreen')}
+                    </Button>
+                    <p className="text-sm text-muted-foreground">
+                      {t('settings.shortcut.printScreenHint')}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </SettingRow>
+
+            <SettingRow
+              label={t('settings.saveFolder.label')}
+              description={settings?.saveFolder ?? t('settings.saveFolder.notSet')}
             >
-              {t('settings.shortcut.usePrintScreen')}
-            </Button>
-            <p className="text-xs text-muted-foreground">{t('settings.shortcut.printScreenHint')}</p>
-          </div>
-        )}
-      </section>
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy || !settings}
+                onClick={() => { void changeSaveFolder(); }}
+              >
+                {t('settings.saveFolder.change')}
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy || !settings?.saveFolder}
+                onClick={() => { void resetSaveFolder(); }}
+              >
+                {t('settings.saveFolder.reset')}
+              </Button>
+            </SettingRow>
+          </SettingsSection>
 
-      <fieldset className="flex flex-col gap-2">
-        <legend className="text-sm font-medium">{t('settings.theme.label')}</legend>
-        <div className="inline-flex w-fit gap-0.5 rounded-md border bg-muted p-0.5">
-          {THEMES.map((value) => (
-            <label
-              key={value}
-              className="inline-flex h-7 cursor-pointer items-center rounded-sm px-3 text-sm not-has-[:checked]:hover:bg-accent has-[:checked]:bg-selected has-[:checked]:text-selected-foreground has-[:focus-visible]:ring-[3px] has-[:focus-visible]:ring-ring/50"
+          <SettingsSection title={t('settings.sections.appearance')}>
+            <SettingRow
+              label={t('settings.theme.label')}
+              description={t('settings.theme.description')}
             >
-              <input
-                type="radio"
-                name="theme"
-                value={value}
-                className="sr-only"
-                checked={settings?.theme === value}
-                // Not disabled while saving: arrow keys move through the group,
-                // and disabling the focused radio would drop the focus.
-                disabled={!settings}
-                onChange={() => { void changeTheme(value); }}
-              />
-              {t(`settings.theme.${value}`)}
-            </label>
-          ))}
+              {({ labelId }) => (
+                <SegmentedControl
+                  aria-labelledby={labelId}
+                  className="w-auto"
+                  value={settings?.theme}
+                  // Not disabled while saving: arrow keys move through the group,
+                  // and disabling the focused item would drop the focus.
+                  disabled={!settings}
+                  onValueChange={(value) => { void changeTheme(value as ThemePreference); }}
+                >
+                  {THEMES.map((value) => (
+                    <SegmentedControlItem key={value} value={value}>
+                      {t(`settings.theme.${value}`)}
+                    </SegmentedControlItem>
+                  ))}
+                </SegmentedControl>
+              )}
+            </SettingRow>
+          </SettingsSection>
+
+          <SettingsSection title={t('settings.sections.general')}>
+            <SettingRow label={t('settings.autostart.label')}>
+              {({ labelId }) => (
+                <Switch
+                  aria-labelledby={labelId}
+                  checked={autostart ?? false}
+                  disabled={busy || autostart === undefined}
+                  onCheckedChange={(enabled) => { void changeAutostart(enabled); }}
+                />
+              )}
+            </SettingRow>
+            <SettingRow
+              label={t('settings.history.label')}
+              description={t('settings.history.description')}
+            >
+              {({ labelId, descriptionId }) => (
+                <Switch
+                  aria-labelledby={labelId}
+                  aria-describedby={descriptionId}
+                  checked={settings?.saveHistory ?? true}
+                  disabled={busy || !settings}
+                  onCheckedChange={(enabled) => { void changeSaveHistory(enabled); }}
+                />
+              )}
+            </SettingRow>
+            <SettingRow
+              label={t('settings.clipboardPrivacy.label')}
+              description={t('settings.clipboardPrivacy.description')}
+            >
+              {({ labelId, descriptionId }) => (
+                <Switch
+                  aria-labelledby={labelId}
+                  aria-describedby={descriptionId}
+                  checked={settings?.excludeFromClipboardHistory ?? false}
+                  disabled={busy || !settings}
+                  onCheckedChange={(enabled) => { void changeClipboardPrivacy(enabled); }}
+                />
+              )}
+            </SettingRow>
+          </SettingsSection>
+
+          <AiSettingsSection settings={settings} onSettings={setSettings} />
+
+          <SettingsSection title={t('settings.about.title')}>
+            <SettingRow label={version ? t('settings.about.version', { version }) : t('app.name')}>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={busy}
+                onClick={() => { void openSponsorsPage(); }}
+              >
+                {t('settings.about.sponsor')}
+              </Button>
+            </SettingRow>
+          </SettingsSection>
         </div>
-        <p className="text-xs text-muted-foreground">{t('settings.theme.description')}</p>
-      </fieldset>
-
-      <label className="flex items-center gap-3 text-sm">
-        <input
-          type="checkbox"
-          className="size-4"
-          checked={autostart ?? false}
-          disabled={busy || autostart === undefined}
-          onChange={(event) => { void changeAutostart(event.target.checked); }}
-        />
-        {t('settings.autostart.label')}
-      </label>
-
-      <div className="flex flex-col gap-1">
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="size-4"
-            checked={settings?.saveHistory ?? true}
-            disabled={busy || !settings}
-            onChange={(event) => { void changeSaveHistory(event.target.checked); }}
-          />
-          {t('settings.history.label')}
-        </label>
-        <p className="pl-7 text-xs text-muted-foreground">{t('settings.history.description')}</p>
-      </div>
-
-      <div className="flex flex-col gap-1">
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="size-4"
-            checked={settings?.excludeFromClipboardHistory ?? false}
-            disabled={busy || !settings}
-            onChange={(event) => { void changeClipboardPrivacy(event.target.checked); }}
-          />
-          {t('settings.clipboardPrivacy.label')}
-        </label>
-        <p className="pl-7 text-xs text-muted-foreground">
-          {t('settings.clipboardPrivacy.description')}
-        </p>
-      </div>
-
-      <section className="flex flex-col gap-2">
-        <span className="text-sm font-medium">{t('settings.saveFolder.label')}</span>
-        <p className="break-all text-sm text-muted-foreground">
-          {settings?.saveFolder ?? t('settings.saveFolder.notSet')}
-        </p>
-        <div className="flex gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={busy || !settings}
-            onClick={() => { void changeSaveFolder(); }}
-          >
-            {t('settings.saveFolder.change')}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            disabled={busy || !settings?.saveFolder}
-            onClick={() => { void resetSaveFolder(); }}
-          >
-            {t('settings.saveFolder.reset')}
-          </Button>
-        </div>
-      </section>
-
-      <AiSettingsSection settings={settings} onSettings={setSettings} />
-
-      {saved && !notice && (
-        <p role="status" className="text-sm text-muted-foreground">
-          {t('settings.saved')}
-        </p>
-      )}
-
-      <section className="flex flex-col items-start gap-2 border-t pt-4">
-        <h2 className="text-sm font-medium">{t('settings.about.title')}</h2>
-        {version && (
-          <p className="text-sm text-muted-foreground">{t('settings.about.version', { version })}</p>
-        )}
-        <Button
-          variant="outline"
-          size="sm"
-          disabled={busy}
-          onClick={() => { void openSponsorsPage(); }}
-        >
-          {t('settings.about.sponsor')}
-        </Button>
-      </section>
-    </main>
+      </main>
+    </div>
   );
 }

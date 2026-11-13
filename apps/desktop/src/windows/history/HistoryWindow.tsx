@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commands, events, type CommandError, type HistoryItem } from '../../lib/bindings.ts';
+import { AppRail } from '../../features/shell/AppRail.tsx';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 
@@ -63,11 +64,13 @@ export function HistoryWindow() {
   const count = items?.length ?? 0;
 
   return (
-    <main className="flex h-screen flex-col">
-      <header className="flex items-center gap-3 border-b px-4 py-3">
-        <h1 className="text-sm font-medium">{t('history.title')}</h1>
+    <div className="flex h-screen">
+    <AppRail current="History" />
+    <main className="flex min-w-0 flex-1 flex-col">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-6">
+        <h1 className="text-heading">{t('history.title')}</h1>
         {items && items.length > 0 && (
-          <span className="text-xs text-muted-foreground">{t('history.count', { total: count })}</span>
+          <span className="text-sm text-muted-foreground">{t('history.count', { total: count })}</span>
         )}
         <div className="ml-auto flex items-center gap-2">
           {confirmingDeleteAll ? (
@@ -97,20 +100,20 @@ export function HistoryWindow() {
         </div>
       </header>
 
-      <section className="flex-1 overflow-y-auto p-4">
+      <section className="flex-1 overflow-y-auto p-6">
         {error && (
-          <div className="mb-4">
+          <div className="mb-6">
             <ErrorNotice error={error} />
           </div>
         )}
         {items?.length === 0 && (
           <div className="flex flex-col items-center gap-1 py-16 text-center text-sm text-muted-foreground">
-            <p className="text-base text-foreground">{t('history.empty')}</p>
+            <p className="text-heading text-foreground">{t('history.empty')}</p>
             {!saveHistory && <p>{t('history.savingOff')}</p>}
           </div>
         )}
         {items && items.length > 0 && (
-          <ul className="grid grid-cols-[repeat(auto-fill,minmax(200px,1fr))] gap-4">
+          <ul className="grid grid-cols-[repeat(auto-fill,minmax(240px,1fr))] gap-4">
             {items.map((item) => (
               <HistoryCard key={item.id} item={item} run={run} />
             ))}
@@ -118,6 +121,7 @@ export function HistoryWindow() {
         )}
       </section>
     </main>
+    </div>
   );
 }
 
@@ -147,8 +151,8 @@ function HistoryCard({ item, run }: HistoryCardProps) {
   };
 
   return (
-    <li className="flex flex-col gap-2 rounded-lg border bg-card p-2 text-card-foreground shadow-xs">
-      <div className="flex aspect-[3/2] items-center justify-center overflow-hidden rounded-md bg-canvas">
+    <li className="group flex flex-col gap-2 rounded-xl border bg-card p-2 text-card-foreground">
+      <div className="flex aspect-[3/2] items-center justify-center overflow-hidden rounded-lg bg-canvas">
         {thumbnail && (
           <img
             src={thumbnail}
@@ -157,13 +161,13 @@ function HistoryCard({ item, run }: HistoryCardProps) {
           />
         )}
       </div>
-      <div className="flex flex-col text-xs">
-        <span>{when}</span>
-        <span className="text-muted-foreground">
+      <div className="flex flex-col px-1">
+        <span className="text-sm">{when}</span>
+        <span className="text-xs text-muted-foreground tabular-nums">
           {t('history.size', { width: item.width, height: item.height })}
         </span>
       </div>
-      <div className="flex flex-wrap gap-1.5">
+      <div className="flex flex-wrap gap-1.5 px-1 pb-1 opacity-0 transition-opacity duration-150 ease-enter group-focus-within:opacity-100 group-hover:opacity-100">
         <Button
           size="sm"
           onClick={() => { void run(() => commands.openHistoryInEditor(item.id)); }}
@@ -174,7 +178,7 @@ function HistoryCard({ item, run }: HistoryCardProps) {
           {t('history.copy')}
         </Button>
         <Button
-          variant="outline"
+          variant="ghost"
           size="sm"
           onClick={() => { void run(() => commands.deleteHistoryImage(item.id)); }}
         >
@@ -182,7 +186,7 @@ function HistoryCard({ item, run }: HistoryCardProps) {
         </Button>
       </div>
       {copied && (
-        <p role="status" className="text-xs text-muted-foreground">
+        <p role="status" className="px-1 text-xs text-muted-foreground">
           {t('history.copied')}
         </p>
       )}

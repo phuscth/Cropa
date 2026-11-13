@@ -71,6 +71,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::ai_setup::open_ai_install_guide,
             commands::ai_setup::open_login_terminal,
             commands::settings::answer_autostart_question,
+            commands::windows::open_window,
         ])
         .events(collect_events![
             capture::CaptureRequested,

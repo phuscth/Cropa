@@ -26,6 +26,7 @@
     "allow-ai-cancel",
     "allow-ai-detect",
     "allow-get-settings",
+    "allow-open-window",
     "allow-set-ai-effort"
   ]
 }

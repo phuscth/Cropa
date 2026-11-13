@@ -49,7 +49,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
     <div
       role="toolbar"
       aria-label={t('editor.annotate.properties')}
-      className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-md border bg-background px-2 py-1 shadow-md"
+      className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-xl border bg-popover px-3 py-1.5 shadow-md"
     >
       {colored && (
         <div role="group" aria-label={t('editor.annotate.color')} className="flex items-center gap-1">
@@ -62,7 +62,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
               onClick={() => { annotate.setColor(hex); }}
               style={{ backgroundColor: hex }}
               className={cn(
-                'size-5 rounded-full border outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                'size-5 rounded-full border outline-none focus-visible:ring-4 focus-visible:ring-primary/16',
                 color.toLowerCase() === hex && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
               )}
             />
@@ -76,7 +76,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
                 aria-pressed={custom}
                 style={custom ? { backgroundColor: color } : undefined}
                 className={cn(
-                  'size-5 rounded-full border outline-none focus-visible:ring-2 focus-visible:ring-ring',
+                  'size-5 rounded-full border outline-none focus-visible:ring-4 focus-visible:ring-primary/16',
                   !custom && 'bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)]',
                   custom && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
                 )}
@@ -117,8 +117,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
       {selectedAnnotation && (
         <Button
           variant="ghost"
-          size="icon"
-          className="size-7"
+          size="icon-sm"
           aria-label={t('editor.annotate.delete')}
           title={`${t('editor.annotate.delete')} (Del)`}
           onClick={annotate.removeSelected}

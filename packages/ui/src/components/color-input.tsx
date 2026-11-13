@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { fieldClasses } from '../lib/field.ts';
 import { cn } from '../lib/utils.ts';
 
 const HEX = /^#([0-9a-f]{3}|[0-9a-f]{6}|[0-9a-f]{8})$/;
@@ -83,7 +84,7 @@ function ColorInput({
     <div data-slot="color-input" className={cn('flex items-center gap-2', className)}>
       <span
         className={cn(
-          'checkerboard relative size-8 shrink-0 overflow-hidden rounded-md border shadow-xs focus-within:ring-[3px] focus-within:ring-ring/50',
+          'checkerboard relative size-10 shrink-0 overflow-hidden rounded-lg border border-input focus-within:ring-4 focus-within:ring-primary/16',
           disabled && 'opacity-50',
         )}
       >
@@ -114,7 +115,7 @@ function ColorInput({
         onKeyDown={(event) => {
           if (event.key === 'Enter') commitDraft();
         }}
-        className="h-8 w-full min-w-0 rounded-md border bg-background px-3 py-1 font-mono text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
+        className={cn(fieldClasses, 'font-mono')}
       />
     </div>
   );

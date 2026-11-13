@@ -42,7 +42,7 @@ const EFFORTS: readonly AiEffort[] = ['low', 'medium', 'high'];
 const STATUS_MS = 6000;
 
 const textareaClass =
-  'w-full resize-none rounded-md border bg-background px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50';
+  'w-full resize-none rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm outline-none transition-[color,border-color,box-shadow] duration-150 ease-enter placeholder:text-muted-foreground hover:border-foreground/30 focus-visible:border-[color-mix(in_srgb,var(--input),var(--primary)_60%)] focus-visible:ring-4 focus-visible:ring-primary/16 disabled:pointer-events-none disabled:opacity-50 dark:bg-background';
 
 function historyAccess({ scene, preview, commit }: Props['history']): AiHistoryAccess {
   return { scene: () => scene, preview, commit };
@@ -190,7 +190,7 @@ export function AiBackground({ history, palette }: Props) {
 
   return (
     <div className="flex flex-col gap-2 border-t pt-3">
-      <h4 className="text-xs font-medium text-muted-foreground">{t('editor.aiBackground.title')}</h4>
+      <h4 className="text-sm font-medium">{t('editor.aiBackground.title')}</h4>
       <AiGate access={access}>
         {(enabled) => (
           <div className="flex w-full flex-col items-start gap-2">

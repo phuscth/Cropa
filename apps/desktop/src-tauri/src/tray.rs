@@ -1,4 +1,4 @@
-//! System tray: Capture region, History, Open editor, Settings, Quit.
+//! System tray: Capture region, History, Open editor, Quit.
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
@@ -11,7 +11,6 @@ use crate::i18n::{Lang, tray_text};
 const CAPTURE: &str = "capture";
 const HISTORY: &str = "history";
 const EDITOR: &str = "editor";
-const SETTINGS: &str = "settings";
 const QUIT: &str = "quit";
 
 pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
@@ -23,7 +22,6 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
             &MenuItem::with_id(app, HISTORY, text.history, true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, EDITOR, text.editor, true, None::<&str>)?,
-            &MenuItem::with_id(app, SETTINGS, text.settings, true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, QUIT, text.quit, true, None::<&str>)?,
         ],
@@ -37,7 +35,6 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
             CAPTURE => capture::request(app, CaptureSource::Tray),
             HISTORY => drop(app_windows::show(app, app_windows::HISTORY)),
             EDITOR => drop(app_windows::show(app, app_windows::EDITOR)),
-            SETTINGS => drop(app_windows::show(app, app_windows::SETTINGS)),
             QUIT => app.exit(0),
             _ => {}
         })

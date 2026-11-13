@@ -12,6 +12,7 @@
     "allow-delete-history-image",
     "allow-delete-all-history",
     "allow-open-history-in-editor",
-    "allow-get-settings"
+    "allow-get-settings",
+    "allow-open-window"
   ]
 }

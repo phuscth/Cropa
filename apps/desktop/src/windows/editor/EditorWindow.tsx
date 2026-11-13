@@ -15,6 +15,7 @@ import { AnnotationProperties } from '../../features/editor/annotate/AnnotationP
 import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
 import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
 import { screenshotPalette } from '../../features/editor/code-frames.ts';
+import { AppRail } from '../../features/shell/AppRail.tsx';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
 import { exportPlan, type ExportScale } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
@@ -236,12 +237,14 @@ export function EditorWindow() {
   const fixedSize = exportPlan(history.scene, format, scale);
 
   return (
-    <main className="flex h-screen flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-background px-3">
+    <div className="flex h-screen">
+    <AppRail current="Editor" />
+    <main className="flex min-w-0 flex-1 flex-col">
+      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
         <h1 className="mr-auto text-sm font-medium">{t('editor.title')}</h1>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label={t('editor.undo')}
           title={`${t('editor.undo')} (Ctrl+Z)`}
           disabled={!loaded || !history.canUndo}
@@ -251,7 +254,7 @@ export function EditorWindow() {
         </Button>
         <Button
           variant="ghost"
-          size="icon"
+          size="icon-sm"
           aria-label={t('editor.redo')}
           title={`${t('editor.redo')} (Ctrl+Y)`}
           disabled={!loaded || !history.canRedo}
@@ -262,6 +265,7 @@ export function EditorWindow() {
         <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
         <Button
           variant="outline"
+          size="sm"
           className="cursor-grab touch-none select-none"
           title={t('editor.export.dragHint')}
           draggable={false}
@@ -273,6 +277,7 @@ export function EditorWindow() {
         </Button>
         <Button
           variant="outline"
+          size="sm"
           title={`${t('editor.export.copy')} (Ctrl+C)`}
           disabled={!loaded || busy}
           onClick={() => { void copy(); }}
@@ -283,6 +288,7 @@ export function EditorWindow() {
           <PopoverAnchor asChild>
             <Button
               variant="outline"
+              size="sm"
               title={`${t('editor.export.saveAs')} (Ctrl+Shift+S)`}
               disabled={!loaded || busy}
               onClick={() => { setSaveAsOpen((open) => !open); }}
@@ -290,9 +296,9 @@ export function EditorWindow() {
               {t('editor.export.saveAs')}
             </Button>
           </PopoverAnchor>
-          <PopoverContent className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <span className="text-sm">{t('editor.export.format')}</span>
+          <PopoverContent className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">{t('editor.export.format')}</span>
               <SegmentedControl
                 aria-label={t('editor.export.format')}
                 value={format}
@@ -305,8 +311,8 @@ export function EditorWindow() {
                 ))}
               </SegmentedControl>
             </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm">{t('editor.export.scale')}</span>
+            <div className="flex flex-col gap-2">
+              <span className="text-sm font-medium">{t('editor.export.scale')}</span>
               <SegmentedControl
                 aria-label={t('editor.export.scale')}
                 value={String(scaleFixed ? 1 : scale)}
@@ -329,6 +335,7 @@ export function EditorWindow() {
               )}
             </div>
             <Button
+              className="w-full"
               onClick={() => {
                 setSaveAsOpen(false);
                 void saveAs(format, scale);
@@ -339,6 +346,7 @@ export function EditorWindow() {
           </PopoverContent>
         </Popover>
         <Button
+          size="sm"
           title={`${t('editor.export.save')} (Ctrl+S)`}
           disabled={!loaded || busy}
           onClick={() => { void quickSave(); }}
@@ -348,8 +356,8 @@ export function EditorWindow() {
       </header>
       {loaded ? (
         <div className="flex min-h-0 flex-1">
-          <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
           <section className="relative flex min-w-0 flex-1 bg-canvas">
+            <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
             <ScenePreview
               scene={displayScene}
               bitmap={loaded.bitmap}
@@ -359,12 +367,12 @@ export function EditorWindow() {
             />
             {showProperties && <AnnotationProperties annotate={annotate} />}
             {error ? (
-              <div className={`absolute inset-x-4 ${showProperties ? 'top-16' : 'top-4'}`}>
+              <div className={`absolute right-4 left-20 ${showProperties ? 'top-16' : 'top-4'}`}>
                 <ErrorNotice error={error} />
               </div>
             ) : (
               exportProblem && (
-                <div className={`absolute inset-x-4 ${showProperties ? 'top-16' : 'top-4'}`}>
+                <div className={`absolute right-4 left-20 ${showProperties ? 'top-16' : 'top-4'}`}>
                   <ErrorNotice
                     error={exportProblem}
                     onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
@@ -375,7 +383,7 @@ export function EditorWindow() {
             {exporter.notice && (
               <div
                 role="status"
-                className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-md border bg-background py-1 pr-1 pl-3 text-sm shadow-md"
+                className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-popover py-1 pr-1 pl-4 text-sm shadow-md"
               >
                 <span>
                   {exporter.notice.kind === 'saved' && t('editor.export.saved', { fileName: exporter.notice.file.fileName })}
@@ -395,8 +403,7 @@ export function EditorWindow() {
                 )}
                 <Button
                   variant="ghost"
-                  size="icon"
-                  className="size-6"
+                  size="icon-sm"
                   aria-label={t('editor.dismiss')}
                   onClick={exporter.dismissNotice}
                 >
@@ -405,7 +412,7 @@ export function EditorWindow() {
               </div>
             )}
           </section>
-          <aside className="w-72 shrink-0 overflow-y-auto border-l bg-background">
+          <aside className="w-80 shrink-0 overflow-y-auto border-l bg-sidebar">
             <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
           </aside>
         </div>
@@ -417,5 +424,6 @@ export function EditorWindow() {
         </section>
       )}
     </main>
+    </div>
   );
 }

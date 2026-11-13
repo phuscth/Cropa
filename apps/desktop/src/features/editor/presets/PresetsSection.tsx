@@ -104,9 +104,9 @@ function PresetThumb({ background }: { background: BackgroundSpec }) {
     return () => { alive = false; };
   }, [background]);
   return url ? (
-    <img src={url} alt="" draggable={false} className="h-12 w-16 rounded-md object-cover" />
+    <img src={url} alt="" draggable={false} className="h-12 w-16 rounded-lg object-cover" />
   ) : (
-    <div className="h-12 w-16 rounded-md bg-secondary" />
+    <div className="h-12 w-16 rounded-lg bg-secondary" />
   );
 }
 
@@ -132,7 +132,7 @@ function Tile({ name, background, selected, onSelect, menu, testId }: TileProps)
         title={label}
         aria-pressed={selected}
         onClick={onSelect}
-        className={`block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring ${
+        className={`block rounded-lg outline-none focus-visible:ring-4 focus-visible:ring-primary/16 ${
           selected ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'
         }`}
       >
@@ -325,8 +325,7 @@ export function PresetsSection({ history }: Props) {
         <>
           <Button
             variant="ghost"
-            size="icon"
-            className="size-6"
+            size="icon-sm"
             aria-label={t('editor.presets.saveCurrent')}
             title={t('editor.presets.saveCurrent')}
             disabled={busy}
@@ -336,8 +335,7 @@ export function PresetsSection({ history }: Props) {
           </Button>
           <Button
             variant="ghost"
-            size="icon"
-            className="size-6"
+            size="icon-sm"
             aria-label={t('editor.presets.import')}
             title={t('editor.presets.import')}
             disabled={busy}
@@ -379,7 +377,7 @@ export function PresetsSection({ history }: Props) {
         })}
       </div>
 
-      <h4 className="text-xs text-muted-foreground">{t('editor.presets.saved')}</h4>
+      <h4 className="text-sm text-muted-foreground">{t('editor.presets.saved')}</h4>
       {library.presets.length === 0 && library.unreadable.length === 0 && (
         <p className="text-sm text-muted-foreground">{t('editor.presets.empty')}</p>
       )}

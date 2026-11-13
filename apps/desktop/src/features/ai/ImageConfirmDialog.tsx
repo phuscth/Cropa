@@ -39,12 +39,12 @@ export function ImageConfirmDialog({
     <dialog
       ref={ref}
       aria-labelledby="image-confirm-title"
-      className="m-auto max-w-sm rounded-md border bg-background p-4 text-foreground backdrop:bg-black/40"
+      className="m-auto max-w-sm rounded-xl border bg-popover p-6 text-popover-foreground shadow-xl backdrop:bg-black/40"
       // Esc and any other way of closing it count as "don't send".
       onClose={() => { onAnswer(false); }}
     >
-      <div className="flex flex-col gap-3 text-sm">
-        <h2 id="image-confirm-title" className="font-medium">
+      <div className="flex flex-col gap-4 text-sm">
+        <h2 id="image-confirm-title" className="text-heading">
           {allowImages ? t('ai.imageConfirm.title', vars) : t('ai.imageConfirm.offTitle')}
         </h2>
         <p className="text-muted-foreground">
@@ -53,15 +53,15 @@ export function ImageConfirmDialog({
         <div className="flex justify-end gap-2">
           {allowImages ? (
             <>
-              <Button variant="outline" size="sm" onClick={() => { onAnswer(false); }}>
+              <Button variant="outline" onClick={() => { onAnswer(false); }}>
                 {t('ai.imageConfirm.dontSend')}
               </Button>
-              <Button size="sm" onClick={() => { onAnswer(true); }}>
+              <Button onClick={() => { onAnswer(true); }}>
                 {t('ai.imageConfirm.send')}
               </Button>
             </>
           ) : (
-            <Button size="sm" onClick={() => { onAnswer(false); }}>
+            <Button onClick={() => { onAnswer(false); }}>
               {t('ai.imageConfirm.close')}
             </Button>
           )}

@@ -46,6 +46,8 @@
 
   /* The area behind the image, and the checkerboard shown under transparency. */
   --canvas: #eaeaea;
+  /* Side surface of the chrome: the settings section list and the editor sidebar. */
+  --sidebar: #f5f5f5;
   --canvas-foreground: #676767;
   --checker-a: #ffffff;
   --checker-b: #d6d6d6;
@@ -90,6 +92,7 @@
     --selected-foreground: #ffd0d9;
 
     --canvas: #141414;
+    --sidebar: #202020;
     --canvas-foreground: #a4a4a4;
     --checker-a: #464646;
     --checker-b: #353535;
@@ -107,7 +110,7 @@
 }
 
 @theme inline {
-  /* md: controls (8px), lg: cards and menus (12px), xl: dialogs (16px). */
+  /* md: menu items (8px), lg: inputs, selects, menus and popovers (12px), xl: cards and dialogs (16px). */
   --radius-sm: calc(var(--radius) - 6px);
   --radius-md: calc(var(--radius) - 4px);
   --radius-lg: var(--radius);
@@ -133,6 +136,7 @@
   --color-ring: var(--ring);
   --color-selected: var(--selected);
   --color-selected-foreground: var(--selected-foreground);
+  --color-sidebar: var(--sidebar);
   --color-canvas: var(--canvas);
   --color-canvas-foreground: var(--canvas-foreground);
   --color-checker-a: var(--checker-a);
@@ -151,6 +155,7 @@
 }
 
 @theme {
+  --font-sans: 'Geist Variable', system-ui, 'Segoe UI', sans-serif;
   --ease-enter: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-reveal: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-travel: cubic-bezier(0.65, 0, 0.35, 1);
@@ -179,12 +184,31 @@
     accent-color: var(--primary);
     scrollbar-color: var(--input) transparent;
   }
+  input,
+  textarea {
+    caret-color: var(--primary);
+  }
   ::selection {
     background-color: var(--selected);
     color: var(--selected-foreground);
   }
   body {
-    @apply bg-background text-foreground antialiased;
-    font-family: system-ui, 'Segoe UI', sans-serif;
+    @apply bg-background text-base leading-[1.6] text-foreground antialiased;
   }
+}
+
+/* Window or page title. */
+@utility text-title {
+  font-size: 32px;
+  line-height: 1.2;
+  font-weight: 500;
+  letter-spacing: -0.035em;
+}
+
+/* Section heading. */
+@utility text-heading {
+  font-size: 18px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: -0.01em;
 }

@@ -58,13 +58,13 @@ const ICONS: Record<Tool, ReactNode> = {
   ),
 };
 
-/** The column of annotation tools at the left of the canvas. */
+/** The annotation tools, a pill that floats at the left of the canvas. */
 export function AnnotationToolbar({ tool, onTool, disabled }: Props) {
   const { t } = useTranslation();
   return (
     <nav
       aria-label={t('editor.annotate.toolbar')}
-      className="flex w-12 shrink-0 flex-col items-center gap-1 border-r bg-background py-2"
+      className="absolute top-1/2 left-4 z-10 flex -translate-y-1/2 flex-col gap-1 rounded-full border bg-popover p-1 shadow-md"
     >
       {TOOLS.map((name) => {
         const label = t(`editor.annotate.tools.${name}`);
@@ -72,8 +72,11 @@ export function AnnotationToolbar({ tool, onTool, disabled }: Props) {
           <Button
             key={name}
             variant="ghost"
-            size="icon"
-            className={cn('size-9', tool === name && 'bg-selected text-selected-foreground')}
+            size="icon-sm"
+            className={cn(
+              tool === name &&
+                'bg-selected text-selected-foreground hover:bg-selected hover:text-selected-foreground',
+            )}
             aria-label={label}
             aria-pressed={tool === name}
             title={`${label} (${TOOL_KEYS[name].key.toUpperCase()})`}

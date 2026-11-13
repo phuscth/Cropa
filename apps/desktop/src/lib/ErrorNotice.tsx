@@ -14,9 +14,9 @@ export function ErrorNotice({ error, onDismiss }: Props) {
   return (
     <div
       role="alert"
-      className="relative rounded-md border border-destructive/40 bg-destructive/5 p-3 text-sm"
+      className="relative rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm"
     >
-      <p className={onDismiss ? 'pr-6 font-medium text-destructive' : 'font-medium text-destructive'}>
+      <p className={onDismiss ? 'pr-8 font-medium text-destructive' : 'font-medium text-destructive'}>
         {error.what}
       </p>
       <p className="mt-1 text-muted-foreground">{error.why}</p>
@@ -24,8 +24,8 @@ export function ErrorNotice({ error, onDismiss }: Props) {
       {onDismiss && (
         <Button
           variant="ghost"
-          size="icon"
-          className="absolute top-1 right-1 size-6"
+          size="icon-sm"
+          className="absolute top-2 right-2"
           aria-label={t('editor.dismiss')}
           onClick={onDismiss}
         >

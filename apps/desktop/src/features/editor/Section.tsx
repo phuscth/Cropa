@@ -11,9 +11,9 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-3 border-b p-4 last:border-b-0">
+    <section className="flex flex-col gap-4 border-b px-5 py-4 last:border-b-0">
       <div className="flex items-center justify-between gap-2">
-        <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
+        <h3 className="text-sm font-medium text-foreground">{title}</h3>
         {actions && <div className="-my-1 flex items-center gap-1">{actions}</div>}
       </div>
       {children}

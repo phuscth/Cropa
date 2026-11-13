@@ -24,13 +24,13 @@ function Slider({
       >
         <SliderPrimitive.Range
           data-slot="slider-range"
-          className="absolute h-full bg-foreground/60"
+          className="absolute h-full bg-foreground/70"
         />
       </SliderPrimitive.Track>
       <SliderPrimitive.Thumb
         data-slot="slider-thumb"
         aria-label={ariaLabel}
-        className="block size-4 shrink-0 rounded-full border bg-background shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        className="block size-4.5 shrink-0 rounded-full border border-input bg-card shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-primary/16"
       />
     </SliderPrimitive.Root>
   );

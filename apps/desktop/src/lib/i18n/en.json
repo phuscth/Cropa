@@ -182,6 +182,12 @@
       "step": "Step {{n}}"
     }
   },
+  "rail": {
+    "label": "Cropa",
+    "editor": "Editor",
+    "history": "History",
+    "settings": "Settings"
+  },
   "history": {
     "title": "History",
     "count": "{{total}} saved",
@@ -201,6 +207,11 @@
   },
   "settings": {
     "title": "Settings",
+    "sections": {
+      "capture": "Capture",
+      "appearance": "Appearance",
+      "general": "General"
+    },
     "shortcut": {
       "label": "Capture shortcut",
       "description": "Click the box, then press the new key combination.",
@@ -505,6 +516,11 @@
       "what": "Couldn't find the command line tool.",
       "why": "It isn't on your PATH, so Cropa can't open its login.",
       "next": "Install it with the install guide, then check again."
+    },
+    "OpenWindow": {
+      "what": "Couldn't open the window.",
+      "why": "Cropa could not create or show it.",
+      "next": "Try again. If it keeps failing, restart Cropa from the tray."
     },
     "OpenTerminal": {
       "what": "Couldn't open the terminal.",

@@ -244,7 +244,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
   }, [scene, env, backingW, backingH, area.width, live, durationMs, palette]);
 
   return (
-    <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
+    <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center py-4 pr-4 pl-20">
       <div className="relative" style={{ width: css.width, height: css.height }}>
         <canvas
           ref={canvasRef}
