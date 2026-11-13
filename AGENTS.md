@@ -33,6 +33,7 @@ What a module must not do is as binding as what it does.
 - Each window has its own capability with only the permissions it uses; grant `allow-<command>` only where a window calls it.
 - The WebView never spawns a process and has no shell permission. Every outside command runs in Rust with a fixed path and fixed arguments.
 - The CSP is strict and loads no outside script. A downloaded file matches the SHA-256 in its manifest before use.
+- The background sandbox (`apps/desktop/src/features/code-sandbox/`) is the one place that runs AI-written code: a `srcdoc` iframe with `sandbox="allow-scripts"` (opaque origin, never `allow-same-origin`) and its own CSP `default-src 'none'`, with the code in a blob Worker inside it. The code may draw on canvases (2D, WebGL) with the bundled three.js and gets only `t` and the scene; it has no network, no Tauri IPC, no app DOM or storage, and a time limit per frame. The app CSP exceptions (`worker-src blob:` and the bootstrap's hash in `script-src`) exist only for it; nothing else uses them, and AI code never runs outside that worker.
 - Cropa runs only the CLI the user installed and logged in to: it never bundles, installs, patches or proxies it, and never reads or stores its login.
 
 ## Validation
