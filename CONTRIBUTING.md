@@ -40,9 +40,10 @@ Esc leaves the clipboard alone. The editor test opens a fixture image and checks
 the preview canvas shows it.
 
 One-time setup: `cargo install tauri-driver --version 2.0.6 --locked`. The editor
-test downloads `msedgedriver` into `target/e2e/` on first run, pinned and
-checked against its SHA-256. When WebView2 moves to a new major version the test
-says so; set the new version and hash in `e2e/msedgedriver.mjs`.
+test downloads the `msedgedriver` that matches your WebView2 into `target/e2e/`
+on first run, picked from a table of known versions in `e2e/msedgedriver.mjs`
+and checked against its SHA-256. When WebView2 reaches a major version the table
+lacks, the test says which version to add with its hash.
 
 Run `pnpm e2e`, or `pnpm e2e:build` and then `pnpm e2e:capture` and/or
 `pnpm e2e:editor`. They move the mouse, press keys and replace the clipboard, so

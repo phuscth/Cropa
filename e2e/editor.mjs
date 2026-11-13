@@ -8,13 +8,12 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { VERSION, ensureMsedgedriver, msedgedriverMajor } from './msedgedriver.mjs';
+import { ensureMsedgedriver } from './msedgedriver.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const app = process.env.CROPA_E2E_APP ?? path.join(root, 'target', 'e2e-app', 'debug', 'cropa-desktop.exe');
 const fixture = path.join(root, 'e2e', 'fixtures', 'two-colours.png');
 const DRIVER = 'http://127.0.0.1:4444';
-const WEBVIEW2_GUID = '{F3017226-FE2A-4295-8BDF-00C3A9A7E4C5}';
 
 const MAGENTA = [255, 0, 255];
 const CYAN = [0, 200, 255];
@@ -26,7 +25,6 @@ let sessionId;
 
 try {
   if (!fs.existsSync(app)) throw new Error(`${app} is missing; run \`pnpm e2e:build\` first.`);
-  checkWebView2Version();
   const msedgedriver = await ensureMsedgedriver();
 
   // A capture key the user's own Cropa does not hold, so no Settings window
@@ -190,31 +188,3 @@ async function executeScript(script) {
   return value;
 }
 
-function checkWebView2Version() {
-  const keys = [
-    `HKLM\\SOFTWARE\\WOW6432Node\\Microsoft\\EdgeUpdate\\Clients\\${WEBVIEW2_GUID}`,
-    `HKLM\\SOFTWARE\\Microsoft\\EdgeUpdate\\Clients\\${WEBVIEW2_GUID}`,
-    `HKCU\\Software\\Microsoft\\EdgeUpdate\\Clients\\${WEBVIEW2_GUID}`,
-  ];
-  let version;
-  for (const key of keys) {
-    try {
-      const output = execFileSync('reg', ['query', key, '/v', 'pv'], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'ignore'] });
-      version = output.match(/pv\s+REG_SZ\s+(\S+)/)?.[1];
-      if (version) break;
-    } catch {
-      // Try the next location.
-    }
-  }
-  if (!version) {
-    console.warn('Warning: could not read the WebView2 version; continuing.');
-    return;
-  }
-  console.log(`WebView2 ${version}, msedgedriver ${VERSION}`);
-  if (Number(version.split('.')[0]) !== msedgedriverMajor) {
-    throw new Error(
-      `WebView2 is ${version} but msedgedriver is pinned to ${VERSION}; set VERSION and SHA256 in e2e/msedgedriver.mjs ` +
-        'to the matching driver from https://developer.microsoft.com/microsoft-edge/tools/webdriver/',
-    );
-  }
-}
