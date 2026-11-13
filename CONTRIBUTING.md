@@ -36,10 +36,16 @@ licence check.
 
 Two smoke tests drive the real app on Windows. The capture test presses the
 capture key, drags a region and checks the clipboard image, the preview, and that
-Esc leaves the clipboard alone. The editor test opens a fixture image and checks
-the preview canvas shows it.
+Esc leaves the clipboard alone. The editor test opens a fixture image, checks
+the preview canvas shows it, picks a background preset, presses `Ctrl+S` and
+checks the saved PNG.
 
-One-time setup: `cargo install tauri-driver --version 2.0.6 --locked`. The editor
+CI runs only the capture test (`.github/workflows/e2e.yml`). Run the editor test
+by hand before a release: on GitHub's Windows runners WebDriver cannot attach to
+WebView2.
+
+One-time setup for the editor test:
+`cargo install tauri-driver --version 2.0.6 --locked`. The editor
 test downloads the `msedgedriver` that matches your WebView2 into `target/e2e/`
 on first run, picked from a table of known versions in `e2e/msedgedriver.mjs`
 and checked against its SHA-256. When WebView2 reaches a major version the table
@@ -49,11 +55,10 @@ Run `pnpm e2e`, or `pnpm e2e:build` and then `pnpm e2e:capture` and/or
 `pnpm e2e:editor`. They move the mouse, press keys and replace the clipboard, so
 leave the machine alone while they run. They start a separate instance
 (`cropa-e2e`) with its data in a temp folder (WebView data in
-`%LOCALAPPDATA%\cropa-e2e`) and the capture key
-`Ctrl+Alt+Shift+F9`, so an open Cropa can stay open and its data, settings and
-start-with-Windows entry are untouched. The E2E build goes to `target/e2e-app`, so the first
-build takes a while but normal builds never overwrite it. Only debug builds read the hook. CI runs
-them in `.github/workflows/e2e.yml`.
+`%LOCALAPPDATA%\cropa-e2e`) and the capture key `Ctrl+Alt+Shift+F9`, so an
+open Cropa can stay open and its data, settings and start-with-Windows entry are
+untouched. The E2E build goes to `target/e2e-app`, so the first build takes a
+while but normal builds never overwrite it. Only debug builds read the hook.
 
 ## Background presets
 

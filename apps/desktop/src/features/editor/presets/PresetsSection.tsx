@@ -107,13 +107,16 @@ interface TileProps {
   selected: boolean;
   onSelect: () => void;
   menu?: ReactNode;
+  /** A selector for the end-to-end tests that does not depend on the language. */
+  testId?: string;
 }
 
-function Tile({ name, background, selected, onSelect, menu }: TileProps) {
+function Tile({ name, background, selected, onSelect, menu, testId }: TileProps) {
   return (
     <div className="group relative">
       <button
         type="button"
+        data-testid={testId}
         aria-label={name}
         title={name}
         aria-pressed={selected}
@@ -316,6 +319,7 @@ export function PresetsSection({ history }: Props) {
               background={preset.background}
               selected={sameBackground(scene.background, preset.background)}
               onSelect={select(preset.background)}
+              testId={`preset-${preset.id}`}
             />
           );
         })}

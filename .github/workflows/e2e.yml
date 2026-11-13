@@ -1,7 +1,9 @@
 name: E2E
 
-# Separate from the required checks in ci.yml. The tests drive a real desktop
-# (mouse, keyboard, clipboard, WebView2), which GitHub's Windows runners provide.
+# Separate from the required checks in ci.yml. The capture smoke test drives a
+# real desktop (mouse, keyboard, clipboard), which GitHub's Windows runners
+# provide. The editor smoke test runs by hand only: on these runners msedgedriver
+# starts the app and its WebView2 loads, but the driver never attaches to it.
 # Actions are pinned to a commit SHA; the comment gives the tag it came from.
 on:
   push:
@@ -32,9 +34,5 @@ jobs:
           node-version: 24
           cache: pnpm
       - run: pnpm install --frozen-lockfile
-      - run: cargo install tauri-driver --version 2.0.6 --locked
       - run: pnpm e2e:build
       - run: pnpm e2e:capture
-      # Reports even when the capture test failed.
-      - run: pnpm e2e:editor
-        if: ${{ !cancelled() }}
