@@ -103,6 +103,8 @@ export function checkModuleInNode(
   return new Promise((resolve) => {
     const args = [
       '--permission',
+      // A host Function cannot compile strings either, a second wall behind the context's own.
+      '--disallow-code-generation-from-strings',
       // For vm.SourceTextModule, which loads three.js inside the context.
       '--experimental-vm-modules',
       ...readableFiles().map((path) => `--allow-fs-read=${path}`),

@@ -283,30 +283,66 @@
   g.Worker = () => undefined;
   g.SharedWorker = () => undefined;
 
-  const message = (error) =>
-    String(error !== null && typeof error === 'object' && 'message' in error ? error.message : error);
+  // Taken before any model code runs, so a module that patches JSON or String cannot change what
+  // the driver returns.
+  const stringify = JSON.stringify;
+  const parse = JSON.parse;
+  const toText = String;
+  const MAX_TEXT = 2000;
 
-  Object.defineProperty(g, '__cropaDriver', {
-    value: {
+  // Never throws and always returns a string primitive, whatever the thrown value does when it is
+  // read. It runs under the host's timeout, so a getter that never returns ends the call.
+  const message = (error) => {
+    try {
+      const text = toText(error !== null && typeof error === 'object' && 'message' in error ? error.message : error);
+      return text.length > MAX_TEXT ? text.slice(0, MAX_TEXT) : text;
+    } catch {
+      return 'unknown error';
+    }
+  };
+
+  // JSON.stringify of a value the module may have shaped; a throw becomes a plain message.
+  const json = (value) => {
+    try {
+      return toText(stringify(value) ?? 'null');
+    } catch (error) {
+      return stringify({ threw: message(error) });
+    }
+  };
+
+  const find = (predicate) => {
+    for (let i = 0; i < inbox.length; i++) {
+      const m = inbox[i];
+      if (m && predicate(m)) return m;
+    }
+    return null;
+  };
+
+  const driver = {
     // The first `loaded` message the worker posted, as JSON.
     loaded() {
-      return JSON.stringify(inbox.find((m) => m && m.type === 'loaded') ?? null);
+      return json(find((m) => m.type === 'loaded'));
     },
     // Delivers one frame request and returns the worker's reply as JSON.
     frame(id, t, sceneJson) {
       inbox.length = 0;
       try {
-        const scene = JSON.parse(sceneJson);
-        for (const listener of listeners.slice()) listener({ data: { type: 'frame', id, t, scene } });
+        const scene = parse(sceneJson);
+        for (let i = 0; i < listeners.length; i++) listeners[i]({ data: { type: 'frame', id, t, scene } });
       } catch (error) {
-        return JSON.stringify({ threw: message(error) });
+        return stringify({ threw: message(error) });
       }
-      return JSON.stringify(inbox.find((m) => m && m.type === 'frame' && m.id === id) ?? null);
+      return json(find((m) => m.type === 'frame' && m.id === id));
+    },
+    // The text of a value the module threw, for the host to report.
+    describe(error) {
+      return message(error);
     },
     // Puts three.js, with the stub renderer, on the global.
     useThree(namespace) {
       g.THREE = Object.assign({}, namespace, { WebGLRenderer: StubRenderer });
     },
-    },
-  });
+  };
+  for (const name of Object.keys(driver)) Object.freeze(driver[name]);
+  Object.defineProperty(g, '__cropaDriver', { value: Object.freeze(driver) });
 })();

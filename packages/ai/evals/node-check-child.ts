@@ -8,6 +8,7 @@
 // postMessage, ...) and three.js itself are evaluated inside it, and the host talks to it only
 // by running source text that returns strings.
 
+import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -65,12 +66,42 @@ function timedOut(error: unknown): boolean {
   return typeof error === 'object' && error !== null && (error as { code?: unknown }).code === 'ERR_SCRIPT_EXECUTION_TIMEOUT';
 }
 
-function reasonOf(error: unknown): string {
+// A host Error (a syntax error, the timeout) has plain data; anything else was thrown by the module
+// inside the context, so it is described in there, under a time limit, and comes back as a string.
+const DESCRIBE_LIMIT_MS = 100;
+let stashed = 0;
+function reasonOf(error: unknown, context: vm.Context, sandbox: Record<string, unknown>): string {
   try {
-    return error instanceof Error ? error.message : String(error);
+    if (error instanceof Error) return typeof error.message === 'string' ? error.message : 'unknown error';
+    // A name the module cannot have claimed, because it is chosen after the module ran.
+    const name = `__cropaThrown${String(stashed++)}_${randomBytes(6).toString('hex')}`;
+    sandbox[name] = error;
+    const text: unknown = run(context, `__cropaDriver.describe(${name})`, DESCRIBE_LIMIT_MS);
+    return typeof text === 'string' ? text : 'unknown error';
   } catch {
     return 'unknown error';
   }
+}
+
+/**
+ * Runs source text in the context. A dynamic import() inside it is refused with an error made in
+ * the context, so the rejection reason holds no host object a module could climb out through.
+ */
+function run(context: vm.Context, code: string, timeout?: number): unknown {
+  return vm.runInContext(code, context, {
+    ...(timeout === undefined ? {} : { timeout }),
+    importModuleDynamically: () => {
+      throw vm.runInContext('new TypeError("Dynamic import is not available in a background module.")', context);
+    },
+  });
+}
+
+/** The result of a driver call: only a string counts, anything else means the driver was tampered with. */
+function driverText(value: unknown): string {
+  if (typeof value !== 'string') {
+    throw new CodeSandboxError('module-error', 'The module interfered with the sandbox and did not return a result.');
+  }
+  return value;
 }
 
 /**
@@ -83,7 +114,13 @@ async function loadThree(context: vm.Context): Promise<object> {
   const open = (file: string): vm.SourceTextModule => {
     let module = modules.get(file);
     if (!module) {
-      module = new vm.SourceTextModule(readFileSync(file, 'utf8'), { context, identifier: file });
+      module = new vm.SourceTextModule(readFileSync(file, 'utf8'), {
+        context,
+        identifier: file,
+        importModuleDynamically: () => {
+          throw vm.runInContext('new TypeError("Dynamic import is not available.")', context);
+        },
+      });
       modules.set(file, module);
     }
     return module;
@@ -95,6 +132,14 @@ async function loadThree(context: vm.Context): Promise<object> {
   });
   await root.evaluate();
   return root.namespace;
+}
+
+function parseReply(json: string): unknown {
+  try {
+    return JSON.parse(json);
+  } catch {
+    throw new CodeSandboxError('module-error', 'The module did not return a frame.');
+  }
 }
 
 async function check(
@@ -114,17 +159,21 @@ async function check(
 
   const code = composeWorkerSource(runtime, source, null);
   const sandbox: Record<string, unknown> = Object.create(null) as Record<string, unknown>;
-  const context = vm.createContext(sandbox, { codeGeneration: { strings: false, wasm: false } });
-  vm.runInContext(shims, context);
-  vm.runInContext('globalThis.self = globalThis;', context);
+  const context = vm.createContext(sandbox, {
+    codeGeneration: { strings: false, wasm: false },
+    // Microtasks the module queues run before runInContext returns, inside its time limit.
+    microtaskMode: 'afterEvaluate',
+  });
+  run(context, shims);
+  run(context, 'globalThis.self = globalThis;');
   if (usesThree(source)) {
     // Handed over through a global that is removed before any model code runs.
     sandbox['__three'] = await loadThree(context);
-    vm.runInContext('__cropaDriver.useThree(__three); delete globalThis.__three;', context);
+    run(context, '__cropaDriver.useThree(__three); delete globalThis.__three;');
   }
 
   try {
-    vm.runInContext(code, context, { timeout: loadTimeoutMs });
+    run(context, code, loadTimeoutMs);
   } catch (error) {
     if (timedOut(error)) {
       throw new CodeSandboxError(
@@ -132,10 +181,17 @@ async function check(
         `The module did not finish loading within ${String(loadTimeoutMs)} ms. Remove loops that run at the top level.`,
       );
     }
-    throw new CodeSandboxError('module-error', truncateMessage(`The module could not run: ${reasonOf(error)}`));
+    throw new CodeSandboxError('module-error', truncateMessage(`The module could not run: ${reasonOf(error, context, sandbox)}`));
   }
 
-  const loaded = JSON.parse(String(vm.runInContext('__cropaDriver.loaded()', context))) as Message | null;
+  let loaded: Message | null;
+  try {
+    loaded = JSON.parse(driverText(run(context, '__cropaDriver.loaded()', loadTimeoutMs))) as Message | null;
+  } catch (error) {
+    if (error instanceof CodeSandboxError) throw error;
+    if (timedOut(error)) throw new CodeSandboxError('timeout', 'The module did not finish loading in time.');
+    throw new CodeSandboxError('module-error', truncateMessage(`The module could not run: ${reasonOf(error, context, sandbox)}`));
+  }
   if (loaded === null) throw new CodeSandboxError('module-error', 'The module did not finish loading.');
   if (loaded['error'] !== undefined) throw moduleError(loaded['error']);
   const durationMs = loaded['durationMs'];
@@ -163,16 +219,17 @@ async function check(
     const started = performance.now();
     let json: string;
     try {
-      json = String(vm.runInContext(call, context, { timeout: limitMs }));
+      json = driverText(run(context, call, limitMs));
     } catch (error) {
+      if (error instanceof CodeSandboxError) throw error;
       if (timedOut(error)) throw timeout();
-      throw new CodeSandboxError('module-error', truncateMessage(`The module could not run: ${reasonOf(error)}`));
+      throw new CodeSandboxError('module-error', truncateMessage(`The module could not run: ${reasonOf(error, context, sandbox)}`));
     }
     const elapsed = performance.now() - started;
     progress.maxFrameMs = Math.max(progress.maxFrameMs, elapsed);
     if (elapsed > limitMs) throw timeout();
 
-    const reply = JSON.parse(json) as (Message & { back?: Bitmap | null; front?: Bitmap | null }) | null;
+    const reply = parseReply(json) as (Message & { back?: Bitmap | null; front?: Bitmap | null }) | null;
     if (reply === null) throw new CodeSandboxError('module-error', 'The module did not return a frame.');
     if (typeof reply['threw'] === 'string') {
       throw new CodeSandboxError('module-error', truncateMessage(`The module could not run: ${reply['threw']}`));

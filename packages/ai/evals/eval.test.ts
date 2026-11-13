@@ -1,4 +1,7 @@
-import { describe, expect, it } from 'vitest';
+import { createServer } from 'node:net';
+import type { AddressInfo, Server } from 'node:net';
+
+import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { BACKGROUND_EXAMPLES, MAX_BACKGROUND_SOURCE_BYTES } from '../src/tasks/background.ts';
 import type { BackgroundInput } from '../src/tasks/background.ts';
@@ -103,17 +106,129 @@ function back(ctx, t, scene) {
       expect(check.error?.message ?? '').not.toContain('LEAK');
     });
 
-    it('has no process, require or module in scope, and the child survives a dynamic import', async () => {
+    it('has no process, require or module in scope', async () => {
       const body = `
         const names = ['process', 'require', 'module', 'Buffer'].filter((n) => typeof globalThis[n] !== 'undefined');
         throw new Error('SEEN ' + names.join(','));`;
       const check = await checkModuleInNode(module2d(body), scene);
       expect(check.error?.message).toContain('SEEN ');
       expect(check.error?.message).not.toMatch(/SEEN .+/);
-      const imported = await checkModuleInNode(module2d("return import('node:fs');"), scene);
-      expect(imported.ok).toBe(false);
-      expect(imported.error?.kind).toBe('module-error');
     });
+
+    describe('through a refused dynamic import', () => {
+      let server: Server;
+      let port = 0;
+      let connections = 0;
+
+      beforeAll(async () => {
+        server = createServer((socket) => {
+          connections++;
+          socket.destroy();
+        });
+        await new Promise<void>((done) => server.listen(0, '127.0.0.1', done));
+        port = (server.address() as AddressInfo).port;
+      });
+      afterAll(() => {
+        server.close();
+      });
+
+      // The rejection reason is made to climb out: through its constructors to a Function that
+      // reads process, and through the host Function to a plain compile. Reaching either flips
+      // `reached`, the next frame throws, and a socket would be opened on the local server.
+      const probe = `
+        let reached = false;
+        const climb = (e) => {
+          try {
+            const p = e.constructor.constructor('return process')();
+            reached = true;
+            p.getBuiltinModule('net').connect(__PORT__, '127.0.0.1');
+          } catch {}
+          try {
+            if (e.constructor.constructor('return 1')() === 1) reached = true;
+          } catch {}
+        };`;
+      const attempt = (specifier: string, where: 'top' | 'back'): string => {
+        const call = `void import('${specifier}').catch(climb);`;
+        return `${probe.replace('__PORT__', String(port))}
+          const meta = { durationMs: 2000 };
+          ${where === 'top' ? call : ''}
+          function back(ctx, t, scene) {
+            ${where === 'back' ? call : ''}
+            if (reached) throw new Error('LEAK');
+            ctx.fillRect(0, 0, 1, 1);
+          }`;
+      };
+
+      for (const specifier of ['node:fs', 'x']) {
+        for (const where of ['top', 'back'] as const) {
+          it(`gives import('${specifier}') at the ${where} no host object`, async () => {
+            const before = connections;
+            const check = await checkModuleInNode(attempt(specifier, where), scene);
+            await new Promise((done) => setTimeout(done, 200));
+            expect(check.error?.message ?? '').not.toContain('LEAK');
+            expect(check.ok).toBe(true);
+            expect(connections).toBe(before);
+          });
+        }
+      }
+    });
+
+    it('cannot compile a string through any function it can reach', async () => {
+      const body = `
+        let compiled = false;
+        for (const f of [Function, postMessage, (() => {}), Object.getPrototypeOf(async () => {}).constructor]) {
+          try { if (f.constructor('return 1')() === 1) compiled = true; } catch {}
+          try { if (f('return 1')() === 1) compiled = true; } catch {}
+        }
+        if (compiled) throw new Error('LEAK');`;
+      const check = await checkModuleInNode(module2d(body), scene);
+      expect(check).toMatchObject({ ok: true });
+    });
+
+    it('cannot replace the frame driver to fake a loop', async () => {
+      const source = `
+        const driver = globalThis.__cropaDriver;
+        const real = driver.frame;
+        try { driver.frame = (id, t, sceneJson) => real(id, 0, sceneJson); } catch {}
+        try { Object.defineProperty(driver, 'frame', { value: (id, t, sceneJson) => real(id, 0, sceneJson) }); } catch {}
+        const meta = { durationMs: 2000 };
+        function back(ctx, t, scene) { ctx.fillRect(t * 999, 0, 10, 10); }`;
+      const check = await checkModuleInNode(source, scene);
+      expect(!check.ok || !check.loops).toBe(true);
+    });
+
+    it('survives a module that deletes the frame driver', async () => {
+      const source = `
+        try { delete globalThis.__cropaDriver; } catch {}
+        try { globalThis.__cropaDriver = undefined; } catch {}
+        const meta = { durationMs: 2000 };
+        function back(ctx, t, scene) { ctx.fillRect(t * 999, 0, 10, 10); }`;
+      const check = await checkModuleInNode(source, scene);
+      expect(!check.ok || !check.loops).toBe(true);
+      if (!check.ok) expect(check.error?.kind).toBe('module-error');
+    });
+
+    it('ends a thrown value whose toString never returns, at load and in a frame', async () => {
+      const limits = { loadTimeoutMs: 200, frameTimeoutMs: 100 };
+      const hang = '{ toString() { while (true) {} }, get message() { while (true) {} } }';
+      const started = performance.now();
+      const load = await checkModuleInNode(`const meta = { durationMs: 2000 };
+throw ${hang};`, scene, limits);
+      expect(load.ok).toBe(false);
+      const frame = await checkModuleInNode(module2d(`throw ${hang};`), scene, limits);
+      expect(frame.ok).toBe(false);
+      expect(performance.now() - started).toBeLessThan(10_000);
+    });
+  });
+
+  it('counts a promise callback the module queues against the frame time', async () => {
+    const limits = { loadTimeoutMs: 200, frameTimeoutMs: 100 };
+    const check = await checkModuleInNode(
+      module2d('if (t === 1) Promise.resolve().then(() => { const s = Date.now(); while (Date.now() - s < 2000) {} });'),
+      scene,
+      limits,
+    );
+    expect(check).toMatchObject({ ok: false, error: { kind: 'timeout' } });
   });
 
   it('stops a module that never returns, at load and in a frame', async () => {
