@@ -43,6 +43,7 @@ impl AgentCli for Mock {
         Detection {
             executable: None,
             version: Some("mock".to_owned()),
+            version_supported: Some(true),
             logged_in: Some(true),
             image_in: true,
             image_out: false,

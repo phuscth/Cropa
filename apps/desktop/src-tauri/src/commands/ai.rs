@@ -14,9 +14,12 @@ use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use base64::Engine;
-use cropa_agent::{AgentCli, AgentError, CancelToken, Event, RunOutput, RunRequest, TurnDir};
+use cropa_agent::{
+    AgentCli, AgentError, CLAUDE_ENABLED, CODEX_ENABLED, CancelToken, ClaudeCode, CodexExec,
+    Detection, Event, RunOutput, RunRequest, TurnDir,
+};
 #[cfg(debug_assertions)]
-use cropa_agent::{Detection, Mock, MockScript};
+use cropa_agent::{Mock, MockScript};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::ipc::Channel;
@@ -34,13 +37,34 @@ const DEFAULT_TIMEOUT_MS: u32 = 60_000;
 const MIN_TIMEOUT_MS: u32 = 5_000;
 const MAX_TIMEOUT_MS: u32 = 300_000;
 
-/// The runs in flight, by the id the window chose.
+/// The runs in flight, by the id the window chose, with the label of the
+/// window that started each.
 #[derive(Default)]
-pub struct AiRuns(Mutex<HashMap<String, CancelToken>>);
+pub struct AiRuns(Mutex<HashMap<String, (String, CancelToken)>>);
 
 impl AiRuns {
-    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, CancelToken>> {
+    fn lock(&self) -> std::sync::MutexGuard<'_, HashMap<String, (String, CancelToken)>> {
         self.0.lock().unwrap_or_else(PoisonError::into_inner)
+    }
+
+    /// Cancels every run that window `label` started; returns how many.
+    fn cancel_window(&self, label: &str) -> usize {
+        let runs = self.lock();
+        let mut count = 0;
+        for (_, token) in runs.values().filter(|(owner, _)| owner == label) {
+            token.cancel();
+            count += 1;
+        }
+        count
+    }
+}
+
+/// Cancels the runs of a window that is closing, so no CLI process outlives
+/// the window that asked for it.
+pub fn cancel_window_runs(app: &AppHandle, label: &str) {
+    let count = app.state::<AiRuns>().cancel_window(label);
+    if count > 0 {
+        log::info!("cancelled {count} ai runs of a closing window");
     }
 }
 
@@ -51,13 +75,18 @@ struct RunGuard {
 }
 
 impl RunGuard {
-    fn register(app: &AppHandle, run_id: &str, token: CancelToken) -> Result<Self, AiError> {
+    fn register(
+        app: &AppHandle,
+        run_id: &str,
+        window_label: &str,
+        token: CancelToken,
+    ) -> Result<Self, AiError> {
         let runs = app.state::<AiRuns>();
         let mut runs = runs.lock();
         if runs.contains_key(run_id) {
             return Err(AiError::RunIdInUse);
         }
-        runs.insert(run_id.to_owned(), token);
+        runs.insert(run_id.to_owned(), (window_label.to_owned(), token));
         Ok(Self {
             app: app.clone(),
             run_id: run_id.to_owned(),
@@ -199,8 +228,9 @@ impl From<AiErrorKind> for AgentError {
     }
 }
 
-/// What a provider can do here. `available` is false while Cropa has no
-/// adapter for it; the other fields are then unknown.
+/// What a provider can do here. `available` is false when Cropa has no
+/// adapter for it or the adapter is switched off; the other fields are then
+/// unknown.
 #[derive(Debug, Serialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AiDetection {
@@ -208,6 +238,9 @@ pub struct AiDetection {
     pub available: bool,
     pub installed: Option<bool>,
     pub version: Option<String>,
+    /// Whether `version` meets the minimum Cropa was verified on; `None`
+    /// when the version is unknown.
+    pub version_supported: Option<bool>,
     pub logged_in: Option<bool>,
     pub image_in: bool,
     pub image_out: bool,
@@ -220,9 +253,23 @@ impl AiDetection {
             available: false,
             installed: None,
             version: None,
+            version_supported: None,
             logged_in: None,
             image_in: false,
             image_out: false,
+        }
+    }
+
+    fn from_detection(provider: &str, detection: Detection) -> Self {
+        Self {
+            provider: provider.to_owned(),
+            available: true,
+            installed: Some(detection.executable.is_some()),
+            version: detection.version,
+            version_supported: detection.version_supported,
+            logged_in: detection.logged_in,
+            image_in: detection.image_in,
+            image_out: detection.image_out,
         }
     }
 
@@ -233,6 +280,7 @@ impl AiDetection {
             available: true,
             installed: Some(true),
             version: detection.version,
+            version_supported: detection.version_supported,
             logged_in: detection.logged_in,
             image_in: detection.image_in,
             image_out: detection.image_out,
@@ -308,15 +356,17 @@ fn clamp_timeout(timeout_ms: Option<u32>) -> Duration {
     Duration::from_millis(u64::from(ms))
 }
 
-/// The adapter for a provider name, or `None` while there is none. The real
-/// Codex and Claude Code adapters are added here.
+/// The adapter for a provider name, or `None` when there is none or it is
+/// switched off.
 #[cfg_attr(not(debug_assertions), allow(unused_variables))]
 fn provider_for(name: &str, mock: Option<AiMockScript>) -> Option<Box<dyn AgentCli>> {
-    #[cfg(debug_assertions)]
-    if name == "mock" {
-        return Some(Box::new(Mock::new(mock_script(mock))));
+    match name {
+        "codex" if CODEX_ENABLED => Some(Box::new(CodexExec::new())),
+        "claude" if CLAUDE_ENABLED => Some(Box::new(ClaudeCode::new())),
+        #[cfg(debug_assertions)]
+        "mock" => Some(Box::new(Mock::new(mock_script(mock)))),
+        _ => None,
     }
-    None
 }
 
 #[cfg(debug_assertions)]
@@ -455,6 +505,7 @@ fn run_turn(
 #[specta::specta]
 pub async fn ai_run(
     app: AppHandle,
+    window: tauri::Window,
     run_id: String,
     provider: String,
     request: AiRequest,
@@ -464,7 +515,7 @@ pub async fn ai_run(
     validate_run_id(&run_id)?;
     // Registered first, so a cancel that arrives during validation is kept.
     let cancel = CancelToken::new();
-    let _guard = RunGuard::register(&app, &run_id, cancel.clone())?;
+    let _guard = RunGuard::register(&app, &run_id, window.label(), cancel.clone())?;
     let agent = provider_for(&provider, mock).ok_or(AiError::Unsupported)?;
     let checked = check_request(request)?;
     if cancel.is_cancelled() {
@@ -491,22 +542,44 @@ pub async fn ai_run(
 #[tauri::command]
 #[specta::specta]
 pub async fn ai_cancel(app: AppHandle, run_id: String) -> Result<(), AiError> {
-    if let Some(token) = app.state::<AiRuns>().lock().get(&run_id) {
+    if let Some((_, token)) = app.state::<AiRuns>().lock().get(&run_id) {
         token.cancel();
     }
     Ok(())
 }
 
-/// What each provider can do on this machine. Codex and Claude Code report
-/// `available: false` until their adapters exist.
+/// Detects one provider on a blocking thread: it spawns the CLI to ask for
+/// its version and login.
+async fn detect_provider(name: &'static str, enabled: bool) -> AiDetection {
+    if !enabled {
+        return AiDetection::unavailable(name);
+    }
+    tauri::async_runtime::spawn_blocking(move || {
+        let agent = provider_for(name, None)?;
+        Some(AiDetection::from_detection(name, agent.detect()))
+    })
+    .await
+    .ok()
+    .flatten()
+    .unwrap_or_else(|| AiDetection::unavailable(name))
+}
+
+/// What each provider can do on this machine. A provider reports
+/// `available: false` when its adapter is switched off.
 #[tauri::command]
 #[specta::specta]
-pub fn ai_detect() -> Vec<AiDetection> {
+pub async fn ai_detect() -> Vec<AiDetection> {
+    // Both start before either is awaited, so they run side by side.
+    let codex = tauri::async_runtime::spawn(detect_provider("codex", CODEX_ENABLED));
+    let claude = tauri::async_runtime::spawn(detect_provider("claude", CLAUDE_ENABLED));
+    let codex = codex
+        .await
+        .unwrap_or_else(|_| AiDetection::unavailable("codex"));
+    let claude = claude
+        .await
+        .unwrap_or_else(|_| AiDetection::unavailable("claude"));
     #[cfg_attr(not(debug_assertions), allow(unused_mut))]
-    let mut found = vec![
-        AiDetection::unavailable("codex"),
-        AiDetection::unavailable("claude"),
-    ];
+    let mut found = vec![codex, claude];
     #[cfg(debug_assertions)]
     found.push(AiDetection::from_mock(
         Mock::new(mock_script(None)).detect(),
@@ -568,10 +641,25 @@ mod tests {
     }
 
     #[test]
-    fn real_providers_have_no_adapter_yet() {
-        assert!(provider_for("codex", None).is_none());
-        assert!(provider_for("claude", None).is_none());
+    fn only_known_providers_have_an_adapter() {
+        assert_eq!(provider_for("codex", None).is_some(), CODEX_ENABLED);
+        assert_eq!(provider_for("claude", None).is_some(), CLAUDE_ENABLED);
         assert!(provider_for("anything", None).is_none());
+        assert!(provider_for("Codex", None).is_none());
+        assert!(provider_for("", None).is_none());
+    }
+
+    #[test]
+    fn closing_a_window_cancels_only_its_runs() {
+        let runs = AiRuns::default();
+        let (a, b, c) = (CancelToken::new(), CancelToken::new(), CancelToken::new());
+        runs.lock().insert("1".into(), ("main".into(), a.clone()));
+        runs.lock().insert("2".into(), ("main".into(), b.clone()));
+        runs.lock().insert("3".into(), ("editor".into(), c.clone()));
+        assert_eq!(runs.cancel_window("main"), 2);
+        assert!(a.is_cancelled() && b.is_cancelled());
+        assert!(!c.is_cancelled());
+        assert_eq!(runs.cancel_window("gone"), 0);
     }
 
     #[test]

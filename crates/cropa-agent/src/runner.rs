@@ -8,7 +8,7 @@
 use std::ffi::OsString;
 use std::io::{self, BufRead, BufReader, Read, Write};
 use std::path::{Path, PathBuf};
-use std::process::{Child, Command, ExitStatus, Stdio};
+use std::process::{Child, ChildStderr, ChildStdout, Command, ExitStatus, Stdio};
 use std::sync::mpsc::{self, RecvTimeoutError};
 use std::thread::JoinHandle;
 use std::time::{Duration, Instant};
@@ -27,6 +27,8 @@ mod tree;
 const MAX_LINE_BYTES: usize = 8 * 1024 * 1024;
 /// How much of stderr is kept for the adapter to classify an error.
 const STDERR_TAIL_BYTES: usize = 16 * 1024;
+/// Longest stdout `run_capture` keeps.
+const MAX_CAPTURE_BYTES: usize = 64 * 1024;
 /// How often the calling thread checks for cancel and the deadline.
 const TICK: Duration = Duration::from_millis(50);
 
@@ -42,7 +44,7 @@ pub struct ProcessSpec {
     pub timeout: Duration,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub struct Finished {
     /// The last 16 KB of stderr. For adapters to classify errors; never logged.
     pub stderr_tail: String,
@@ -272,14 +274,31 @@ fn wait_exit(
 /// while something else (a grandchild) keeps stdout open.
 const EXIT_GRACE: Duration = Duration::from_millis(200);
 
-/// Reads stdout lines until the child has exited and its output is drained.
+/// What the line callback tells the runner after each line.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LineFlow {
+    Continue,
+    /// The turn's final event arrived. The runner kills the process tree and
+    /// returns `Ok` without waiting for the CLI to exit on its own, whatever
+    /// its exit status would have been.
+    Stop,
+}
+
+/// How a [`drive`] loop ended.
+enum Driven {
+    Exited(ExitStatus),
+    Stopped,
+}
+
+/// Reads stdout lines until the child has exited and its output is drained,
+/// or until the callback asks to stop.
 fn drive(
     running: &mut Running,
     rx: &mpsc::Receiver<Msg>,
     cancel: &CancelToken,
     deadline: Instant,
-    on_line: &mut dyn FnMut(serde_json::Value),
-) -> Result<ExitStatus, ProcessError> {
+    on_line: &mut dyn FnMut(serde_json::Value) -> LineFlow,
+) -> Result<Driven, ProcessError> {
     let mut exited: Option<(ExitStatus, Instant)> = None;
     loop {
         if cancel.is_cancelled() {
@@ -298,7 +317,11 @@ fn drive(
             wait = wait.min(grace_end - now);
         }
         match rx.recv_timeout(wait) {
-            Ok(Msg::Line(value)) => on_line(value),
+            Ok(Msg::Line(value)) => {
+                if on_line(value) == LineFlow::Stop {
+                    return Ok(Driven::Stopped);
+                }
+            }
             Ok(Msg::Failed(err)) => return Err(err),
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => break,
@@ -312,12 +335,12 @@ fn drive(
         }
     }
     match exited {
-        Some((status, _)) => Ok(status),
-        None => wait_exit(running, cancel, deadline),
+        Some((status, _)) => Ok(Driven::Exited(status)),
+        None => wait_exit(running, cancel, deadline).map(Driven::Exited),
     }
 }
 
-fn error_kind(result: &Result<Finished, ProcessError>) -> &'static str {
+fn error_kind<T>(result: &Result<T, ProcessError>) -> &'static str {
     match result {
         Ok(_) => "ok",
         Err(ProcessError::NotFound) => "not-found",
@@ -331,14 +354,21 @@ fn error_kind(result: &Result<Finished, ProcessError>) -> &'static str {
     }
 }
 
-/// Starts the process in `cwd` and calls `on_line` on the calling thread for
-/// each JSON line it prints, in order.
-pub fn run_process(
-    spec: &ProcessSpec,
-    cwd: &Path,
-    cancel: &CancelToken,
-    on_line: &mut dyn FnMut(serde_json::Value),
-) -> Result<Finished, ProcessError> {
+/// A started child with its pipes, before any reader runs.
+struct Spawned {
+    running: Running,
+    stdout: ChildStdout,
+    stderr: ChildStderr,
+    /// Writes the prompt, if there is one.
+    writer: Option<JoinHandle<()>>,
+    deadline: Instant,
+    pid: u32,
+    started: Instant,
+}
+
+/// Starts the process in `cwd` and begins writing its stdin. The deadline
+/// starts right before the prompt is written.
+fn spawn(spec: &ProcessSpec, cwd: &Path) -> Result<Spawned, ProcessError> {
     if !spec.program.is_absolute() {
         return Err(ProcessError::Spawn(io::ErrorKind::InvalidInput));
     }
@@ -358,8 +388,6 @@ pub fn run_process(
     else {
         return Err(ProcessError::Spawn(io::ErrorKind::Other));
     };
-
-    // The deadline starts right before the prompt is written.
     let deadline = Instant::now() + spec.timeout;
     let writer: Option<JoinHandle<()>> = running.child.stdin.take().map(|mut stdin| {
         let data = spec.stdin.clone().unwrap_or_default();
@@ -369,6 +397,35 @@ pub fn run_process(
             let _ = stdin.write_all(&data);
         })
     });
+    Ok(Spawned {
+        running,
+        stdout,
+        stderr,
+        writer,
+        deadline,
+        pid,
+        started,
+    })
+}
+
+/// Starts the process in `cwd` and calls `on_line` on the calling thread for
+/// each JSON line it prints, in order. When `on_line` returns
+/// [`LineFlow::Stop`] the tree is killed and the result is `Ok`.
+pub fn run_process(
+    spec: &ProcessSpec,
+    cwd: &Path,
+    cancel: &CancelToken,
+    on_line: &mut dyn FnMut(serde_json::Value) -> LineFlow,
+) -> Result<Finished, ProcessError> {
+    let Spawned {
+        mut running,
+        stdout,
+        stderr,
+        writer,
+        deadline,
+        pid,
+        started,
+    } = spawn(spec, cwd)?;
     let (tx, rx) = mpsc::sync_channel(256);
     let reader = std::thread::spawn(move || read_stdout(stdout, &tx, MAX_LINE_BYTES));
     let stderr_reader = std::thread::spawn(move || read_stderr_tail(stderr));
@@ -383,13 +440,91 @@ pub fn run_process(
     let stderr_tail = stderr_reader.join().unwrap_or_default();
 
     let result = match outcome {
-        Ok(status) if status.success() => Ok(Finished { stderr_tail }),
-        Ok(status) => Err(ProcessError::Exit {
+        Ok(Driven::Stopped) => Ok(Finished { stderr_tail }),
+        Ok(Driven::Exited(status)) if status.success() => Ok(Finished { stderr_tail }),
+        Ok(Driven::Exited(status)) => Err(ProcessError::Exit {
             code: status.code(),
             stderr_tail,
         }),
         Err(err) => Err(err),
     };
+    log::debug!(
+        "cli process {pid} finished: {} after {} ms",
+        error_kind(&result),
+        started.elapsed().as_millis()
+    );
+    result
+}
+
+/// The output of a short text command.
+#[derive(Clone, PartialEq, Eq)]
+pub struct Captured {
+    /// `None` when a signal ended the process.
+    pub code: Option<i32>,
+    pub stdout: String,
+    pub stderr: String,
+}
+
+// Like `ProcessError`, `Debug` leaves the streams out so a logged value never
+// carries the CLI's output.
+impl std::fmt::Debug for Captured {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Captured")
+            .field("code", &self.code)
+            .finish_non_exhaustive()
+    }
+}
+
+/// Reads `reader` to its end and keeps the first `cap` bytes.
+fn read_head(mut reader: impl Read, cap: usize) -> String {
+    let mut head: Vec<u8> = Vec::new();
+    let mut chunk = [0_u8; 4096];
+    loop {
+        match reader.read(&mut chunk) {
+            Ok(0) | Err(_) => break,
+            Ok(n) => {
+                let room = cap.saturating_sub(head.len());
+                head.extend_from_slice(&chunk[..n.min(room)]);
+            }
+        }
+    }
+    String::from_utf8_lossy(&head).into_owned()
+}
+
+/// Runs a short text command (`--version`, `login status`) and returns what it
+/// printed. Spawning, the tree kill, the environment, the timeout and cancel
+/// work as in [`run_process`]. A non-zero exit is a result, not an error.
+/// Stdout beyond 64 KB is dropped.
+pub fn run_capture(
+    spec: &ProcessSpec,
+    cwd: &Path,
+    cancel: &CancelToken,
+) -> Result<Captured, ProcessError> {
+    let Spawned {
+        mut running,
+        stdout,
+        stderr,
+        writer,
+        deadline,
+        pid,
+        started,
+    } = spawn(spec, cwd)?;
+    let stdout_reader = std::thread::spawn(move || read_head(stdout, MAX_CAPTURE_BYTES));
+    let stderr_reader = std::thread::spawn(move || read_stderr_tail(stderr));
+
+    let outcome = wait_exit(&mut running, cancel, deadline);
+    running.kill_and_reap();
+    let stdout = stdout_reader.join().unwrap_or_default();
+    if let Some(writer) = writer {
+        let _ = writer.join();
+    }
+    let stderr = stderr_reader.join().unwrap_or_default();
+
+    let result = outcome.map(|status| Captured {
+        code: status.code(),
+        stdout,
+        stderr,
+    });
     log::debug!(
         "cli process {pid} finished: {} after {} ms",
         error_kind(&result),

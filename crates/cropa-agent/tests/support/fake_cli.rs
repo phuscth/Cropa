@@ -12,6 +12,7 @@
 //! - `cwd`: prints `{"cwd":"<current directory>"}`.
 //! - `env`: prints `{"names":[<environment variable names>]}`.
 //! - `stdin`: reads stdin to EOF and prints `{"len":<bytes>}`.
+//! - `capture <code>`: prints a line on stdout and one on stderr, exits with the code.
 //! - `not-json`: prints a line that is not JSON.
 
 use std::io::{Read, Write};
@@ -83,6 +84,11 @@ fn main() {
             let mut data = Vec::new();
             std::io::stdin().read_to_end(&mut data).expect("stdin");
             say(&serde_json::json!({ "len": data.len() }));
+        }
+        Some("capture") => {
+            say_raw("captured out");
+            eprintln!("captured err");
+            std::process::exit(i32::try_from(arg(&args, 1)).unwrap_or(1));
         }
         Some("not-json") => say_raw("this is not json"),
         _ => std::process::exit(2),

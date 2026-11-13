@@ -52,6 +52,9 @@ pub struct Detection {
     /// Absolute path found on `PATH`; `None` means not installed.
     pub executable: Option<PathBuf>,
     pub version: Option<String>,
+    /// Whether `version` meets the minimum the adapter was verified on.
+    /// `None` when the version is unknown.
+    pub version_supported: Option<bool>,
     /// `None` means unknown or not checked.
     pub logged_in: Option<bool>,
     pub image_in: bool,

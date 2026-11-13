@@ -203,8 +203,12 @@ pub fn run() {
             // Cropa lives in the tray: closing a window hides it, and it is
             // destroyed a few minutes later unless reopened.
             WindowEvent::CloseRequested { api, .. } => {
+                commands::ai::cancel_window_runs(window.app_handle(), window.label());
                 api.prevent_close();
                 app_windows::hide_then_destroy(window);
+            }
+            WindowEvent::Destroyed => {
+                commands::ai::cancel_window_runs(window.app_handle(), window.label());
             }
             // The theme setting or the Windows mode changed.
             WindowEvent::ThemeChanged(theme) => {

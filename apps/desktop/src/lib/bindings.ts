@@ -116,8 +116,8 @@ export const commands = {
 	 */
 	aiCancel: (runId: string) => typedError<null, AiError>(__TAURI_INVOKE("ai_cancel", { runId })),
 	/**
-	 *  What each provider can do on this machine. Codex and Claude Code report
-	 *  `available: false` until their adapters exist.
+	 *  What each provider can do on this machine. A provider reports
+	 *  `available: false` when its adapter is switched off.
 	 */
 	aiDetect: () => __TAURI_INVOKE<AiDetection_Serialize[]>("ai_detect"),
 };
@@ -133,34 +133,47 @@ export const events = {
 
 /* Types */
 /**
- *  What a provider can do here. `available` is false while Cropa has no
- *  adapter for it; the other fields are then unknown.
+ *  What a provider can do here. `available` is false when Cropa has no
+ *  adapter for it or the adapter is switched off; the other fields are then
+ *  unknown.
  */
 export type AiDetection = AiDetection_Serialize | AiDetection_Deserialize;
 
 /**
- *  What a provider can do here. `available` is false while Cropa has no
- *  adapter for it; the other fields are then unknown.
+ *  What a provider can do here. `available` is false when Cropa has no
+ *  adapter for it or the adapter is switched off; the other fields are then
+ *  unknown.
  */
 export type AiDetection_Deserialize = {
 	provider: string,
 	available: boolean,
 	installed?: boolean | null,
 	version?: string | null,
+	/**
+	 *  Whether `version` meets the minimum Cropa was verified on; `None`
+	 *  when the version is unknown.
+	 */
+	versionSupported?: boolean | null,
 	loggedIn?: boolean | null,
 	imageIn: boolean,
 	imageOut: boolean,
 };
 
 /**
- *  What a provider can do here. `available` is false while Cropa has no
- *  adapter for it; the other fields are then unknown.
+ *  What a provider can do here. `available` is false when Cropa has no
+ *  adapter for it or the adapter is switched off; the other fields are then
+ *  unknown.
  */
 export type AiDetection_Serialize = {
 	provider: string,
 	available: boolean,
 	installed: boolean | null,
 	version: string | null,
+	/**
+	 *  Whether `version` meets the minimum Cropa was verified on; `None`
+	 *  when the version is unknown.
+	 */
+	versionSupported: boolean | null,
 	loggedIn: boolean | null,
 	imageIn: boolean,
 	imageOut: boolean,

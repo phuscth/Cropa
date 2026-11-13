@@ -6,8 +6,8 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use cropa_agent::{
-    AgentError, BASE_ENV_ALLOWLIST, CancelToken, ProcessError, ProcessSpec, TurnDir, base_env,
-    filter_env, run_process,
+    AgentError, BASE_ENV_ALLOWLIST, CancelToken, LineFlow, ProcessError, ProcessSpec, TurnDir,
+    base_env, filter_env, run_capture, run_process,
 };
 use serde_json::{Value, json};
 
@@ -31,7 +31,10 @@ fn run(
 ) -> (Result<cropa_agent::Finished, ProcessError>, Vec<Value>) {
     let dir = TurnDir::new().unwrap();
     let mut lines = Vec::new();
-    let result = run_process(spec, dir.path(), cancel, &mut |v| lines.push(v));
+    let result = run_process(spec, dir.path(), cancel, &mut |v| {
+        lines.push(v);
+        LineFlow::Continue
+    });
     (result, lines)
 }
 
@@ -76,6 +79,7 @@ fn timeout_kills_the_child_and_its_grandchild() {
         &mut |v| {
             pids.push(v["pid"].as_u64().unwrap());
             pids.push(v["grandchild"].as_u64().unwrap());
+            LineFlow::Continue
         },
     );
     assert_eq!(result.unwrap_err(), ProcessError::Timeout);
@@ -106,6 +110,7 @@ fn cancel_kills_the_child_and_its_grandchild() {
             pids.push(v["pid"].as_u64().unwrap());
             pids.push(v["grandchild"].as_u64().unwrap());
             let _ = tx.send(());
+            LineFlow::Continue
         },
     );
     drop(tx);
@@ -169,7 +174,10 @@ fn the_child_runs_in_the_given_dir_and_the_dir_goes_away_after_a_kill() {
         &spec(&["cwd"], Duration::from_secs(10)),
         dir.path(),
         &CancelToken::new(),
-        &mut |v| lines.push(v),
+        &mut |v| {
+            lines.push(v);
+            LineFlow::Continue
+        },
     )
     .unwrap();
     let cwd = PathBuf::from(lines[0]["cwd"].as_str().unwrap());
@@ -180,7 +188,7 @@ fn the_child_runs_in_the_given_dir_and_the_dir_goes_away_after_a_kill() {
         &spec(&["sleep", "600000"], Duration::from_millis(300)),
         dir.path(),
         &CancelToken::new(),
-        &mut |_| {},
+        &mut |_| LineFlow::Continue,
     );
     assert_eq!(result.unwrap_err(), ProcessError::Timeout);
     drop(dir);
@@ -253,7 +261,7 @@ fn a_missing_cwd_is_not_reported_as_not_installed() {
         &spec(&["lines", "1", "0"], Duration::from_secs(10)),
         &gone,
         &CancelToken::new(),
-        &mut |_| {},
+        &mut |_| LineFlow::Continue,
     )
     .unwrap_err();
     assert!(matches!(err, ProcessError::Spawn(_)));
@@ -267,4 +275,41 @@ fn debug_output_leaves_out_the_stderr_tail() {
         stderr_tail: "secret output".to_owned(),
     };
     assert!(!format!("{err:?}").contains("secret output"));
+}
+
+#[test]
+fn stop_returns_at_once_and_kills_the_child() {
+    let mut pids = Vec::new();
+    let dir = TurnDir::new().unwrap();
+    let start = Instant::now();
+    let result = run_process(
+        &spec(&["grandchild"], Duration::from_secs(60)),
+        dir.path(),
+        &CancelToken::new(),
+        &mut |v| {
+            pids.push(v["pid"].as_u64().unwrap());
+            pids.push(v["grandchild"].as_u64().unwrap());
+            LineFlow::Stop
+        },
+    );
+    result.unwrap();
+    assert!(start.elapsed() < Duration::from_secs(10));
+    assert_eq!(pids.len(), 2);
+    #[cfg(windows)]
+    assert_all_gone(&pids);
+}
+
+#[test]
+fn capture_returns_the_exit_code_and_both_streams() {
+    let dir = TurnDir::new().unwrap();
+    let captured = run_capture(
+        &spec(&["capture", "3"], Duration::from_secs(10)),
+        dir.path(),
+        &CancelToken::new(),
+    )
+    .unwrap();
+    assert_eq!(captured.code, Some(3));
+    assert_eq!(captured.stdout.trim(), "captured out");
+    assert_eq!(captured.stderr.trim(), "captured err");
+    assert!(!format!("{captured:?}").contains("captured"));
 }
