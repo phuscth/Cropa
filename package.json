@@ -12,6 +12,7 @@
     "tauri": "pnpm --filter @cropa/desktop tauri",
     "lint": "turbo run lint",
     "typecheck": "tsc -b",
+    "eval": "pnpm --filter @cropa/ai run eval",
     "test": "turbo run test",
     "check:licenses": "node tools/license-check/check-npm-licenses.mjs",
     "check:presets": "node tools/check-presets.mjs",

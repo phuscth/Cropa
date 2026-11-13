@@ -90,10 +90,16 @@ importers:
       '@cropa/core':
         specifier: workspace:*
         version: link:../core
+      zod:
+        specifier: 4.6.7
+        version: 4.6.7
     devDependencies:
       '@cropa/config':
         specifier: workspace:*
         version: link:../config
+      '@types/node':
+        specifier: 26.6.6
+        version: 26.6.6
       eslint:
         specifier: 10.14.0
         version: 10.14.0(jiti@2.7.0)

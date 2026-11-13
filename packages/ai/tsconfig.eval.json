@@ -1,0 +1,12 @@
+{
+  "extends": "@cropa/config/tsconfig.base.json",
+  "compilerOptions": {
+    "outDir": "dist/types-eval",
+    "rootDir": "evals",
+    "erasableSyntaxOnly": true,
+    "lib": ["ES2023", "DOM"],
+    "types": ["node"]
+  },
+  "include": ["evals/**/*.ts"],
+  "references": [{ "path": "./tsconfig.json" }]
+}

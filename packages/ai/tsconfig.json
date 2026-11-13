@@ -2,7 +2,10 @@
   "extends": "@cropa/config/tsconfig.base.json",
   "compilerOptions": {
     "outDir": "dist/types",
-    "rootDir": "src"
+    "rootDir": "src",
+    "erasableSyntaxOnly": true,
+    "lib": ["ES2023", "DOM"],
+    "types": []
   },
   "include": ["src"],
   "references": [{ "path": "../core" }]

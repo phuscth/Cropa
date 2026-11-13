@@ -4,6 +4,7 @@
     { "path": "packages/core" },
     { "path": "packages/core/tsconfig.test.json" },
     { "path": "packages/ai" },
+    { "path": "packages/ai/tsconfig.eval.json" },
     { "path": "packages/ui" },
     { "path": "apps/desktop" }
   ]
