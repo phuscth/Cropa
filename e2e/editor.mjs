@@ -157,7 +157,16 @@ try {
 
   const before = await samplePreview();
   assert.ok(!isPresetColour(before), `the default background already looks like "${PRESET}": ${before}`);
-  const tile = await findElement(`[data-testid="preset-${PRESET}"]`);
+  // The presets are in a dropdown: open it from the selector card, then pick the card.
+  const picker = await findElement('[data-testid="preset-picker"]');
+  await webdriver('POST', `/session/${sessionId}/element/${picker}/click`, {});
+  const tile = await waitFor(`the "${PRESET}" card to appear`, 10_000, async () => {
+    try {
+      return await findElement(`[data-testid="preset-${PRESET}"]`);
+    } catch (error) {
+      throw new PollError(error);
+    }
+  });
   await webdriver('POST', `/session/${sessionId}/element/${tile}/click`, {});
   const after = await waitFor(`the preview to show the "${PRESET}" background`, 10_000, async () => {
     let rgb;
@@ -168,12 +177,19 @@ try {
     }
     return isPresetColour(rgb) ? rgb : null;
   });
-  const pressed = await webdriver('GET', `/session/${sessionId}/element/${tile}/attribute/aria-checked`);
-  assert.equal(pressed.value, 'true', `the "${PRESET}" tile is not marked as selected`);
+  // Picking a card closes the dropdown; the selector card then names the preset.
+  await waitFor(`the selector card to show "${PRESET}"`, 10_000, async () => {
+    try {
+      const attribute = await webdriver('GET', `/session/${sessionId}/element/${picker}/attribute/data-current-preset`);
+      return attribute.value === PRESET;
+    } catch (error) {
+      throw new PollError(error);
+    }
+  });
   console.log(`preset changes the preview (${before} -> ${after}): ok`);
 
-  // The click left the focus on the tile, so the keys reach the editor's
-  // window-level shortcut handler.
+  // Closing the dropdown returned the focus to the selector card, which is inside the
+  // window, so the keys reach the editor's window-level shortcut handler.
   await webdriver('POST', `/session/${sessionId}/actions`, {
     actions: [
       {

@@ -15,6 +15,8 @@ import { withoutMissingImages } from '../scene-edits.ts';
 
 const SOURCE = { width: 160, height: 100 } as const;
 const THUMB = { width: 128, height: 96 } as const;
+/** Preset cards are about 196px wide, so their previews are drawn larger. */
+const PRESET_THUMB = { width: 336, height: 252 } as const;
 
 let placeholder: ImageBitmap | undefined;
 
@@ -49,7 +51,7 @@ export function thumbnailScene(background: BackgroundSpec): Scene {
 const cache = new Map<string, Promise<string>>();
 
 async function drawThumbnail(background: BackgroundSpec, env: RenderEnv): Promise<string> {
-  const canvas = new OffscreenCanvas(THUMB.width, THUMB.height);
+  const canvas = new OffscreenCanvas(PRESET_THUMB.width, PRESET_THUMB.height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas is not available');
   render(thumbnailScene(background), 0, ctx, env);
@@ -69,7 +71,7 @@ function inCodeQueue<T>(job: () => Promise<T>): Promise<T> {
 async function renderCodeThumbnail(background: BackgroundSpec): Promise<string | null> {
   let frames: Awaited<ReturnType<typeof renderCodeFrames>> = null;
   try {
-    frames = await renderCodeFrames(thumbnailScene(background), THUMB.width, THUMB.height, 0, []);
+    frames = await renderCodeFrames(thumbnailScene(background), PRESET_THUMB.width, PRESET_THUMB.height, 0, []);
     if (!frames) return null;
     return await drawThumbnail(background, codeEnv(renderEnv(placeholderShot()), frames));
   } catch {

@@ -4,7 +4,6 @@ import {
   ColorInput,
   SegmentedControl,
   SegmentedControlItem,
-  SelectorCard,
   Select,
   SelectContent,
   SelectItem,
@@ -44,8 +43,9 @@ import { AiBackground } from './AiBackground.tsx';
 import { BackgroundImages } from './BackgroundImages.tsx';
 import { beginBackgroundChange } from './background-images.ts';
 import { ShadowThumb, SliderRow } from './panel-parts.tsx';
-import { PRESETS_SECTION_ID, PresetThumb, PresetsSection } from './presets/PresetsSection.tsx';
-import { Row, Section } from './Section.tsx';
+import { readCustomizeOpen, writeCustomizeOpen } from './panel-state.ts';
+import { PresetPicker } from './presets/PresetPicker.tsx';
+import { CollapsibleSection, Row, Section } from './Section.tsx';
 import type { SceneHistory } from './use-scene-history.ts';
 
 type Tab = 'background' | 'frame';
@@ -59,25 +59,13 @@ interface Props {
   palette: readonly PaletteColour[];
 }
 
-/** Moves keyboard focus to the first tile of the presets, and brings the section into view. */
-function showPresets() {
-  const section = document.getElementById(PRESETS_SECTION_ID);
-  if (!section) return;
-  const tiles = section.querySelector('[data-slot="tile-group"]');
-  (tiles?.querySelector<HTMLElement>('button[data-state="on"]') ?? tiles?.querySelector<HTMLElement>('button'))?.focus({
-    preventScroll: true,
-  });
-  const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-  section.scrollIntoView({ block: 'start', behavior: reduced ? 'auto' : 'smooth' });
-}
-
 /** The editor's left panel: the Background and Frame tabs. */
 export function EditorSidebar({ history, edgeColor, palette }: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('background');
   // Which way the content slides in: from the right when the tab is further along.
   const [direction, setDirection] = useState<1 | -1>(1);
-  const [presetName, setPresetName] = useState<string>();
+  const [customizeOpen, setCustomizeOpen] = useState(readCustomizeOpen);
   const tabsId = useId();
   const { scene, blocked, edit, preview, commit } = history;
   const { background, frame } = scene;
@@ -136,90 +124,84 @@ export function EditorSidebar({ history, edgeColor, palette }: Props) {
           style={slideFrom}
           className="flex animate-tab-in flex-col gap-5"
         >
-          <SelectorCard
-            title={presetName ?? t('editor.presets.currentName')}
-            caption={t('editor.panel.preset')}
-            aria-label={t('editor.panel.presetOpen', { name: presetName ?? t('editor.presets.currentName') })}
-            thumbnail={presetName ? <PresetThumb background={background} /> : undefined}
-            onClick={showPresets}
-          />
-          <PresetsSection
-            history={history}
-            onExport={() => { setTab('background'); }}
-            onCurrent={setPresetName}
-          />
-          <Section title={t('editor.background.title')}>
-            <div className="flex flex-col gap-2.5">
-              <Row label={t('editor.background.type')}>
-                <Select
-                  value={kind}
-                  onValueChange={(next) => {
-                    beginBackgroundChange();
-                    edit((s) => setBackgroundKind(s, next as BackgroundKind));
-                  }}
-                >
-                  <SelectTrigger aria-label={t('editor.background.type')}>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {BACKGROUND_KINDS.map((k) => (
-                      <SelectItem key={k} value={k}>
-                        {t(`editor.background.kind.${k}`)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </Row>
-              {colors.map((color, index) => (
-                <Row key={index} label={t('editor.background.color', { n: index + 1 })}>
-                  <ColorInput
-                    value={color}
-                    swatchLabel={t('editor.background.colorPicker', { n: index + 1 })}
-                    textLabel={t('editor.background.colorHex', { n: index + 1 })}
-                    onValueChange={(hex) => { preview((s) => setBackgroundColor(s, index, hex)); }}
-                    onValueCommit={(hex) => { edit((s) => setBackgroundColor(s, index, hex)); }}
-                  />
-                </Row>
-              ))}
-              {angle !== null && (
-                <SliderRow
-                  label={t('editor.background.angle')}
-                  value={t('editor.units.deg', { value: angle })}
-                  current={angle}
-                  range={[0, 360]}
-                  onPreview={(next) => { preview((s) => setBackgroundAngle(s, next)); }}
-                  onCommit={commit}
-                />
-              )}
-              {kind !== 'none' && (
-                <SliderRow
-                  label={t('editor.background.blur')}
-                  value={String(backgroundBlur(background))}
-                  current={backgroundBlur(background)}
-                  range={[0, 100]}
-                  onPreview={(next) => { preview((s) => setBackgroundBlur(s, next)); }}
-                  onCommit={commit}
-                />
-              )}
-              <Button
-                variant="secondary"
-                size="sm"
-                className="w-full"
-                disabled={edgeColor === null}
-                onClick={() => {
-                  if (edgeColor !== null) edit((s) => matchImageColor(s, edgeColor));
+          <PresetPicker history={history} onExport={() => { setTab('background'); }} />
+          <AiBackground history={history} palette={palette} />
+          <CollapsibleSection
+            title={t('editor.background.customize')}
+            open={customizeOpen}
+            onOpenChange={(next) => {
+              setCustomizeOpen(next);
+              writeCustomizeOpen(next);
+            }}
+          >
+            <Row label={t('editor.background.type')}>
+              <Select
+                value={kind}
+                onValueChange={(next) => {
+                  beginBackgroundChange();
+                  edit((s) => setBackgroundKind(s, next as BackgroundKind));
                 }}
               >
-                {t('editor.background.matchImage')}
-              </Button>
-            </div>
-          </Section>
-          {kind === 'image' && (
-            <Section title={t('editor.background.images.title')}>
-              <BackgroundImages history={history} />
-            </Section>
-          )}
-          <AiBackground history={history} palette={palette} />
+                <SelectTrigger aria-label={t('editor.background.type')}>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {BACKGROUND_KINDS.map((k) => (
+                    <SelectItem key={k} value={k}>
+                      {t(`editor.background.kind.${k}`)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </Row>
+            {colors.map((color, index) => (
+              <Row key={index} label={t('editor.background.color', { n: index + 1 })}>
+                <ColorInput
+                  value={color}
+                  swatchLabel={t('editor.background.colorPicker', { n: index + 1 })}
+                  textLabel={t('editor.background.colorHex', { n: index + 1 })}
+                  onValueChange={(hex) => { preview((s) => setBackgroundColor(s, index, hex)); }}
+                  onValueCommit={(hex) => { edit((s) => setBackgroundColor(s, index, hex)); }}
+                />
+              </Row>
+            ))}
+            {angle !== null && (
+              <SliderRow
+                label={t('editor.background.angle')}
+                value={t('editor.units.deg', { value: angle })}
+                current={angle}
+                range={[0, 360]}
+                onPreview={(next) => { preview((s) => setBackgroundAngle(s, next)); }}
+                onCommit={commit}
+              />
+            )}
+            {kind !== 'none' && (
+              <SliderRow
+                label={t('editor.background.blur')}
+                value={String(backgroundBlur(background))}
+                current={backgroundBlur(background)}
+                range={[0, 100]}
+                onPreview={(next) => { preview((s) => setBackgroundBlur(s, next)); }}
+                onCommit={commit}
+              />
+            )}
+            <Button
+              variant="secondary"
+              size="sm"
+              className="w-full"
+              disabled={edgeColor === null}
+              onClick={() => {
+                if (edgeColor !== null) edit((s) => matchImageColor(s, edgeColor));
+              }}
+            >
+              {t('editor.background.matchImage')}
+            </Button>
+            {kind === 'image' && (
+              <Section title={t('editor.background.images.title')}>
+                <BackgroundImages history={history} />
+              </Section>
+            )}
+          </CollapsibleSection>
         </div>
 
         <div

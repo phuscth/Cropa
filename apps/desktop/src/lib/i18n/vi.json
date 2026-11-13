@@ -48,7 +48,7 @@
       "unchanged": "Nền hiện tại của bạn không thay đổi."
     },
     "background": {
-      "title": "Nền",
+      "customize": "Tùy chỉnh",
       "type": "Loại",
       "kind": {
         "none": "Không có",
@@ -141,11 +141,34 @@
       "saveAsScale": "Tỉ lệ khi lưu thành"
     },
     "presets": {
-      "title": "Preset",
       "saveCurrent": "Lưu nền hiện tại",
       "import": "Nhập tệp preset",
-      "saved": "Đã lưu",
-      "empty": "Lưu nền hiện tại để dùng lại cho các ảnh chụp khác.",
+      "picker": "Preset",
+      "filter": {
+        "all": "Tất cả",
+        "ai": "AI",
+        "mine": "Của tôi",
+        "gradients": "Chuyển màu",
+        "images": "Hình ảnh"
+      },
+      "section": {
+        "ai": "AI",
+        "mine": "Của tôi",
+        "gradients": "Chuyển màu",
+        "images": "Hình ảnh"
+      },
+      "seeAll": "Xem tất cả",
+      "empty": {
+        "ai": "Tạo nền bằng AI rồi lưu thành preset. Preset sẽ hiện ở đây.",
+        "mine": "Lưu nền hiện tại bằng nút +, hoặc nhập một tệp preset, để dùng lại cho các ảnh chụp khác.",
+        "gradients": "Chưa có preset chuyển màu nào.",
+        "images": "Chưa có preset hình ảnh nào."
+      },
+      "caption": {
+        "ai": "Tạo bằng AI"
+      },
+      "newBadge": "Mới",
+      "newName": "{{name}} (mới)",
       "more": "Thao tác khác cho {{name}}",
       "rename": "Đổi tên…",
       "export": "Xuất…",
@@ -191,8 +214,7 @@
       "tabs": "Nhóm cài đặt",
       "background": "Nền",
       "frame": "Khung",
-      "preset": "Preset",
-      "presetOpen": "Hiện các preset, đang dùng: {{name}}"
+      "presetOpen": "Chọn preset, đang dùng: {{name}}"
     },
     "details": {
       "image": "Ảnh",

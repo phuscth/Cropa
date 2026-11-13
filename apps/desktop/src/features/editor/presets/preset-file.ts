@@ -29,3 +29,14 @@ export function presetFileProblem(error: PresetError): PresetFileProblem {
 export function isAiPreset(background: BackgroundSpec): boolean {
   return background.layers.some((layer) => layer.type === 'code');
 }
+
+export type PresetCategory = 'ai' | 'mine' | 'gradients' | 'images';
+export const PRESET_CATEGORIES: readonly PresetCategory[] = ['ai', 'mine', 'gradients', 'images'];
+
+/** Each preset belongs to exactly one category, decided in this order. */
+export function presetCategory(background: BackgroundSpec, own: boolean): PresetCategory {
+  if (isAiPreset(background)) return 'ai';
+  if (own) return 'mine';
+  if (background.layers.some((layer) => layer.type === 'image')) return 'images';
+  return 'gradients';
+}

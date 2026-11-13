@@ -180,6 +180,7 @@
   --ease-travel: cubic-bezier(0.65, 0, 0.35, 1);
 
   --animate-menu-in: menu-in 160ms var(--ease-enter);
+  --animate-menu-out: menu-out 140ms var(--ease-enter) forwards;
   --animate-fade-in: fade-in 200ms var(--ease-enter);
   --animate-notice-in: notice-in 200ms var(--ease-enter);
   --animate-tab-in: tab-in 200ms var(--ease-enter);
@@ -198,6 +199,17 @@
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes menu-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(var(--motion-scale-from));
   }
 }
 

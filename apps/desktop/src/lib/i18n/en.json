@@ -48,7 +48,7 @@
       "unchanged": "Your current background is unchanged."
     },
     "background": {
-      "title": "Background",
+      "customize": "Customize",
       "type": "Type",
       "kind": {
         "none": "None",
@@ -141,11 +141,34 @@
       "saveAsScale": "Save as scale"
     },
     "presets": {
-      "title": "Presets",
       "saveCurrent": "Save current background",
       "import": "Import preset file",
-      "saved": "Saved",
-      "empty": "Save the current background to reuse it on other captures.",
+      "picker": "Presets",
+      "filter": {
+        "all": "All",
+        "ai": "AI",
+        "mine": "Mine",
+        "gradients": "Gradients",
+        "images": "Images"
+      },
+      "section": {
+        "ai": "AI",
+        "mine": "Mine",
+        "gradients": "Gradients",
+        "images": "Images"
+      },
+      "seeAll": "See all",
+      "empty": {
+        "ai": "Make a background with AI, then save it as a preset. It shows up here.",
+        "mine": "Save the current background with the + button, or import a preset file, to reuse it on other captures.",
+        "gradients": "No gradient presets yet.",
+        "images": "No image presets yet."
+      },
+      "caption": {
+        "ai": "Made with AI"
+      },
+      "newBadge": "New",
+      "newName": "{{name}} (new)",
       "more": "More actions for {{name}}",
       "rename": "Rename…",
       "export": "Export…",
@@ -191,8 +214,7 @@
       "tabs": "Settings group",
       "background": "Background",
       "frame": "Frame",
-      "preset": "Preset",
-      "presetOpen": "Show presets, current: {{name}}"
+      "presetOpen": "Choose a preset, current: {{name}}"
     },
     "details": {
       "image": "Image",
