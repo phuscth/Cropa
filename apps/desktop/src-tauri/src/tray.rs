@@ -35,9 +35,9 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             CAPTURE => capture::request(app, CaptureSource::Tray),
-            HISTORY => app_windows::show(app, app_windows::HISTORY),
-            EDITOR => app_windows::show(app, app_windows::EDITOR),
-            SETTINGS => app_windows::show(app, app_windows::SETTINGS),
+            HISTORY => drop(app_windows::show(app, app_windows::HISTORY)),
+            EDITOR => drop(app_windows::show(app, app_windows::EDITOR)),
+            SETTINGS => drop(app_windows::show(app, app_windows::SETTINGS)),
             QUIT => app.exit(0),
             _ => {}
         })

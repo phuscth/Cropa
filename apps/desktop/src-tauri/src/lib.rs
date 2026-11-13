@@ -64,6 +64,12 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::ai::ai_run,
             commands::ai::ai_cancel,
             commands::ai::ai_detect,
+            commands::ai_setup::set_ai_provider,
+            commands::ai_setup::set_ai_allow_images,
+            commands::ai_setup::dismiss_ai_onboarding,
+            commands::ai_setup::open_ai_install_guide,
+            commands::ai_setup::open_login_terminal,
+            commands::settings::answer_autostart_question,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -186,7 +192,7 @@ pub fn run() {
             if is_e2e {
                 e2e::open_editor_image(app.handle());
             } else {
-                first_run::ask_autostart_once(app.handle(), lang);
+                first_run::run(app.handle(), lang);
             }
             log::info!(
                 "ready, capture key {} {}",
@@ -205,6 +211,10 @@ pub fn run() {
             WindowEvent::CloseRequested { api, .. } => {
                 commands::ai::cancel_window_runs(window.app_handle(), window.label());
                 api.prevent_close();
+                // Closing the welcome window with X takes the defaults, so it never returns.
+                if window.label() == app_windows::ONBOARDING {
+                    first_run::onboarding_closed(window.app_handle());
+                }
                 app_windows::hide_then_destroy(window);
             }
             WindowEvent::Destroyed => {

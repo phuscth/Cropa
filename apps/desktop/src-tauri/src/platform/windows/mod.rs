@@ -69,6 +69,47 @@ fn shell_open(target: &'static str) -> Result<()> {
     Ok(())
 }
 
+/// `cmd.exe` in the Windows folder.
+fn cmd_exe() -> PathBuf {
+    let root = std::env::var_os("SystemRoot")
+        .or_else(|| std::env::var_os("windir"))
+        .map_or_else(|| PathBuf::from(r"C:\Windows"), PathBuf::from);
+    root.join("System32").join("cmd.exe")
+}
+
+/// The parameters that make `cmd.exe` run `program args` and stay open (`/k`).
+/// `cmd` parses this line, so a program path with a quote, `%`, `!` or a
+/// control character is refused, and so is an argument that is not a plain
+/// lowercase word.
+fn console_parameters(program: &Path, args: &[&str]) -> Result<String> {
+    let program = program
+        .to_str()
+        .ok_or_else(|| PlatformError::Os("the program path is not valid text".into()))?;
+    if program.is_empty()
+        || program
+            .chars()
+            .any(|c| matches!(c, '"' | '%' | '!') || c.is_control())
+    {
+        return Err(PlatformError::Os(
+            "the program path has a character that cannot be passed to the console".into(),
+        ));
+    }
+    if let Some(bad) = args
+        .iter()
+        .find(|arg| arg.is_empty() || !arg.bytes().all(|b| b.is_ascii_lowercase() || b == b'-'))
+    {
+        return Err(PlatformError::Os(format!(
+            "the console argument {bad:?} is not a plain word"
+        )));
+    }
+    let mut line = format!("\"{program}\"");
+    for arg in args {
+        line.push(' ');
+        line.push_str(arg);
+    }
+    Ok(format!("/k \"{line}\""))
+}
+
 /// Show a modal message box and return the button the user pressed.
 fn message_box(title: &str, text: &str, style: MESSAGEBOX_STYLE) -> Result<i32> {
     let title = HSTRING::from(title);
@@ -186,6 +227,22 @@ impl Platform for WindowsPlatform {
         shell_open(url)
     }
 
+    fn open_console(&self, program: &Path, args: &[&str]) -> Result<()> {
+        let parameters = HSTRING::from(console_parameters(program, args)?);
+        let cmd = HSTRING::from(cmd_exe().as_os_str());
+        // SAFETY: the strings are null-terminated and outlive the call; the
+        // program is the path Cropa found and the arguments are fixed words,
+        // both checked by `console_parameters`.
+        let result =
+            unsafe { ShellExecuteW(None, w!("open"), &cmd, &parameters, None, SW_SHOWNORMAL) };
+        // ShellExecuteW reports success with a value above 32.
+        let code = result.0 as isize;
+        if code <= 32 {
+            return Err(PlatformError::Os(format!("ShellExecute error {code}")));
+        }
+        Ok(())
+    }
+
     fn drag_file(
         &self,
         owner: Option<OwnerWindow>,
@@ -193,5 +250,43 @@ impl Platform for WindowsPlatform {
         png: &[u8],
     ) -> Result<DragOutcome> {
         drag::drag_file(owner, path, png)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn the_console_line_quotes_the_program_and_keeps_the_window_open() {
+        let line = console_parameters(
+            Path::new(r"C:\Program Files\nodejs\codex.cmd"),
+            &["auth", "login"],
+        );
+        assert_eq!(
+            line.unwrap(),
+            r#"/k ""C:\Program Files\nodejs\codex.cmd" auth login""#
+        );
+    }
+
+    #[test]
+    fn a_program_path_cmd_could_misread_is_refused() {
+        for path in ["C:/a\"b/x", "C:/%PATH%/x", "C:/hi!/x", "C:/a\nb/x", ""] {
+            assert!(
+                console_parameters(Path::new(path), &["login"]).is_err(),
+                "{path:?}"
+            );
+        }
+        // `&` is safe inside the quotes.
+        assert!(console_parameters(Path::new(r"C:\a&b\x"), &["login"]).is_ok());
+    }
+
+    #[test]
+    fn only_plain_words_are_accepted_as_arguments() {
+        let program = Path::new(r"C:\x\claude.exe");
+        assert!(console_parameters(program, &["auth", "login"]).is_ok());
+        for arg in ["Login", "a b", "a&b", "--x=1", "", "a\"b"] {
+            assert!(console_parameters(program, &[arg]).is_err(), "{arg:?}");
+        }
     }
 }

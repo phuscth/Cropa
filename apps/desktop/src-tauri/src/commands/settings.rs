@@ -127,6 +127,15 @@ pub fn set_autostart(app: AppHandle, enabled: bool) -> Result<bool, CommandError
     get_autostart(app)
 }
 
+/// The welcome window's answer to "Start Cropa with Windows?". Applies it and
+/// marks the question as answered even when applying failed, so it is never
+/// asked again; the error is returned so the window can tell the user.
+#[tauri::command]
+#[specta::specta]
+pub fn answer_autostart_question(app: AppHandle, enabled: bool) -> Result<bool, CommandError> {
+    crate::first_run::apply_autostart_answer(&app, enabled)
+}
+
 /// Where the user can sponsor Cropa.
 const SPONSORS_URL: &str = "https://github.com/sponsors/phuscth";
 

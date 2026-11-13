@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "settings",
-  "description": "Settings window: reads and changes user settings and checks which AI providers are available.",
+  "description": "Settings window: reads and changes user settings and checks which AI providers are available, sets up and tests AI.",
   "windows": ["settings"],
   "permissions": [
     "core:event:allow-listen",
@@ -19,6 +19,12 @@
     "allow-reset-save-folder",
     "allow-open-sponsors-page",
     "allow-ai-detect",
+    "allow-ai-run",
+    "allow-ai-cancel",
+    "allow-set-ai-provider",
+    "allow-set-ai-allow-images",
+    "allow-open-ai-install-guide",
+    "allow-open-login-terminal",
     "core:app:allow-version"
   ]
 }

@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-dismiss-ai-onboarding"
+description = "Enables the dismiss_ai_onboarding command without any pre-configured scope."
+commands.allow = ["dismiss_ai_onboarding"]
+
+[[permission]]
+identifier = "deny-dismiss-ai-onboarding"
+description = "Denies the dismiss_ai_onboarding command without any pre-configured scope."
+commands.deny = ["dismiss_ai_onboarding"]

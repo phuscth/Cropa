@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-answer-autostart-question"
+description = "Enables the answer_autostart_question command without any pre-configured scope."
+commands.allow = ["answer_autostart_question"]
+
+[[permission]]
+identifier = "deny-answer-autostart-question"
+description = "Denies the answer_autostart_question command without any pre-configured scope."
+commands.deny = ["answer_autostart_question"]

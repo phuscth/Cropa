@@ -441,6 +441,143 @@
       "what": "Chưa hiển thị được ảnh này.",
       "why": "Không tải được ảnh. Ảnh của người dùng có thể đã bị xóa.",
       "next": "Chọn ảnh khác."
+    },
+    "AiProviderUnavailable": {
+      "what": "Nhà cung cấp AI đó không khả dụng.",
+      "why": "Nhà cung cấp thử nghiệm chỉ có trong bản phát triển.",
+      "next": "Hãy chọn Codex hoặc Claude Code."
+    },
+    "AiCliNotFound": {
+      "what": "Không tìm thấy công cụ dòng lệnh.",
+      "why": "Nó không nằm trong PATH nên Cropa không thể mở phần đăng nhập của nó.",
+      "next": "Hãy cài đặt theo hướng dẫn, rồi kiểm tra lại."
+    },
+    "OpenTerminal": {
+      "what": "Không mở được terminal.",
+      "why": "Windows từ chối khởi động nó ({{detail}}).",
+      "next": "Hãy tự mở terminal và chạy lệnh đăng nhập của công cụ, rồi kiểm tra lại."
+    }
+  },
+  "ai": {
+    "provider": {
+      "codex": "Codex",
+      "claude": "Claude Code",
+      "mock": "Mock"
+    },
+    "vendor": {
+      "codex": "OpenAI",
+      "claude": "Anthropic",
+      "mock": "không ai (nhà cung cấp thử nghiệm)"
+    },
+    "status": {
+      "unavailable": "Chưa có trong phiên bản này",
+      "notInstalled": "Chưa cài đặt",
+      "notLoggedIn": "Đã cài, chưa đăng nhập",
+      "ready": "Sẵn sàng"
+    },
+    "locked": {
+      "hint": "Hãy thiết lập AI trong Cài đặt.",
+      "setUp": "Thiết lập"
+    },
+    "onboarding": {
+      "title": "Thiết lập AI",
+      "intro": "Cropa có thể dùng Codex hoặc Claude Code bạn đã cài để đặt tên bảng màu và hỗ trợ xử lý ảnh. Hãy chọn một công cụ đã sẵn sàng, hoặc thiết lập trước. Bạn có thể bỏ qua và làm sau trong Cài đặt.",
+      "checking": "Đang tìm Codex và Claude Code…",
+      "use": "Dùng cái này",
+      "installGuide": "Hướng dẫn cài đặt",
+      "login": "Đăng nhập trong terminal",
+      "recheck": "Kiểm tra lại",
+      "later": "Để sau",
+      "cancel": "Hủy"
+    },
+    "settings": {
+      "title": "AI",
+      "provider": "Nhà cung cấp:",
+      "notSetUp": "Chưa thiết lập",
+      "setUp": "Thiết lập AI",
+      "change": "Đổi…",
+      "turnOff": "Tắt AI",
+      "allowImages": "Cho phép gửi ảnh cho AI",
+      "allowImagesHint": "Mặc định tắt. Dù đã bật, Cropa vẫn hỏi trước mỗi lần ảnh chụp rời khỏi máy này.",
+      "privacy": "Cropa chạy Codex hoặc Claude Code mà bạn đã cài, và mức dùng được tính vào tài khoản của bạn ở đó. Cropa không bao giờ đọc hay lưu thông tin đăng nhập của bạn. Ảnh chụp chỉ được gửi khi bạn cho phép ở đây và xác nhận từng lần."
+    },
+    "test": {
+      "button": "Kiểm tra kết nối",
+      "running": "Đang kiểm tra…",
+      "cancel": "Hủy",
+      "passed": "“{{name}}” ({{mood}}), {{seconds}} giây",
+      "mockResult": "Kết quả giả lập",
+      "mockSuccess": "Thành công",
+      "mockMalformed": "Câu trả lời sai định dạng"
+    },
+    "imageConfirm": {
+      "title": "Gửi {{count}} ảnh cho {{vendor}}?",
+      "body": "Ảnh chụp sẽ rời khỏi máy này và đến {{vendor}} qua {{provider}} bạn đã cài. Việc này được tính vào tài khoản của bạn ở đó.",
+      "send": "Gửi",
+      "dontSend": "Không gửi",
+      "offTitle": "Gửi ảnh đang tắt",
+      "offBody": "Để Cropa gửi ảnh chụp cho AI, hãy bật \"Cho phép gửi ảnh cho AI\" trong Cài đặt, mục AI.",
+      "close": "Đóng"
+    }
+  },
+  "aiErrors": {
+    "NotInstalled": {
+      "what": "{{provider}} chưa được cài đặt.",
+      "why": "Cropa chạy {{provider}} trên máy của bạn và không tìm thấy nó.",
+      "next": "Hãy cài đặt trong Cài đặt → AI, rồi kiểm tra lại."
+    },
+    "NotLoggedIn": {
+      "what": "{{provider}} chưa đăng nhập.",
+      "why": "Nó cần tài khoản của bạn trước khi có thể trả lời.",
+      "next": "Trong Cài đặt → AI, chọn \"Đăng nhập trong terminal\", đăng nhập xong rồi thử lại."
+    },
+    "UsageLimit": {
+      "what": "{{provider}} đã hết hạn mức.",
+      "why": "Tài khoản của bạn đã đạt giới hạn sử dụng tạm thời.",
+      "next": "Hãy đợi đến khi hạn mức được làm mới, hoặc kiểm tra gói của bạn với nhà cung cấp."
+    },
+    "Unsupported": {
+      "what": "{{provider}} chưa hỗ trợ việc này.",
+      "why": "Phiên bản Cropa này chưa có kết nối hoạt động với nó cho tác vụ này.",
+      "next": "Chọn nhà cung cấp khác trong Cài đặt → AI, hoặc cập nhật Cropa."
+    },
+    "Timeout": {
+      "what": "{{provider}} không trả lời trong 60 giây.",
+      "why": "Có thể nó đang bận hoặc mất kết nối.",
+      "next": "Kiểm tra kết nối internet rồi thử lại."
+    },
+    "Protocol": {
+      "what": "Nhận được phản hồi bất ngờ từ {{provider}}.",
+      "why": "Phản hồi không ở dạng Cropa hiểu được. Công cụ có thể đã thay đổi hoặc đã cũ.",
+      "next": "Hãy cập nhật {{provider}} rồi thử lại."
+    },
+    "Cancelled": {
+      "what": "Yêu cầu AI đã bị hủy.",
+      "why": "Nó bị dừng trước khi {{provider}} hoàn thành.",
+      "next": "Hãy chạy lại khi bạn sẵn sàng."
+    },
+    "InvalidOutput": {
+      "what": "Câu trả lời của {{provider}} sai định dạng.",
+      "why": "Nó không khớp định dạng mong đợi, kể cả sau lần thử thứ hai.",
+      "next": "Hãy thử lại. Nếu vẫn lặp lại, hãy cập nhật {{provider}}."
+    },
+    "Locked": {
+      "what": "{{provider}} không làm được việc này.",
+      "why": "Tác vụ này cần một tính năng mà {{provider}} không có.",
+      "next": "Chọn nhà cung cấp khác trong Cài đặt → AI."
+    }
+  },
+  "onboarding": {
+    "title": "Chào mừng đến với Cropa",
+    "welcome": "Chỉ hai câu hỏi nhanh là bạn có thể bắt đầu chụp.",
+    "autostart": {
+      "question": "Khởi động Cropa khi bạn đăng nhập Windows?",
+      "yes": "Có, khởi động Cropa cùng Windows",
+      "no": "Không, tôi sẽ tự mở",
+      "continue": "Tiếp tục"
+    },
+    "ai": {
+      "heading": "Tùy chọn: tính năng AI"
     }
   }
 }

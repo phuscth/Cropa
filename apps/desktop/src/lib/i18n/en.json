@@ -441,6 +441,143 @@
       "what": "Couldn't show that image.",
       "why": "The image couldn't be loaded. A user image may have been deleted.",
       "next": "Pick another image."
+    },
+    "AiProviderUnavailable": {
+      "what": "That AI provider isn't available.",
+      "why": "The test provider only exists in development builds.",
+      "next": "Pick Codex or Claude Code instead."
+    },
+    "AiCliNotFound": {
+      "what": "Couldn't find the command line tool.",
+      "why": "It isn't on your PATH, so Cropa can't open its login.",
+      "next": "Install it with the install guide, then check again."
+    },
+    "OpenTerminal": {
+      "what": "Couldn't open the terminal.",
+      "why": "Windows refused to start it ({{detail}}).",
+      "next": "Open a terminal yourself and run the CLI’s login command, then check again."
+    }
+  },
+  "ai": {
+    "provider": {
+      "codex": "Codex",
+      "claude": "Claude Code",
+      "mock": "Mock"
+    },
+    "vendor": {
+      "codex": "OpenAI",
+      "claude": "Anthropic",
+      "mock": "nobody (test provider)"
+    },
+    "status": {
+      "unavailable": "Not available in this version yet",
+      "notInstalled": "Not installed",
+      "notLoggedIn": "Installed, not logged in",
+      "ready": "Ready"
+    },
+    "locked": {
+      "hint": "Set up AI in Settings.",
+      "setUp": "Set up"
+    },
+    "onboarding": {
+      "title": "Set up AI",
+      "intro": "Cropa can use the Codex or Claude Code you already installed to name palettes and help with your images. Pick one that is ready, or set one up first. You can skip this and do it later in Settings.",
+      "checking": "Looking for Codex and Claude Code…",
+      "use": "Use this",
+      "installGuide": "Install guide",
+      "login": "Log in in a terminal",
+      "recheck": "Check again",
+      "later": "Later",
+      "cancel": "Cancel"
+    },
+    "settings": {
+      "title": "AI",
+      "provider": "Provider:",
+      "notSetUp": "Not set up",
+      "setUp": "Set up AI",
+      "change": "Change…",
+      "turnOff": "Turn off AI",
+      "allowImages": "Allow sending images to AI",
+      "allowImagesHint": "Off by default. Even when on, Cropa asks before each screenshot leaves this computer.",
+      "privacy": "Cropa runs the Codex or Claude Code you installed, and what it does counts against your account there. Cropa never reads or stores your login. Screenshots are sent only when you allow it here and confirm each time."
+    },
+    "test": {
+      "button": "Test connection",
+      "running": "Testing…",
+      "cancel": "Cancel",
+      "passed": "“{{name}}” ({{mood}}), {{seconds}} s",
+      "mockResult": "Mock result",
+      "mockSuccess": "Success",
+      "mockMalformed": "Malformed answer"
+    },
+    "imageConfirm": {
+      "title": "Send {{count}} image(s) to {{vendor}}?",
+      "body": "The screenshot will leave this computer and go to {{vendor}} through the {{provider}} you installed. It counts against your account there.",
+      "send": "Send",
+      "dontSend": "Don't send",
+      "offTitle": "Sending images is off",
+      "offBody": "To let Cropa send screenshots to AI, turn on \"Allow sending images to AI\" in Settings, under AI.",
+      "close": "Close"
+    }
+  },
+  "aiErrors": {
+    "NotInstalled": {
+      "what": "{{provider}} isn't installed.",
+      "why": "Cropa runs {{provider}} on your computer and couldn't find it.",
+      "next": "Install it from Settings → AI, then check again."
+    },
+    "NotLoggedIn": {
+      "what": "{{provider}} isn't logged in.",
+      "why": "It needs your account before it can answer.",
+      "next": "In Settings → AI, choose \"Log in in a terminal\", finish the login, then try again."
+    },
+    "UsageLimit": {
+      "what": "{{provider}} is out of quota.",
+      "why": "Your account has reached its usage limit for now.",
+      "next": "Wait until the limit resets, or check your plan with the provider."
+    },
+    "Unsupported": {
+      "what": "{{provider}} isn't supported for this yet.",
+      "why": "This version of Cropa has no working connection to it for this task.",
+      "next": "Pick another provider in Settings → AI, or update Cropa."
+    },
+    "Timeout": {
+      "what": "{{provider}} didn't answer within 60 seconds.",
+      "why": "It may be busy or offline.",
+      "next": "Check your internet connection and try again."
+    },
+    "Protocol": {
+      "what": "Got an unexpected reply from {{provider}}.",
+      "why": "The reply wasn't in a form Cropa understands. The CLI may have changed or be out of date.",
+      "next": "Update {{provider}} and try again."
+    },
+    "Cancelled": {
+      "what": "The AI request was cancelled.",
+      "why": "It was stopped before {{provider}} finished.",
+      "next": "Run it again when you are ready."
+    },
+    "InvalidOutput": {
+      "what": "{{provider}}'s answer was malformed.",
+      "why": "It didn't match the expected format, even after a second try.",
+      "next": "Try again. If it keeps happening, update {{provider}}."
+    },
+    "Locked": {
+      "what": "{{provider}} can't do this.",
+      "why": "This task needs a feature that {{provider}} does not offer.",
+      "next": "Pick another provider in Settings → AI."
+    }
+  },
+  "onboarding": {
+    "title": "Welcome to Cropa",
+    "welcome": "Two quick questions, and you are ready to capture.",
+    "autostart": {
+      "question": "Start Cropa when you sign in to Windows?",
+      "yes": "Yes, start Cropa with Windows",
+      "no": "No, I will start it myself",
+      "continue": "Continue"
+    },
+    "ai": {
+      "heading": "Optional: AI features"
     }
   }
 }
