@@ -1,0 +1,4 @@
+{"type":"thread.started","thread_id":"00000000-0000-0000-0000-000000000000"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"agent_message","text":"{\"layers\":[{\"kind\":\"linear\",\"colors\":[\"#101827\",\"#1D344B\"],\"angle\":135},{\"kind\":\"radial\",\"colors\":[\"#244D68\",\"#244D00\"],\"angle\":0}]}"}}
+{"type":"turn.completed","usage":{"input_tokens":9590,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":56,"reasoning_output_tokens":0}}

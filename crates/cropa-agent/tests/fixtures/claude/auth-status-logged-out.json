@@ -1,0 +1,9 @@
+{
+  "loggedIn": false,
+  "authMethod": "none",
+  "apiProvider": "firstParty",
+  "analyticsDisabled": false,
+  "projectsDirectory": "C:\\Temp\\cropa-turn\\projects",
+  "configDirectory": "C:\\Temp\\cropa-turn",
+  "loginExpiresAt": null
+}
