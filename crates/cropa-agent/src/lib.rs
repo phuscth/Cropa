@@ -1,7 +1,27 @@
 //! Drives the user's own Codex and Claude Code CLIs.
 //!
-//! The crate is reserved for now. The `AgentCli` trait and the one-turn
-//! `codex exec` / `claude -p` transports come with the AI features.
+//! The crate holds what every provider shares: the `AgentCli` trait and its
+//! request and output types, a scriptable `Mock`, the process runner that
+//! kills the whole process tree, the environment allowlist, a `PATH` search
+//! and the per-turn scratch directory. The Codex and Claude Code adapters
+//! build on these. Everything here is synchronous; callers run it on a
+//! blocking thread.
+
+mod cancel;
+mod cli;
+mod env;
+mod mock;
+mod path_search;
+mod runner;
+mod turn_dir;
+
+pub use cancel::CancelToken;
+pub use cli::{AgentCli, AgentError, Detection, Event, RunOutput, RunRequest};
+pub use env::{BASE_ENV_ALLOWLIST, base_env, filter_env};
+pub use mock::{Mock, MockScript};
+pub use path_search::{find_executable, find_in};
+pub use runner::{Finished, ProcessError, ProcessSpec, run_process};
+pub use turn_dir::{TurnDir, remove_stale};
 
 /// Which CLI a run goes to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

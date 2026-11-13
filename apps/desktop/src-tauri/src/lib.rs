@@ -61,6 +61,9 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::background_images::add_background_image,
             commands::background_images::read_background_image,
             commands::background_images::delete_background_image,
+            commands::ai::ai_run,
+            commands::ai::ai_cancel,
+            commands::ai::ai_detect,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -88,6 +91,7 @@ fn export_bindings(builder: &tauri_specta::Builder<tauri::Wry>, path: &std::path
 fn manage_stores(app: &tauri::App, config_dir: &std::path::Path, local_data_dir: &std::path::Path) {
     app.manage(app_windows::CloseTimers::default());
     app.manage(editor::EditorImage::default());
+    app.manage(commands::ai::AiRuns::default());
     app.manage(export::SavedFiles::default());
     app.manage(history::History::new(local_data_dir.join("history")));
     app.manage(export::DragFiles::new(local_data_dir.join("drag-out")));
@@ -104,6 +108,11 @@ fn manage_stores(app: &tauri::App, config_dir: &std::path::Path, local_data_dir:
             app.state::<history::History>()
                 .prune(std::time::SystemTime::now());
         }
+    });
+
+    // Scratch folders of AI runs that a crash left behind.
+    std::thread::spawn(|| {
+        cropa_agent::remove_stale();
     });
 
     // Dragged files past their lifetime go; a recent one may still be uploaded.

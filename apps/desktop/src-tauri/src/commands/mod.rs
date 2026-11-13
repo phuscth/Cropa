@@ -2,6 +2,7 @@
 //! gets an `allow-*` permission, and each window's capability grants only what
 //! that window needs.
 
+pub mod ai;
 pub mod background_images;
 pub mod editor;
 pub mod export;

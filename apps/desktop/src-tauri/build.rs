@@ -36,6 +36,9 @@ fn main() {
         "add_background_image",
         "read_background_image",
         "delete_background_image",
+        "ai_run",
+        "ai_cancel",
+        "ai_detect",
     ]);
 
     // tauri-build embeds its Windows manifest (Common Controls v6) only into
