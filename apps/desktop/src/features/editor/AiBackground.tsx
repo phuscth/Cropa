@@ -6,7 +6,7 @@ import { useTranslation } from 'react-i18next';
 
 import { commands, type AiEffort } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
-import type { UserError } from '../../lib/errors.ts';
+import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 import { useAiAccess } from '../ai/access.ts';
 import { AiGate } from '../ai/AiGate.tsx';
 import { describeAiError } from '../ai/errors.ts';
@@ -60,8 +60,14 @@ export function AiBackground({ history, palette }: Props) {
 
   const chooseEffort = (next: AiEffort) => {
     setChosen(next);
-    // Remembered for next time; a failed save only means the choice lasts this session.
-    void Promise.resolve(commands.setAiEffort(next)).catch(() => undefined);
+    // Remembered for next time. A failed save leaves the choice applied for this session, and
+    // the user is told it will not be kept.
+    void commands.setAiEffort(next).then(
+      (result) => {
+        if (result.status === 'error') setNotice(describeCommandError(t, result.error));
+      },
+      (cause: unknown) => { setNotice(describeUnexpected(t, cause)); },
+    );
   };
 
   const generate = () => {

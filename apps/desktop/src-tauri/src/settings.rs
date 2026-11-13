@@ -505,6 +505,27 @@ mod tests {
     }
 
     #[test]
+    fn the_v5_to_v6_step_writes_low_effort_and_keeps_the_other_ai_fields() {
+        // On the JSON itself, before any deserialising fills in a default.
+        let v5 = serde_json::json!({
+            "version": 5,
+            "ai": { "provider": "claude", "allowImages": true, "onboardingAnswered": true }
+        });
+        let step = v5_to_v6(v5);
+        assert_eq!(step["version"], 6);
+        assert_eq!(
+            step["ai"],
+            serde_json::json!({
+                "provider": "claude", "allowImages": true, "onboardingAnswered": true,
+                "effort": "low"
+            })
+        );
+
+        let chosen = v5_to_v6(serde_json::json!({ "version": 5, "ai": { "effort": "high" } }));
+        assert_eq!(chosen["ai"]["effort"], "high");
+    }
+
+    #[test]
     fn a_version_5_file_gets_low_effort_and_a_chosen_effort_is_kept() {
         let v5 = serde_json::json!({
             "version": 5,
