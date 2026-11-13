@@ -3,9 +3,12 @@
 //!
 //! stdin: one JSON line `{ "provider": "codex"|"claude", "system", "prompt", "schema",
 //! "timeoutMs", "effort"? }`. The harness then keeps stdin open; closing it cancels the turn.
-//! stdout: one JSON line, `{ "json": ... }` or `{ "error": "<AgentError kind>" }`.
+//! stdout: one JSON line, `{ "json": ... }` or `{ "error": "<AgentError kind>", "message":
+//! "<the Protocol message>" | null }`.
+//! stderr: built with `--features diagnostics`, a failed turn also writes one
+//! `{ "cropaDiagnostic": ... }` line there.
 //!
-//! `cargo build -p cropa-agent --example turn`
+//! `cargo build -p cropa-agent --example turn [--features diagnostics]`
 
 use std::io::{self, BufRead, Read};
 use std::time::Duration;
@@ -95,6 +98,13 @@ fn main() {
     };
     match agent.run(run, &cancel, &mut |_| {}) {
         Ok(output) => print(&json!({ "json": output.json })),
-        Err(error) => print(&json!({ "error": error_kind(&error) })),
+        Err(error) => {
+            // Only a `Protocol` message is passed on: it is one of the adapter's fixed strings.
+            let message = match &error {
+                AgentError::Protocol(message) => Some(message.as_str()),
+                _ => None,
+            };
+            print(&json!({ "error": error_kind(&error), "message": message }));
+        }
     }
 }

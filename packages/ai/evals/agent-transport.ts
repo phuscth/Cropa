@@ -5,6 +5,7 @@
 
 import { execFileSync, spawn, type ChildProcess } from 'node:child_process';
 import { existsSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { fileURLToPath } from 'node:url';
 
 import { AgentError, isAgentErrorKind } from '../src/errors.ts';
@@ -16,13 +17,63 @@ const ROOT = fileURLToPath(new URL('../../../', import.meta.url));
 const KILL_GRACE_MS = 3000;
 // The turn enforces the request's timeout itself; this only catches a stuck process.
 const WATCHDOG_MS = 15_000;
+// How much of the turn's stderr is kept while it runs, and how much of it a TurnError carries.
+const STDERR_KEEP_CHARS = 16 * 1024;
+const STDERR_REPORT_CHARS = 4000;
 
-/** Builds the `turn` example once and returns the path of its binary. */
+/**
+ * A turn that ran and failed. `stderrTail` is the end of what the process wrote to stderr
+ * (with the diagnostics feature, a JSON line from the adapter), already scrubbed.
+ */
+export class TurnError extends AgentError {
+  readonly stderrTail: string;
+
+  constructor(kind: AgentError['kind'], message: string | undefined, stderrTail: string) {
+    super(kind, message);
+    this.name = 'TurnError';
+    this.stderrTail = stderrTail;
+  }
+}
+
+function escapeRegExp(text: string): string {
+  return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+/**
+ * Makes a stderr tail safe to write to a results file: the home folder becomes `~`, and keys,
+ * tokens, email addresses, secret-looking JSON values and long opaque runs are replaced with
+ * `[redacted]`. Keeps the last 4000 characters.
+ */
+export function scrubStderr(text: string, home: string = homedir()): string {
+  let out = text;
+  if (home !== '') {
+    const forward = home.replaceAll('\\', '/');
+    const backslash = forward.replaceAll('/', '\\');
+    // The adapter's diagnostic is JSON, where each backslash of a path is written twice.
+    const spellings = [forward, backslash, backslash.replaceAll('\\', '\\\\')];
+    for (const spelling of spellings) {
+      out = out.replace(new RegExp(escapeRegExp(spelling), 'gi'), '~');
+    }
+  }
+  out = out
+    .replace(
+      /"([^"\\]*(?:token|secret|password|api_key|apikey|authorization|cookie|email)[^"\\]*)"\s*:\s*"(?:[^"\\]|\\.)*"/gi,
+      '"$1": "[redacted]"',
+    )
+    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, '[redacted]')
+    .replace(/sk-[A-Za-z0-9_-]{8,}/g, '[redacted]')
+    .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g, '[redacted]')
+    .replace(/[A-Za-z0-9+/=_-]{32,}/g, '[redacted]');
+  return out.slice(-STDERR_REPORT_CHARS);
+}
+
+/** Builds the `turn` example once, with its diagnostics, and returns the path of its binary. */
 export function buildTurnBinary(): string {
-  execFileSync('cargo', ['build', '-q', '-p', 'cropa-agent', '--example', 'turn'], {
-    cwd: ROOT,
-    stdio: 'inherit',
-  });
+  execFileSync(
+    'cargo',
+    ['build', '-q', '-p', 'cropa-agent', '--example', 'turn', '--features', 'diagnostics'],
+    { cwd: ROOT, stdio: 'inherit' },
+  );
   const name = process.platform === 'win32' ? 'turn.exe' : 'turn';
   const binary = fileURLToPath(new URL(`../../../target/debug/examples/${name}`, import.meta.url));
   if (!existsSync(binary)) throw new Error(`The turn example was not built at ${binary}`);
@@ -50,6 +101,7 @@ function killTree(child: ChildProcess): void {
 interface TurnReply {
   json?: unknown;
   error?: unknown;
+  message?: unknown;
 }
 
 function parseReply(stdout: string): TurnReply | null {
@@ -69,10 +121,11 @@ export function createAgentTransport(provider: RealProvider, binary: string): Tr
       if (signal?.aborted) return Promise.reject(new AgentError('Cancelled'));
       return new Promise<TransportOutput>((resolve, reject) => {
         const child = spawn(binary, [], {
-          stdio: ['pipe', 'pipe', 'ignore'],
+          stdio: ['pipe', 'pipe', 'pipe'],
           windowsHide: true,
         });
         let stdout = '';
+        let stderr = '';
         let settled = false;
         const timers: NodeJS.Timeout[] = [];
 
@@ -95,7 +148,7 @@ export function createAgentTransport(provider: RealProvider, binary: string): Tr
         timers.push(
           setTimeout(() => {
             killTree(child);
-            settle(() => { reject(new AgentError('Timeout')); });
+            settle(() => { reject(new TurnError('Timeout', undefined, scrubStderr(stderr))); });
           }, req.timeoutMs + WATCHDOG_MS),
         );
 
@@ -103,18 +156,25 @@ export function createAgentTransport(provider: RealProvider, binary: string): Tr
         child.stdout.on('data', (chunk: string) => {
           stdout += chunk;
         });
+        child.stderr.setEncoding('utf8');
+        child.stderr.on('data', (chunk: string) => {
+          stderr = (stderr + chunk).slice(-STDERR_KEEP_CHARS);
+        });
         child.on('error', () => {
           settle(() => { reject(new AgentError('NotInstalled')); });
         });
         child.on('close', () => {
           settle(() => {
             const reply = parseReply(stdout);
+            const tail = scrubStderr(stderr);
             if (reply === null) {
-              reject(new AgentError('Protocol', 'the turn produced no result'));
+              reject(new TurnError('Protocol', 'the turn produced no result', tail));
             } else if (reply.error !== undefined) {
-              reject(new AgentError(isAgentErrorKind(reply.error) ? reply.error : 'Protocol'));
+              const kind = isAgentErrorKind(reply.error) ? reply.error : 'Protocol';
+              const message = typeof reply.message === 'string' ? reply.message : undefined;
+              reject(new TurnError(kind, message, tail));
             } else if (reply.json === undefined || reply.json === null) {
-              reject(new AgentError('Protocol', 'the turn returned no JSON'));
+              reject(new TurnError('Protocol', 'the turn returned no JSON', tail));
             } else {
               resolve({ json: reply.json });
             }

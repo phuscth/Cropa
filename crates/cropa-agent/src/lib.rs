@@ -12,6 +12,8 @@ mod cancel;
 mod claude;
 mod cli;
 mod codex;
+#[cfg(feature = "diagnostics")]
+mod diag;
 mod env;
 mod mock;
 mod path_search;

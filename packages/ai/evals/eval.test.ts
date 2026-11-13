@@ -5,6 +5,8 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 
 import { BACKGROUND_EXAMPLES, MAX_BACKGROUND_SOURCE_BYTES } from '../src/tasks/background.ts';
 import type { BackgroundInput } from '../src/tasks/background.ts';
+import type { Transport } from '../src/transport.ts';
+import { TurnError, scrubStderr } from './agent-transport.ts';
 import { runEval } from './eval.ts';
 import { checkModuleInNode } from './node-check.ts';
 import type { NodeScene } from './node-check.ts';
@@ -303,14 +305,30 @@ describe('background eval on the mock provider', { timeout: 60_000 }, () => {
 
   it('answers as scripted: every fourth case needs the retry, and the retry runs and loops', async () => {
     if (!entry?.validate) throw new Error('the background eval has no validator');
-    const report = await runEval({
+    const { report, records } = await runEval({
       task: entry.task,
       cases: loadCases(entry.cases, 'background'),
       transport: entry.mock(),
       provider: { name: 'mock', capabilities: [] },
       validate: entry.validate,
     });
-    expect(report).toMatchObject({ cases: 30, validFirstTry: 23, validAfterRetry: 30, notices: {} });
+    expect(report).toMatchObject({ cases: 30, validFirstTry: 23, validAfterRetry: 30, notices: {}, failing: [] });
+    expect(records).toHaveLength(30);
+    records.forEach((record, index) => {
+      expect(record.passed).toBe(true);
+      if (index % 4 !== 3) {
+        expect(record.attempts).toHaveLength(1);
+        expect(record.attempts[0]).not.toHaveProperty('output');
+        return;
+      }
+      const [first, second] = record.attempts;
+      expect(record.attempts).toHaveLength(2);
+      expect(first?.check).toMatchObject({ ok: false, ran: true, loops: false });
+      expect((first?.output as { source: string }).source).toContain('t * 1.5 * scene.width');
+      expect(record.retryNote).toMatch(/loop/i);
+      expect(second?.check?.ok).toBe(true);
+      expect(second).not.toHaveProperty('output');
+    });
     expect(report.validation).toMatchObject({
       runnableFirstTry: 23,
       runnableAfterRetry: 30,
@@ -319,6 +337,76 @@ describe('background eval on the mock provider', { timeout: 60_000 }, () => {
     });
     expect(report.validation?.maxFrameMs).toBeGreaterThan(0);
     expect(report.validation?.p95FrameMs).toBeGreaterThan(0);
+  });
+
+  it('names the failing case and keeps the transport error and its stderr in the record', async () => {
+    const palette = EVAL_TASKS['palette-name'];
+    if (!palette) throw new Error('no palette-name eval');
+    const inner = palette.mock();
+    let calls = 0;
+    const transport: Transport = {
+      run(req, opts) {
+        calls++;
+        if (calls === 2) {
+          return Promise.reject(new TurnError('Protocol', 'the turn produced no result', 'last words of the CLI'));
+        }
+        return inner.run(req, opts);
+      },
+    };
+    const cases = loadCases(palette.cases, 'palette-name').slice(0, 3);
+    const { report, records } = await runEval({
+      task: palette.task,
+      cases,
+      transport,
+      provider: { name: 'mock', capabilities: [] },
+    });
+    const failed = cases[1]?.id;
+    expect(report.failing).toEqual([failed]);
+    expect(records.map((r) => r.passed)).toEqual([true, false, true]);
+    const record = records[1];
+    expect(record).toMatchObject({
+      id: failed,
+      passed: false,
+      notice: { kind: 'Protocol' },
+      attempts: [
+        {
+          attempt: 1,
+          error: { kind: 'Protocol', message: 'the turn produced no result' },
+          stderrTail: 'last words of the CLI',
+        },
+      ],
+    });
+  });
+});
+
+describe('scrubStderr', () => {
+  const home = 'C:\\Users\\tester';
+
+  it('turns the home folder into ~ in every spelling, including inside JSON', () => {
+    const text = 'C:\\Users\\tester\\a c:/users/tester/b {"cwd":"C:\\\\Users\\\\tester\\\\c"}';
+    expect(scrubStderr(text, home)).toBe('~\\a ~/b {"cwd":"~\\\\c"}');
+  });
+
+  it('removes keys, bearer tokens, emails, secret-looking JSON values and long opaque runs', () => {
+    const text = [
+      'key sk-abcdef1234567890 here',
+      'Authorization: Bearer abc.DEF-123_xyz=',
+      'mail me@example.com',
+      '{"refresh_token": "plain", "note": "kept"}',
+      `blob ${'A1b2'.repeat(10)}`,
+    ].join('\n');
+    const out = scrubStderr(text, home);
+    for (const gone of ['sk-abcdef', 'abc.DEF', 'me@example.com', 'plain', 'A1b2A1b2']) {
+      expect(out).not.toContain(gone);
+    }
+    expect(out).toContain('"note"');
+    expect(out).toContain('kept');
+  });
+
+  it('keeps the last 4000 characters', () => {
+    const out = scrubStderr(`${'a '.repeat(5000)}END`, home);
+    expect(out).toHaveLength(4000);
+    expect(out.endsWith('END')).toBe(true);
   });
 });
 
@@ -332,7 +420,7 @@ describe('background refine eval on the mock provider', { timeout: 60_000 }, () 
     for (const c of cases) {
       expect((c.input as BackgroundInput).currentSource).toMatch(/function back\(/);
     }
-    const report = await runEval({
+    const { report } = await runEval({
       task: entry.task,
       cases,
       transport: entry.mock(),

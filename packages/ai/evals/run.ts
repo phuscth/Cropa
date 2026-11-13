@@ -85,7 +85,7 @@ const transport: Transport =
     : createAgentTransport(values.provider as RealProvider, buildTurnBinary());
 
 const provider: Provider = { name: values.provider, capabilities: [] };
-const report = await runEval({
+const { report, records } = await runEval({
   task: entry.task,
   cases,
   transport,
@@ -122,10 +122,19 @@ if (v) {
   ]);
 }
 console.log('notices:', JSON.stringify(report.notices));
+if (report.failing.length > 0) console.log('failing:', report.failing.join(', '));
 
+// The records can hold answers and a scrubbed stderr tail, so they only go to the gitignored
+// results folder.
 const dir = new URL('results/', import.meta.url);
 mkdirSync(dir, { recursive: true });
 const stamp = new Date().toISOString().replace(/[:.]/g, '-');
-const name = `${report.task}-v${String(report.version)}-${report.provider}-${stamp}.json`;
-writeFileSync(new URL(name, dir), `${JSON.stringify(report, null, 2)}\n`);
-console.log(`report: packages/ai/evals/results/${name}`);
+const base = `${report.task}-v${String(report.version)}-${report.provider}-${stamp}`;
+writeFileSync(new URL(`${base}.json`, dir), `${JSON.stringify(report, null, 2)}\n`);
+const casesName = `${base}.cases.json`;
+writeFileSync(
+  new URL(casesName, dir),
+  `${JSON.stringify({ task: report.task, version: report.version, provider: report.provider, records }, null, 2)}\n`,
+);
+console.log(`report: packages/ai/evals/results/${base}.json`);
+console.log(`cases:  packages/ai/evals/results/${casesName}`);

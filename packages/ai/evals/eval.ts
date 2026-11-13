@@ -1,3 +1,4 @@
+import { toAgentErrorKind } from '../src/errors.ts';
 import { runTask } from '../src/run-task.ts';
 import type { Validation } from '../src/run-task.ts';
 import type { Provider, Task } from '../src/task.ts';
@@ -24,9 +25,40 @@ export interface EvalReport {
   p50Ms: number;
   p95Ms: number;
   notices: Record<string, number>;
+  /** Ids of the cases whose final answer fell back; a case that failed in several runs appears once. */
+  failing: string[];
   /** Present when the eval ran with a validator. */
   validation?: ValidationReport;
 }
+
+/** One call to the transport inside a case run. */
+export interface AttemptRecord {
+  attempt: 1 | 2;
+  ms: number;
+  /** The transport rejected. */
+  error?: { kind: string; message: string };
+  /** What the CLI wrote to stderr, as the transport scrubbed it. */
+  stderrTail?: string;
+  /** The validator's view; absent when the answer failed the schema or postprocess. */
+  check?: { ok: boolean; message?: string; ran: boolean; loops: boolean; maxFrameMs: number };
+  /** The raw answer, kept only when this attempt was not the accepted one. */
+  output?: unknown;
+}
+
+/** What one run of one case did, for finding out why it failed. */
+export interface CaseRecord {
+  id: string;
+  run: number;
+  passed: boolean;
+  ms: number;
+  notice?: { kind: string; detail?: string };
+  /** The note sent with the retry: why attempt 1 was refused (schema, postprocess or check). */
+  retryNote?: string;
+  attempts: AttemptRecord[];
+}
+
+const MAX_DETAIL_CHARS = 1000;
+const MAX_NOTE_CHARS = 2000;
 
 /** What a validator saw in one answer, beyond its verdict. */
 export interface EvalCheck {
@@ -81,9 +113,22 @@ export function percentile(sorted: readonly number[], p: number): number {
   return sorted[rank - 1] ?? 0;
 }
 
-/** Runs every case and reports counts and latency. The report holds no prompts or answers. */
-export async function runEval(opts: EvalOptions): Promise<EvalReport> {
+/** The scrubbed stderr a transport error carries, read without importing the transport. */
+function stderrTailOf(err: unknown): string | undefined {
+  if (typeof err === 'object' && err !== null && 'stderrTail' in err && typeof err.stderrTail === 'string') {
+    return err.stderrTail;
+  }
+  return undefined;
+}
+
+/**
+ * Runs every case. The report holds counts and latency, no prompts or answers; the records hold
+ * what each attempt did, and may hold answers, so they belong in the gitignored results folder.
+ */
+export async function runEval(opts: EvalOptions): Promise<{ report: EvalReport; records: CaseRecord[] }> {
   const runs = opts.runs ?? 1;
+  const records: CaseRecord[] = [];
+  const failing: string[] = [];
   let total = 0;
   let validFirstTry = 0;
   let validAfterRetry = 0;
@@ -101,8 +146,33 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
       const checks = new Map<1 | 2, EvalCheck>();
       const { validate } = opts;
       const start = performance.now();
+      const attemptRecords: AttemptRecord[] = [];
+      const prompts: string[] = [];
+      const transport: Transport = {
+        async run(req, options) {
+          const record: AttemptRecord = { attempt: attemptRecords.length === 0 ? 1 : 2, ms: 0 };
+          attemptRecords.push(record);
+          prompts.push(req.prompt);
+          const began = performance.now();
+          try {
+            const out = await opts.transport.run(req, options);
+            record.ms = Math.round(performance.now() - began);
+            record.output = out.json;
+            return out;
+          } catch (err) {
+            record.ms = Math.round(performance.now() - began);
+            record.error = {
+              kind: toAgentErrorKind(err, options.signal),
+              message: (err instanceof Error ? err.message : 'unexpected error').slice(0, MAX_DETAIL_CHARS),
+            };
+            const stderrTail = stderrTailOf(err);
+            if (stderrTail !== undefined) record.stderrTail = stderrTail;
+            throw err;
+          }
+        },
+      };
       const { done } = runTask(opts.task, c.input, {
-        transport: opts.transport,
+        transport,
         provider: opts.provider,
         ...(opts.effort ? { effort: opts.effort } : {}),
         onEvent: (e) => {
@@ -113,13 +183,50 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
               validate: async (result: unknown, ctx: { attempt: 1 | 2; signal?: AbortSignal }) => {
                 const check = await validate(c.input, result, ctx);
                 checks.set(ctx.attempt, check);
+                const record = attemptRecords[ctx.attempt - 1];
+                if (record) {
+                  const { validation } = check;
+                  record.check = {
+                    ok: validation.ok,
+                    ...(validation.ok ? {} : { message: validation.message.slice(0, MAX_DETAIL_CHARS) }),
+                    ran: check.ran,
+                    loops: check.loops,
+                    maxFrameMs: check.maxFrameMs,
+                  };
+                }
                 return check.validation;
               },
             }
           : {}),
       });
       const out = await done;
-      latencies.push(performance.now() - start);
+      const elapsed = performance.now() - start;
+      latencies.push(elapsed);
+
+      const passed = out.source === 'ai';
+      const acceptedAttempt = passed ? attemptRecords.at(-1) : undefined;
+      if (acceptedAttempt) Reflect.deleteProperty(acceptedAttempt, 'output');
+      if (!passed && !failing.includes(c.id)) failing.push(c.id);
+      const firstPrompt = prompts[0];
+      const secondPrompt = prompts[1];
+      records.push({
+        id: c.id,
+        run: i + 1,
+        passed,
+        ms: Math.round(elapsed),
+        ...(out.notice
+          ? {
+              notice: {
+                kind: out.notice.kind,
+                ...(out.notice.detail === undefined ? {} : { detail: out.notice.detail.slice(0, MAX_DETAIL_CHARS) }),
+              },
+            }
+          : {}),
+        ...(firstPrompt !== undefined && secondPrompt !== undefined
+          ? { retryNote: secondPrompt.slice(firstPrompt.length).trim().slice(0, MAX_NOTE_CHARS) }
+          : {}),
+        attempts: attemptRecords,
+      });
 
       if (out.source === 'ai') {
         validAfterRetry++;
@@ -142,7 +249,7 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
   }
 
   latencies.sort((a, b) => a - b);
-  return {
+  const report: EvalReport = {
     task: opts.task.id,
     version: opts.task.version,
     provider: opts.provider.name,
@@ -154,6 +261,7 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
     p50Ms: Math.round(percentile(latencies, 50)),
     p95Ms: Math.round(percentile(latencies, 95)),
     notices,
+    failing,
     ...(opts.validate
       ? {
           validation: {
@@ -171,6 +279,7 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
         }
       : {}),
   };
+  return { report, records };
 }
 
 function round1(value: number): number {

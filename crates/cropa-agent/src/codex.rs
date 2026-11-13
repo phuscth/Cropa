@@ -394,13 +394,53 @@ struct CodexStream {
     /// so they do not end the turn; they only help classify a later failure.
     errors: Vec<String>,
     end: Option<Final>,
+    /// One short label per line, for the diagnostic line of a failed turn.
+    #[cfg(feature = "diagnostics")]
+    events: Vec<String>,
+}
+
+/// The most event labels kept.
+#[cfg(feature = "diagnostics")]
+const MAX_EVENT_LABELS: usize = 64;
+
+/// `type`, and for an `item.*` line the item's type after a slash.
+#[cfg(feature = "diagnostics")]
+fn event_label(line: &Value) -> String {
+    let mut label = line["type"].as_str().unwrap_or("?").to_owned();
+    if label.starts_with("item.")
+        && let Some(item) = line["item"]["type"].as_str()
+    {
+        label.push('/');
+        label.push_str(item);
+    }
+    label
 }
 
 impl CodexStream {
+    /// The turn's failure and `error` event messages, cut short.
+    #[cfg(feature = "diagnostics")]
+    fn failure_summary(&self) -> Value {
+        let failed = match &self.end {
+            Some(Final::Failed(message)) => Some(crate::diag::head(message, 2000)),
+            _ => None,
+        };
+        let errors: Vec<String> = self
+            .errors
+            .iter()
+            .take(16)
+            .map(|message| crate::diag::head(message, 2000))
+            .collect();
+        serde_json::json!({ "turn_failed": failed, "errors": errors })
+    }
+
     fn push(&mut self, line: &Value, on_event: &mut dyn FnMut(Event)) -> LineFlow {
         if !self.started {
             self.started = true;
             on_event(Event::Started);
+        }
+        #[cfg(feature = "diagnostics")]
+        if self.events.len() < MAX_EVENT_LABELS {
+            self.events.push(event_label(line));
         }
         match line["type"].as_str() {
             Some("item.completed") if line["item"]["type"] == "agent_message" => {
@@ -519,7 +559,17 @@ impl AgentCli for CodexExec {
         let process = run_process(&spec, dir.path(), cancel, &mut |line| {
             stream.push(&line, &mut *on_event)
         });
+        #[cfg(feature = "diagnostics")]
+        let (events, summary, stderr_tail) = (
+            stream.events.clone(),
+            stream.failure_summary(),
+            crate::diag::stderr_of(&process),
+        );
         let result = stream.finish(process, req.schema.as_ref());
+        #[cfg(feature = "diagnostics")]
+        if let Err(error) = &result {
+            crate::diag::report("codex", error, &events, Some(&summary), &stderr_tail);
+        }
         log::debug!(
             "codex turn: {}",
             result
@@ -618,6 +668,23 @@ mod tests {
             finish(ok()),
             AgentError::Protocol("the CLI ended without a final event".to_owned())
         );
+    }
+
+    #[cfg(feature = "diagnostics")]
+    #[test]
+    fn the_diagnostic_keeps_event_labels_and_the_failure_message() {
+        let (stream, _, _) = feed(REJECTED);
+        assert!(stream.events.iter().any(|label| label == "turn.failed"));
+        let summary = stream.failure_summary();
+        assert!(summary["turn_failed"].is_string());
+
+        let (stream, _, _) = feed(SCHEMA_OK);
+        assert!(
+            stream
+                .events
+                .contains(&"item.completed/agent_message".to_owned())
+        );
+        assert!(stream.failure_summary()["turn_failed"].is_null());
     }
 
     #[test]
