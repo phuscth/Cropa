@@ -2,7 +2,16 @@ import { outputSize, type Scene } from '@cropa/core';
 
 import type { ExportFormat } from '../../../lib/bindings.ts';
 
-export type ExportScale = 1 | 2;
+export type ExportScale = 1 | 2 | 3;
+
+/**
+ * A short size class for an export, such as "4K", from the width it will
+ * really have (a 1920 px capture at 2x is about 4K, a small region is not).
+ * Undefined below 1500 px, where a "K" label would only mislead.
+ */
+export function resolutionLabel(width: number): string | undefined {
+  return width >= 1500 ? `${String(Math.round(width / 1000))}K` : undefined;
+}
 
 export interface ExportPlan {
   width: number;

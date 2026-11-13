@@ -12,7 +12,7 @@ import { useState, type ComponentProps } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { ExportFormat } from '../../lib/bindings.ts';
-import { exportPlan, type ExportScale } from './export/plan.ts';
+import { exportPlan, resolutionLabel, type ExportScale } from './export/plan.ts';
 import { AutoThumb, CustomThumb, RatioField, RatioThumb, SliderRow } from './panel-parts.tsx';
 import {
   ASPECT_PRESETS,
@@ -30,7 +30,7 @@ import { Section } from './Section.tsx';
 import type { SceneHistory } from './use-scene-history.ts';
 
 const FORMATS: readonly ExportFormat[] = ['png', 'jpeg', 'webp'];
-const SCALES: readonly ExportScale[] = [1, 2];
+const SCALES: readonly ExportScale[] = [1, 2, 3];
 
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'edit' | 'preview' | 'commit'>;
@@ -219,11 +219,17 @@ export function LayoutPanel({
               disabled={scaleFixed}
               onValueChange={(next) => { onScale(Number(next) as ExportScale); }}
             >
-              {SCALES.map((s) => (
-                <SegmentedControlItem key={s} value={String(s)}>
-                  {`${String(s)}x`}
-                </SegmentedControlItem>
-              ))}
+              {SCALES.map((s) => {
+                const label = resolutionLabel(exportPlan(scene, format, s).width);
+                return (
+                  <SegmentedControlItem key={s} value={String(s)}>
+                    {`${String(s)}x`}
+                    {label !== undefined && !scaleFixed && (
+                      <span className="text-caption ml-1 tabular-nums">{label}</span>
+                    )}
+                  </SegmentedControlItem>
+                );
+              })}
             </SegmentedControl>
             {scaleFixed && (
               <p className="text-caption tabular-nums">
