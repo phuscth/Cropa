@@ -48,8 +48,10 @@ pub struct Finished {
     pub stderr_tail: String,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, thiserror::Error)]
+#[derive(Clone, PartialEq, Eq, thiserror::Error)]
 pub enum ProcessError {
+    #[error("the program does not exist")]
+    NotFound,
     #[error("could not start the process: {0:?}")]
     Spawn(io::ErrorKind),
     #[error("the process took too long")]
@@ -69,10 +71,30 @@ pub enum ProcessError {
     Io(io::ErrorKind),
 }
 
+// `stderr_tail` stays out of `Debug` so an error that gets logged or printed
+// never carries the CLI's output.
+impl std::fmt::Debug for ProcessError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotFound => f.write_str("NotFound"),
+            Self::Spawn(kind) => f.debug_tuple("Spawn").field(kind).finish(),
+            Self::Timeout => f.write_str("Timeout"),
+            Self::Cancelled => f.write_str("Cancelled"),
+            Self::Exit { code, .. } => f
+                .debug_struct("Exit")
+                .field("code", code)
+                .finish_non_exhaustive(),
+            Self::NotJson => f.write_str("NotJson"),
+            Self::LineTooLong => f.write_str("LineTooLong"),
+            Self::Io(kind) => f.debug_tuple("Io").field(kind).finish(),
+        }
+    }
+}
+
 impl From<ProcessError> for AgentError {
     fn from(err: ProcessError) -> Self {
         let text = match err {
-            ProcessError::Spawn(io::ErrorKind::NotFound) => return Self::NotInstalled,
+            ProcessError::NotFound => return Self::NotInstalled,
             ProcessError::Timeout => return Self::Timeout,
             ProcessError::Cancelled => return Self::Cancelled,
             ProcessError::Spawn(_) => "could not start the process".to_owned(),
@@ -246,7 +268,11 @@ fn wait_exit(
     }
 }
 
-/// Reads stdout lines until EOF, then waits for the exit.
+/// How long lines already queued may still arrive once the child has exited
+/// while something else (a grandchild) keeps stdout open.
+const EXIT_GRACE: Duration = Duration::from_millis(200);
+
+/// Reads stdout lines until the child has exited and its output is drained.
 fn drive(
     running: &mut Running,
     rx: &mpsc::Receiver<Msg>,
@@ -254,27 +280,47 @@ fn drive(
     deadline: Instant,
     on_line: &mut dyn FnMut(serde_json::Value),
 ) -> Result<ExitStatus, ProcessError> {
+    let mut exited: Option<(ExitStatus, Instant)> = None;
     loop {
         if cancel.is_cancelled() {
             return Err(ProcessError::Cancelled);
         }
-        let remaining = deadline.saturating_duration_since(Instant::now());
+        let now = Instant::now();
+        let remaining = deadline.saturating_duration_since(now);
         if remaining.is_zero() {
             return Err(ProcessError::Timeout);
         }
-        match rx.recv_timeout(remaining.min(TICK)) {
+        let mut wait = remaining.min(TICK);
+        if let Some((_, grace_end)) = exited {
+            if now >= grace_end {
+                break;
+            }
+            wait = wait.min(grace_end - now);
+        }
+        match rx.recv_timeout(wait) {
             Ok(Msg::Line(value)) => on_line(value),
             Ok(Msg::Failed(err)) => return Err(err),
             Err(RecvTimeoutError::Timeout) => {}
             Err(RecvTimeoutError::Disconnected) => break,
         }
+        if exited.is_none() {
+            match running.child.try_wait() {
+                Ok(Some(status)) => exited = Some((status, Instant::now() + EXIT_GRACE)),
+                Ok(None) => {}
+                Err(err) => return Err(ProcessError::Io(err.kind())),
+            }
+        }
     }
-    wait_exit(running, cancel, deadline)
+    match exited {
+        Some((status, _)) => Ok(status),
+        None => wait_exit(running, cancel, deadline),
+    }
 }
 
 fn error_kind(result: &Result<Finished, ProcessError>) -> &'static str {
     match result {
         Ok(_) => "ok",
+        Err(ProcessError::NotFound) => "not-found",
         Err(ProcessError::Spawn(_)) => "spawn",
         Err(ProcessError::Timeout) => "timeout",
         Err(ProcessError::Cancelled) => "cancelled",
@@ -295,6 +341,9 @@ pub fn run_process(
 ) -> Result<Finished, ProcessError> {
     if !spec.program.is_absolute() {
         return Err(ProcessError::Spawn(io::ErrorKind::InvalidInput));
+    }
+    if !spec.program.is_file() {
+        return Err(ProcessError::NotFound);
     }
     let started = Instant::now();
     let mut command = command(spec, cwd);

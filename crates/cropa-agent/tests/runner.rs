@@ -114,6 +114,20 @@ fn cancel_kills_the_child_and_its_grandchild() {
     assert_all_gone(&pids);
 }
 
+#[cfg(windows)]
+#[test]
+fn a_child_that_exits_is_done_even_if_a_grandchild_holds_stdout() {
+    let start = Instant::now();
+    let (result, lines) = run(
+        &spec(&["orphan"], Duration::from_secs(30)),
+        &CancelToken::new(),
+    );
+    result.unwrap();
+    assert!(start.elapsed() < Duration::from_secs(5));
+    assert_eq!(lines.len(), 1);
+    assert_all_gone(&[lines[0]["grandchild"].as_u64().unwrap()]);
+}
+
 #[test]
 fn a_failing_exit_is_an_error_with_the_stderr_tail() {
     let (result, _) = run(
@@ -226,8 +240,31 @@ fn a_missing_program_means_not_installed() {
     let mut process = spec(&["lines", "1", "0"], Duration::from_secs(10));
     process.program = fake_cli().with_file_name("does-not-exist.exe");
     let (result, _) = run(&process, &CancelToken::new());
-    assert_eq!(
-        AgentError::from(result.unwrap_err()),
-        AgentError::NotInstalled
-    );
+    let err = result.unwrap_err();
+    assert_eq!(err, ProcessError::NotFound);
+    assert_eq!(AgentError::from(err), AgentError::NotInstalled);
+}
+
+#[test]
+fn a_missing_cwd_is_not_reported_as_not_installed() {
+    let dir = TurnDir::new().unwrap();
+    let gone = dir.path().join("gone");
+    let err = run_process(
+        &spec(&["lines", "1", "0"], Duration::from_secs(10)),
+        &gone,
+        &CancelToken::new(),
+        &mut |_| {},
+    )
+    .unwrap_err();
+    assert!(matches!(err, ProcessError::Spawn(_)));
+    assert!(matches!(AgentError::from(err), AgentError::Protocol(_)));
+}
+
+#[test]
+fn debug_output_leaves_out_the_stderr_tail() {
+    let err = ProcessError::Exit {
+        code: Some(1),
+        stderr_tail: "secret output".to_owned(),
+    };
+    assert!(!format!("{err:?}").contains("secret output"));
 }

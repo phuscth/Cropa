@@ -178,10 +178,16 @@ export type AiErrorKind = "notInstalled" | "notLoggedIn" | "usageLimit" | "unsup
 /**  Progress of a run, sent over the channel. */
 export type AiEvent = { kind: "started" } | { kind: "delta"; text: string };
 
-/**  What the mock provider does. Only the mock reads it. */
+/**
+ *  What the mock provider does. Only the mock reads it, and the mock exists in
+ *  debug builds only, so a release build never reads the fields.
+ */
 export type AiMockScript = AiMockScript_Serialize | AiMockScript_Deserialize;
 
-/**  What the mock provider does. Only the mock reads it. */
+/**
+ *  What the mock provider does. Only the mock reads it, and the mock exists in
+ *  debug builds only, so a release build never reads the fields.
+ */
 export type AiMockScript_Deserialize = {
 	delayMs: number,
 	events: AiEvent[],
@@ -189,7 +195,10 @@ export type AiMockScript_Deserialize = {
 	error?: AiErrorKind | null,
 };
 
-/**  What the mock provider does. Only the mock reads it. */
+/**
+ *  What the mock provider does. Only the mock reads it, and the mock exists in
+ *  debug builds only, so a release build never reads the fields.
+ */
 export type AiMockScript_Serialize = {
 	delayMs: number,
 	events: AiEvent[],

@@ -6,6 +6,8 @@
 //! - `sleep <ms>`: prints nothing and sleeps.
 //! - `grandchild`: starts a sleeping copy of itself, prints
 //!   `{"pid":<own>,"grandchild":<other>}`, then sleeps.
+//! - `orphan`: starts a sleeping copy of itself that inherits stdout, prints
+//!   `{"grandchild":<pid>}` and exits 0.
 //! - `exit <code>`: exits with the code.
 //! - `cwd`: prints `{"cwd":"<current directory>"}`.
 //! - `env`: prints `{"names":[<environment variable names>]}`.
@@ -52,6 +54,16 @@ fn main() {
             say(&serde_json::json!({ "pid": std::process::id(), "grandchild": child.id() }));
             sleep_ms(600_000);
             let _ = child.wait();
+        }
+        Some("orphan") => {
+            let exe = std::env::current_exe().expect("own path");
+            #[allow(clippy::zombie_processes)] // left running on purpose
+            let child = Command::new(exe)
+                .args(["sleep", "600000"])
+                .stdin(Stdio::null())
+                .spawn()
+                .expect("orphan");
+            say(&serde_json::json!({ "grandchild": child.id() }));
         }
         Some("exit") => {
             eprintln!("fake cli failure");

@@ -21,7 +21,7 @@ pub use env::{BASE_ENV_ALLOWLIST, base_env, filter_env};
 pub use mock::{Mock, MockScript};
 pub use path_search::{find_executable, find_in};
 pub use runner::{Finished, ProcessError, ProcessSpec, run_process};
-pub use turn_dir::TurnDir;
+pub use turn_dir::{TurnDir, remove_stale};
 
 /// Which CLI a run goes to.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]

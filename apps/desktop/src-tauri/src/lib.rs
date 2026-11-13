@@ -110,6 +110,11 @@ fn manage_stores(app: &tauri::App, config_dir: &std::path::Path, local_data_dir:
         }
     });
 
+    // Scratch folders of AI runs that a crash left behind.
+    std::thread::spawn(|| {
+        cropa_agent::remove_stale();
+    });
+
     // Dragged files past their lifetime go; a recent one may still be uploaded.
     std::thread::spawn({
         let app = app.handle().clone();

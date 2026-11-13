@@ -7,6 +7,65 @@ use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 static COUNTER: AtomicU64 = AtomicU64::new(0);
 
+/// A directory builder; on unix the folders are readable by the user only.
+fn private_dir_builder(recursive: bool) -> std::fs::DirBuilder {
+    let mut builder = std::fs::DirBuilder::new();
+    builder.recursive(recursive);
+    #[cfg(unix)]
+    {
+        use std::os::unix::fs::DirBuilderExt;
+        builder.mode(0o700);
+    }
+    builder
+}
+
+fn root() -> PathBuf {
+    std::env::temp_dir().join("cropa-agent")
+}
+
+/// True for `<pid>-<counter>-<nanos>`, the names `TurnDir::new` makes.
+fn stale_pid(name: &str) -> Option<u32> {
+    let mut parts = name.split('-');
+    let pid = parts.next()?.parse().ok()?;
+    let digits =
+        |p: Option<&str>| p.is_some_and(|p| !p.is_empty() && p.bytes().all(|b| b.is_ascii_digit()));
+    (digits(parts.next()) && digits(parts.next()) && parts.next().is_none()).then_some(pid)
+}
+
+fn remove_stale_in(root: &Path, current_pid: u32) -> usize {
+    let Ok(entries) = std::fs::read_dir(root) else {
+        return 0;
+    };
+    let mut removed = 0;
+    let mut failed = None;
+    for entry in entries.flatten() {
+        let Some(pid) = entry.file_name().to_str().and_then(stale_pid) else {
+            continue;
+        };
+        if pid == current_pid || !entry.path().is_dir() {
+            continue;
+        }
+        match std::fs::remove_dir_all(entry.path()) {
+            Ok(()) => removed += 1,
+            Err(err) => failed = Some(err.kind()),
+        }
+    }
+    if let Some(kind) = failed {
+        log::warn!("could not remove some old turn folders: {kind:?}");
+    }
+    removed
+}
+
+/// Deletes the turn folders that earlier runs of Cropa left behind (a crash
+/// or a kill skips `Drop`). Best effort; returns how many were removed.
+pub fn remove_stale() -> usize {
+    let removed = remove_stale_in(&root(), std::process::id());
+    if removed > 0 {
+        log::info!("removed {removed} old turn folders");
+    }
+    removed
+}
+
 #[derive(Debug)]
 pub struct TurnDir {
     path: PathBuf,
@@ -24,10 +83,10 @@ impl TurnDir {
             std::process::id(),
             COUNTER.fetch_add(1, Ordering::Relaxed)
         );
-        let parent = std::env::temp_dir().join("cropa-agent");
-        std::fs::create_dir_all(&parent)?;
+        let parent = root();
+        private_dir_builder(true).create(&parent)?;
         let path = parent.join(name);
-        std::fs::create_dir(&path)?;
+        private_dir_builder(false).create(&path)?;
         Ok(Self { path })
     }
 
@@ -65,6 +124,23 @@ impl Drop for TurnDir {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn only_folders_of_other_processes_are_removed() {
+        let live = TurnDir::new().unwrap();
+        let root = live.path().join("root");
+        let old = root.join("1-0-5");
+        let mine = root.join("7-0-5");
+        let other = root.join("notes");
+        for dir in [&old, &mine, &other] {
+            std::fs::create_dir_all(dir).unwrap();
+        }
+        std::fs::write(old.join("input-0.png"), b"x").unwrap();
+        assert_eq!(remove_stale_in(&root, 7), 1);
+        assert!(!old.exists());
+        assert!(mine.exists());
+        assert!(other.exists());
+    }
 
     #[test]
     fn each_dir_is_new_and_removed_on_drop() {

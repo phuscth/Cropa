@@ -14,10 +14,9 @@ use std::sync::{Mutex, PoisonError};
 use std::time::{Duration, Instant};
 
 use base64::Engine;
-use cropa_agent::{
-    AgentCli, AgentError, CancelToken, Detection, Event, Mock, MockScript, RunOutput, RunRequest,
-    TurnDir,
-};
+use cropa_agent::{AgentCli, AgentError, CancelToken, Event, RunOutput, RunRequest, TurnDir};
+#[cfg(debug_assertions)]
+use cropa_agent::{Detection, Mock, MockScript};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::ipc::Channel;
@@ -108,7 +107,9 @@ pub enum AiErrorKind {
     Cancelled,
 }
 
-/// What the mock provider does. Only the mock reads it.
+/// What the mock provider does. Only the mock reads it, and the mock exists in
+/// debug builds only, so a release build never reads the fields.
+#[cfg_attr(not(debug_assertions), allow(dead_code))]
 #[derive(Debug, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AiMockScript {
@@ -461,10 +462,14 @@ pub async fn ai_run(
     on_event: Channel<AiEvent>,
 ) -> Result<AiOutput, AiError> {
     validate_run_id(&run_id)?;
-    let agent = provider_for(&provider, mock).ok_or(AiError::Unsupported)?;
-    let checked = check_request(request)?;
+    // Registered first, so a cancel that arrives during validation is kept.
     let cancel = CancelToken::new();
     let _guard = RunGuard::register(&app, &run_id, cancel.clone())?;
+    let agent = provider_for(&provider, mock).ok_or(AiError::Unsupported)?;
+    let checked = check_request(request)?;
+    if cancel.is_cancelled() {
+        return Err(AiError::Cancelled);
+    }
 
     let started = Instant::now();
     let result = tauri::async_runtime::spawn_blocking(move || {
@@ -497,6 +502,7 @@ pub async fn ai_cancel(app: AppHandle, run_id: String) -> Result<(), AiError> {
 #[tauri::command]
 #[specta::specta]
 pub fn ai_detect() -> Vec<AiDetection> {
+    #[cfg_attr(not(debug_assertions), allow(unused_mut))]
     let mut found = vec![
         AiDetection::unavailable("codex"),
         AiDetection::unavailable("claude"),
