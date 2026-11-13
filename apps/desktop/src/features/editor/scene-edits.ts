@@ -425,3 +425,20 @@ export function aspectPreset(scene: Scene): AspectPreset {
   }
   return 'custom';
 }
+
+// ---------------------------------------------------------------- presets
+
+/** True when two backgrounds are the same by value. */
+export function sameBackground(a: BackgroundSpec, b: BackgroundSpec): boolean {
+  return JSON.stringify(a) === JSON.stringify(b);
+}
+
+/** Replaces only the background; the same scene back when it already has it. */
+export function applyBackground(scene: Scene, background: BackgroundSpec): Scene {
+  return sameBackground(scene.background, background) ? scene : { ...scene, background };
+}
+
+/** True when the background draws an image layer, which a preset file can't hold. */
+export function hasImageLayer(spec: BackgroundSpec): boolean {
+  return spec.layers.some((layer) => layer.type === 'image');
+}

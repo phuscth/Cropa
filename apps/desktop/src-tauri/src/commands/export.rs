@@ -62,19 +62,19 @@ impl From<ExportError> for CommandError {
     }
 }
 
-fn save_file_error(err: &io::Error) -> CommandError {
+pub(super) fn save_file_error(err: &io::Error) -> CommandError {
     CommandError::SaveFile(err.to_string())
 }
 
-fn dialog_error(err: &platform::PlatformError) -> CommandError {
+pub(super) fn dialog_error(err: &platform::PlatformError) -> CommandError {
     CommandError::SaveDialog(err.to_string())
 }
 
-fn join_error(err: &tauri::Error) -> CommandError {
+pub(super) fn join_error(err: &tauri::Error) -> CommandError {
     CommandError::SaveFile(err.to_string())
 }
 
-fn file_name_of(path: &Path) -> String {
+pub(super) fn file_name_of(path: &Path) -> String {
     path.file_name()
         .map(|name| name.to_string_lossy().into_owned())
         .unwrap_or_default()
@@ -88,7 +88,7 @@ fn saved_file(id: u32, path: &Path) -> SavedFile {
     }
 }
 
-fn save_folder(app: &AppHandle) -> Option<PathBuf> {
+pub(super) fn save_folder(app: &AppHandle) -> Option<PathBuf> {
     app.state::<AppState>().lock().settings.save_folder.clone()
 }
 

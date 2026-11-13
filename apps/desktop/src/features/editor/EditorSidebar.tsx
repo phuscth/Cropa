@@ -12,7 +12,7 @@ import {
   SelectValue,
   Slider,
 } from '@cropa/ui';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
@@ -48,33 +48,14 @@ import {
   type BackgroundKind,
   type ShadowLevel,
 } from './scene-edits.ts';
+import { PresetsSection } from './presets/PresetsSection.tsx';
+import { Row, Section } from './Section.tsx';
 import type { SceneHistory } from './use-scene-history.ts';
 
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'blocked' | 'edit' | 'preview' | 'commit'>;
   /** The colour found at the screenshot's edges, or null when it has none. */
   edgeColor: string | null;
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3 border-b p-4 last:border-b-0">
-      <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function Row({ label, value, children }: { label: string; value?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span>{label}</span>
-        {value !== undefined && <span className="text-muted-foreground tabular-nums">{value}</span>}
-      </div>
-      {children}
-    </div>
-  );
 }
 
 interface SliderRowProps {
@@ -194,6 +175,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
           <ErrorNotice error={describeOutputTooLarge(t)} />
         </div>
       )}
+      <PresetsSection history={history} />
       <Section title={t('editor.background.title')}>
         <Row label={t('editor.background.type')}>
           <Select
