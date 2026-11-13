@@ -2,8 +2,11 @@
 //! in a release build `from_env` is always `None`, so they do nothing.
 //!
 //! - `CROPA_E2E_DIR`: run as a separate instance whose settings, history,
-//!   presets, logs and WebView data all live under this absolute folder, and
-//!   which never touches the user's own Cropa or its start-with-Windows entry.
+//!   presets and logs live under this absolute folder, and which never touches
+//!   the user's own Cropa or its start-with-Windows entry. WebView data stays in
+//!   the default folder of the test identifier (`%LOCALAPPDATA%\cropa-e2e`),
+//!   because msedgedriver chooses the WebView2 user data folder itself and an
+//!   explicit one would hide the `DevToolsActivePort` file it waits for.
 //! - `CROPA_E2E_EDITOR_IMAGE`: a PNG file opened in the editor at startup
 //!   (only read together with `CROPA_E2E_DIR`).
 
@@ -33,10 +36,6 @@ impl E2e {
 
     pub fn log_dir(&self) -> PathBuf {
         self.dir.join("logs")
-    }
-
-    pub fn webview_dir(&self) -> PathBuf {
-        self.dir.join("webview")
     }
 
     pub fn editor_image(&self) -> Option<&Path> {

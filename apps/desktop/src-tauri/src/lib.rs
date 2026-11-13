@@ -117,8 +117,6 @@ pub fn run() {
                     app.path().app_local_data_dir()?,
                 ),
             };
-            // Managed before anything can create a window, since the windows
-            // read it for their WebView data folder.
             if let Some(e2e) = e2e {
                 app.manage(e2e);
             }

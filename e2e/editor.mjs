@@ -121,6 +121,15 @@ try {
       console.error(fs.readFileSync(path.join(logs, name), 'utf8'));
     }
   }
+  // msedgedriver waits for a DevToolsActivePort file in the WebView2 user data
+  // folder; show where one was written, if anywhere.
+  const webViewData = path.join(process.env.LOCALAPPDATA ?? '', 'cropa-e2e');
+  if (fs.existsSync(webViewData)) {
+    const found = fs
+      .readdirSync(webViewData, { recursive: true })
+      .filter((name) => path.basename(String(name)) === 'DevToolsActivePort');
+    console.error(`--- DevToolsActivePort under ${webViewData}: ${found.join(', ') || 'none'} ---`);
+  }
   process.exitCode = 1;
 } finally {
   if (sessionId) {

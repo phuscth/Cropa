@@ -48,7 +48,8 @@ lacks, the test says which version to add with its hash.
 Run `pnpm e2e`, or `pnpm e2e:build` and then `pnpm e2e:capture` and/or
 `pnpm e2e:editor`. They move the mouse, press keys and replace the clipboard, so
 leave the machine alone while they run. They start a separate instance
-(`cropa-e2e`) with its data in a temp folder and the capture key
+(`cropa-e2e`) with its data in a temp folder (WebView data in
+`%LOCALAPPDATA%\cropa-e2e`) and the capture key
 `Ctrl+Alt+Shift+F9`, so an open Cropa can stay open and its data, settings and
 start-with-Windows entry are untouched. The E2E build goes to `target/e2e-app`, so the first
 build takes a while but normal builds never overwrite it. Only debug builds read the hook. CI runs
