@@ -20,6 +20,7 @@ const WATCHDOG_MS = 15_000;
 // How much of the turn's stderr is kept while it runs, and how much of it a TurnError carries.
 const STDERR_KEEP_CHARS = 16 * 1024;
 const STDERR_REPORT_CHARS = 4000;
+const STDERR_LINE_CHARS = 2000;
 
 /**
  * A turn that ran and failed. `stderrTail` is the end of what the process wrote to stderr
@@ -39,23 +40,19 @@ function escapeRegExp(text: string): string {
   return text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }
 
-/**
- * Makes a stderr tail safe to write to a results file: the home folder becomes `~`, and keys,
- * tokens, email addresses, secret-looking JSON values and long opaque runs are replaced with
- * `[redacted]`. Keeps the last 4000 characters.
- */
-export function scrubStderr(text: string, home: string = homedir()): string {
+/** Scrubs one piece of text: the home folder becomes `~`, secret-looking content `[redacted]`. */
+function scrubText(text: string, home: string): string {
   let out = text;
   if (home !== '') {
     const forward = home.replaceAll('\\', '/');
     const backslash = forward.replaceAll('/', '\\');
-    // The adapter's diagnostic is JSON, where each backslash of a path is written twice.
+    // A path the CLI wrote into JSON has each backslash doubled, and stays doubled after one decode.
     const spellings = [forward, backslash, backslash.replaceAll('\\', '\\\\')];
     for (const spelling of spellings) {
       out = out.replace(new RegExp(escapeRegExp(spelling), 'gi'), '~');
     }
   }
-  out = out
+  return out
     .replace(
       /"([^"\\]*(?:token|secret|password|api_key|apikey|authorization|cookie|email)[^"\\]*)"\s*:\s*"(?:[^"\\]|\\.)*"/gi,
       '"$1": "[redacted]"',
@@ -64,7 +61,55 @@ export function scrubStderr(text: string, home: string = homedir()): string {
     .replace(/sk-[A-Za-z0-9_-]{8,}/g, '[redacted]')
     .replace(/[A-Za-z0-9._%+-]+@[A-Za-z0-9-]+(?:\.[A-Za-z0-9-]+)+/g, '[redacted]')
     .replace(/[A-Za-z0-9+/=_-]{32,}/g, '[redacted]');
-  return out.slice(-STDERR_REPORT_CHARS);
+}
+
+/** Scrubs every string inside a decoded JSON value. */
+function scrubValue(value: unknown, home: string): unknown {
+  if (typeof value === 'string') return scrubText(value, home);
+  if (Array.isArray(value)) return value.map((item) => scrubValue(item, home));
+  if (typeof value === 'object' && value !== null) {
+    return Object.fromEntries(Object.entries(value).map(([key, item]) => [key, scrubValue(item, home)]));
+  }
+  return value;
+}
+
+/** The decoded diagnostic line the adapter writes, or null when the line is something else. */
+function parseDiagnostic(line: string): Record<string, unknown> | null {
+  if (!line.startsWith('{')) return null;
+  try {
+    const value: unknown = JSON.parse(line);
+    if (typeof value === 'object' && value !== null && 'cropaDiagnostic' in value) {
+      const inner = value.cropaDiagnostic;
+      if (typeof inner === 'object' && inner !== null) return value;
+    }
+  } catch {
+    // Not JSON: an ordinary stderr line.
+  }
+  return null;
+}
+
+/**
+ * Makes a stderr tail safe to write to a results file. The adapter's diagnostic line is kept
+ * whole, scrubbed value by value after decoding, with only its `stderrTail` cut to 2000
+ * characters. Every other line is scrubbed and cut to its last 2000 characters, and those lines
+ * together keep their last 4000. The diagnostic lines follow them.
+ */
+export function scrubStderr(text: string, home: string = homedir()): string {
+  const raw: string[] = [];
+  const diagnostics: string[] = [];
+  for (const line of text.split(/\r?\n/)) {
+    if (line === '') continue;
+    const diagnostic = parseDiagnostic(line);
+    if (diagnostic === null) {
+      raw.push(scrubText(line, home).slice(-STDERR_LINE_CHARS));
+      continue;
+    }
+    const scrubbed = scrubValue(diagnostic, home) as { cropaDiagnostic: Record<string, unknown> };
+    const tail = scrubbed.cropaDiagnostic['stderrTail'];
+    if (typeof tail === 'string') scrubbed.cropaDiagnostic['stderrTail'] = tail.slice(-STDERR_LINE_CHARS);
+    diagnostics.push(JSON.stringify(scrubbed));
+  }
+  return [raw.join('\n').slice(-STDERR_REPORT_CHARS), ...diagnostics].filter((part) => part !== '').join('\n');
 }
 
 /** Builds the `turn` example once, with its diagnostics, and returns the path of its binary. */

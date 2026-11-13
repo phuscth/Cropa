@@ -418,10 +418,39 @@ describe('scrubStderr', () => {
     expect(out).toContain('kept');
   });
 
-  it('keeps the last 4000 characters', () => {
-    const out = scrubStderr(`${'a '.repeat(5000)}END`, home);
-    expect(out).toHaveLength(4000);
-    expect(out.endsWith('END')).toBe(true);
+  it('keeps the last 2000 characters of a line and the last 4000 of the raw lines', () => {
+    const one = scrubStderr(`${'a '.repeat(5000)}END`, home);
+    expect(one).toHaveLength(2000);
+    expect(one.endsWith('END')).toBe(true);
+    const many = scrubStderr(`${`${'b '.repeat(900)}\n`.repeat(5)}END`, home);
+    expect(many).toHaveLength(4000);
+    expect(many.endsWith('END')).toBe(true);
+  });
+
+  it('keeps the diagnostic line whole, however much stderr it holds, and scrubs inside it', () => {
+    const embedded = `${'noise '.repeat(900)}{"api_key":"hunter2pw"} C:\\Users\\tester\\x`;
+    const line = JSON.stringify({
+      cropaDiagnostic: {
+        provider: 'claude',
+        error: 'Protocol("no structured output")',
+        events: ['system/init', 'result/success'],
+        result: { subtype: 'success' },
+        stderrTail: embedded,
+      },
+    });
+    const out = scrubStderr(`some raw line\n${line}\n`, home);
+    expect(out.startsWith('some raw line\n')).toBe(true);
+    const parsed = JSON.parse(out.split('\n')[1] ?? '') as { cropaDiagnostic: Record<string, unknown> };
+    expect(parsed.cropaDiagnostic).toMatchObject({
+      error: 'Protocol("no structured output")',
+      events: ['system/init', 'result/success'],
+      result: { subtype: 'success' },
+    });
+    const tail = parsed.cropaDiagnostic['stderrTail'] as string;
+    expect(tail.length).toBeLessThanOrEqual(2000);
+    expect(tail).toContain('[redacted]');
+    expect(tail).not.toContain('hunter2pw');
+    expect(tail).toContain('~\\x');
   });
 });
 
