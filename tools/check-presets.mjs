@@ -1,10 +1,11 @@
-// Checks every file in presets/: size, file name, JSON, schema, and that the id
+// Checks every file in presets/: size, file name, JSON, schema, image refs, and that the id
 // matches the file name. Prints one line per problem and exits 1 if there is any.
 import { readdirSync, readFileSync, statSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { PRESET_MAX_BYTES, importPreset } from '../packages/core/src/presets/file.ts';
+import { communityPresetProblems } from '../packages/core/src/presets/images.ts';
 
 const dir = fileURLToPath(new URL('../presets/', import.meta.url));
 const problems = [];
@@ -39,6 +40,7 @@ for (const name of readdirSync(dir).sort()) {
     }
     continue;
   }
+  for (const issue of communityPresetProblems(result.value)) problems.push(`${label}: ${issue}`);
   if (result.value.id !== id) {
     problems.push(`${label}: id "${result.value.id}" must equal the file name "${id}"`);
   }

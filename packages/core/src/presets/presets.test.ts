@@ -6,6 +6,7 @@ import { describe, expect, it } from 'vitest';
 import type { BackgroundSpec } from '../schema/background.ts';
 import { builtinPresets } from './builtin.ts';
 import { PRESET_MAX_BYTES, exportPreset, importPreset, presetId, presetName } from './file.ts';
+import { BUILTIN_IMAGES, communityPresetProblems } from './images.ts';
 
 const PRESETS_DIR = join(import.meta.dirname, '../../../../presets');
 
@@ -93,14 +94,22 @@ describe('preset files', () => {
     expect(issues.some((i) => i.startsWith('background.layers.0.angle: '))).toBe(true);
   });
 
-  it('rejects an image layer', () => {
-    const doc = JSON.parse(exported()) as { background: { layers: unknown[] } };
-    const image = { type: 'image', ref: 'builtin:checker', fit: 'cover' } as const;
-    const bad = { ...doc, background: { ...doc.background, layers: [image] } };
-    const result = importPreset(JSON.stringify(bad));
-    const issues = !result.ok && result.error.kind === 'invalid' ? result.error.issues : [];
-    expect(issues).toEqual(['background.layers.0: image layers are not allowed in presets']);
-    expect(exportPreset({ ...spec, layers: [image] }, meta).ok).toBe(false);
+  it('round-trips an image layer, including a ref this build does not know', () => {
+    for (const ref of ['builtin:silk', 'builtin:capture', 'builtin:from-a-newer-cropa', 'user:img-1f']) {
+      const withImage = {
+        ...spec,
+        layers: [{ type: 'image', ref, fit: 'cover' }, { type: 'blur', radius: 12 }],
+      } as BackgroundSpec;
+      const text = exportPreset(withImage, meta);
+      expect(text.ok).toBe(true);
+      const back = text.ok ? importPreset(text.value) : text;
+      expect(back.ok && back.value.background.layers).toEqual(withImage.layers);
+    }
+  });
+
+  it('still rejects a malformed image ref', () => {
+    const bad = { ...spec, layers: [{ type: 'image', ref: 'file:C:/x.png', fit: 'cover' }] };
+    expect(exportPreset(bad as unknown as BackgroundSpec, meta).ok).toBe(false);
   });
 
   it('rejects every control character in a name', () => {
@@ -158,5 +167,23 @@ describe('presetName', () => {
     expect(presetName({ name: { en: 'Warm', vi: 'Ấm' } }, 'vi')).toBe('Ấm');
     expect(presetName({ name: { en: 'Warm' } }, 'vi')).toBe('Warm');
     expect(presetName({ name: { en: 'Warm', vi: 'Ấm' } }, 'en')).toBe('Warm');
+  });
+});
+
+describe('community preset images', () => {
+  const withRef = (ref: string): { background: BackgroundSpec } => ({
+    background: { ...spec, layers: [{ type: 'image', ref, fit: 'cover' }] },
+  });
+
+  it('allows the built-in images and the screenshot', () => {
+    for (const name of [...BUILTIN_IMAGES, 'capture']) {
+      expect(communityPresetProblems(withRef(`builtin:${name}`))).toEqual([]);
+    }
+    expect(communityPresetProblems({ background: spec })).toEqual([]);
+  });
+
+  it('refuses a user image and an unknown built-in name', () => {
+    expect(communityPresetProblems(withRef('user:img-1f'))).toHaveLength(1);
+    expect(communityPresetProblems(withRef('builtin:unknown'))).toHaveLength(1);
   });
 });
