@@ -1,4 +1,4 @@
-//! The app's WebView windows (editor, history, settings), created on demand.
+//! The app's WebView windows (editor, history, settings, onboarding), created on demand.
 //!
 //! Nothing is created at startup, so a Cropa that only sits in the tray holds
 //! no WebView. Closing a window hides it; if it is not shown again within
@@ -15,6 +15,7 @@ use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindo
 pub const EDITOR: &str = "editor";
 pub const HISTORY: &str = "history";
 pub const SETTINGS: &str = "settings";
+pub const ONBOARDING: &str = "onboarding";
 
 /// How long a closed window stays hidden before it is destroyed.
 pub const DESTROY_AFTER: Duration = Duration::from_secs(5 * 60);
@@ -53,10 +54,21 @@ const SPECS: &[Spec] = &[
         min_size: None,
         resizable: false,
     },
+    Spec {
+        label: ONBOARDING,
+        url: "src/windows/onboarding/index.html",
+        title: "Welcome to Cropa",
+        size: (520.0, 560.0),
+        min_size: None,
+        resizable: false,
+    },
 ];
 
 /// Show a window, creating it first if needed, and bring it to the front.
-pub fn show<R: Runtime>(app: &AppHandle<R>, label: &str) {
+/// Returns whether the window exists: `false` only when it could not be
+/// created. A failure to show or focus an existing window is logged, not
+/// reported.
+pub fn show<R: Runtime>(app: &AppHandle<R>, label: &str) -> bool {
     app.state::<CloseTimers>().cancel(label);
     let window = match app.get_webview_window(label) {
         Some(window) => window,
@@ -64,7 +76,7 @@ pub fn show<R: Runtime>(app: &AppHandle<R>, label: &str) {
             Ok(window) => window,
             Err(err) => {
                 log::error!("could not create window `{label}`: {err}");
-                return;
+                return false;
             }
         },
     };
@@ -75,6 +87,7 @@ pub fn show<R: Runtime>(app: &AppHandle<R>, label: &str) {
     if let Err(err) = result {
         log::warn!("could not show window `{label}`: {err}");
     }
+    true
 }
 
 fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewWindow<R>> {
@@ -190,7 +203,7 @@ impl CloseTimers {
 
 #[cfg(test)]
 mod tests {
-    use super::{CloseTimers, EDITOR, HISTORY, SETTINGS, SPECS};
+    use super::{CloseTimers, EDITOR, HISTORY, ONBOARDING, SETTINGS, SPECS};
 
     #[test]
     fn a_closed_window_is_destroyed_when_its_timer_fires() {
@@ -229,7 +242,7 @@ mod tests {
 
     #[test]
     fn every_label_has_a_spec() {
-        for label in [EDITOR, HISTORY, SETTINGS] {
+        for label in [EDITOR, HISTORY, SETTINGS, ONBOARDING] {
             assert!(SPECS.iter().any(|spec| spec.label == label), "{label}");
         }
     }

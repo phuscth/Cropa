@@ -69,6 +69,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::ai_setup::dismiss_ai_onboarding,
             commands::ai_setup::open_ai_install_guide,
             commands::ai_setup::open_login_terminal,
+            commands::settings::answer_autostart_question,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -209,6 +210,10 @@ pub fn run() {
             // destroyed a few minutes later unless reopened.
             WindowEvent::CloseRequested { api, .. } => {
                 api.prevent_close();
+                // Closing the welcome window with X takes the defaults, so it never returns.
+                if window.label() == app_windows::ONBOARDING {
+                    first_run::onboarding_closed(window.app_handle());
+                }
                 app_windows::hide_then_destroy(window);
             }
             // The theme setting or the Windows mode changed.

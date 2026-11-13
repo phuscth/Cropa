@@ -15,6 +15,7 @@ import { describeCommandError, describeUnexpected, type UserError } from '../../
 import { aiAccess } from './access.ts';
 import { AiGate } from './AiGate.tsx';
 import { AiOnboarding } from './AiOnboarding.tsx';
+import { detectProviders } from './detect.ts';
 import { describeAiError } from './errors.ts';
 import { capabilitiesOf, providerName } from './providers.ts';
 import { createDesktopTransport } from './transport.ts';
@@ -72,12 +73,10 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
   const provider = access.provider;
   const testRunning = test.kind === 'running';
 
-  // The provider or the first-launch answer changed from outside this section:
-  // close the change panel and forget the last test result.
-  const aiKey = `${provider ?? ''}|${String(settings?.ai.onboardingAnswered ?? false)}`;
-  const [seenKey, setSeenKey] = useState(aiKey);
-  if (seenKey !== aiKey) {
-    setSeenKey(aiKey);
+  // The provider changed: close the change panel and forget the last test result.
+  const [seenProvider, setSeenProvider] = useState(provider);
+  if (seenProvider !== provider) {
+    setSeenProvider(provider);
     setChoosing(false);
     setTest({ kind: 'idle' });
   }
@@ -122,7 +121,7 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
 
     let capabilities: Capability[] = [];
     try {
-      const found = await commands.aiDetect();
+      const found = await detectProviders();
       const detection = found.find((d) => d.provider === provider);
       if (detection) capabilities = capabilitiesOf(detection);
     } catch {
@@ -152,7 +151,6 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
     }
   };
 
-  const showPanel = choosing && settings?.ai.onboardingAnswered === true;
 
   return (
     <section className="flex flex-col gap-3 border-t pt-4" aria-labelledby="ai-settings">
@@ -167,7 +165,7 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
           <span className="text-muted-foreground">{t('ai.settings.provider')} </span>
           {provider ? name : t('ai.settings.notSetUp')}
         </p>
-        {showPanel ? (
+        {choosing ? (
           <AiOnboarding
             mode="change"
             onSaved={(next) => {
@@ -177,28 +175,26 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
             onCancel={() => { setChoosing(false); }}
           />
         ) : (
-          settings?.ai.onboardingAnswered === true && (
-            <div className="flex gap-2">
+          <div className="flex gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={busy || testRunning}
+              onClick={() => { setChoosing(true); }}
+            >
+              {provider ? t('ai.settings.change') : t('ai.settings.setUp')}
+            </Button>
+            {provider && (
               <Button
-                variant="secondary"
+                variant="outline"
                 size="sm"
                 disabled={busy || testRunning}
-                onClick={() => { setChoosing(true); }}
+                onClick={() => { void save(() => commands.setAiProvider(null)); }}
               >
-                {provider ? t('ai.settings.change') : t('ai.settings.setUp')}
+                {t('ai.settings.turnOff')}
               </Button>
-              {provider && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={busy || testRunning}
-                  onClick={() => { void save(() => commands.setAiProvider(null)); }}
-                >
-                  {t('ai.settings.turnOff')}
-                </Button>
-              )}
-            </div>
-          )
+            )}
+          </div>
         )}
       </div>
 
@@ -218,7 +214,7 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
 
       <AiGate
         access={access}
-        onSetUp={settings?.ai.onboardingAnswered ? () => { setChoosing(true); } : undefined}
+        onSetUp={() => { setChoosing(true); }}
       >
         {(enabled) => (
           <div className="flex flex-col items-start gap-2">

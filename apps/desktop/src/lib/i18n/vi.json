@@ -566,5 +566,18 @@
       "why": "Tác vụ này cần một tính năng mà {{provider}} không có.",
       "next": "Chọn nhà cung cấp khác trong Cài đặt → AI."
     }
+  },
+  "onboarding": {
+    "title": "Chào mừng đến với Cropa",
+    "welcome": "Chỉ hai câu hỏi nhanh là bạn có thể bắt đầu chụp.",
+    "autostart": {
+      "question": "Khởi động Cropa khi bạn đăng nhập Windows?",
+      "yes": "Có, khởi động Cropa cùng Windows",
+      "no": "Không, tôi sẽ tự mở",
+      "continue": "Tiếp tục"
+    },
+    "ai": {
+      "heading": "Tùy chọn: tính năng AI"
+    }
   }
 }

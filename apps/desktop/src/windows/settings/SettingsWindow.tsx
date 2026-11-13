@@ -3,7 +3,6 @@ import { getVersion } from '@tauri-apps/api/app';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AiOnboarding } from '../../features/ai/AiOnboarding.tsx';
 import { AiSettingsSection } from '../../features/ai/AiSettingsSection.tsx';
 import { ShortcutField } from '../../features/settings/ShortcutField.tsx';
 import {
@@ -232,9 +231,6 @@ export function SettingsWindow() {
 
       {notice && <ErrorNotice error={notice} />}
 
-      {settings && !settings.ai.onboardingAnswered && (
-        <AiOnboarding mode="first" onSaved={setSettings} />
-      )}
 
       {waitingForPrintScreen && (
         <div className="flex gap-2">

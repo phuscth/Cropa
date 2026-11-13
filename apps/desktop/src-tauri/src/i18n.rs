@@ -53,6 +53,14 @@ pub const fn tray_text(lang: Lang) -> TrayText {
     }
 }
 
+/// Title of the welcome window.
+pub const fn onboarding_title(lang: Lang) -> &'static str {
+    match lang {
+        Lang::En => "Welcome to Cropa",
+        Lang::Vi => "Chào mừng đến với Cropa",
+    }
+}
+
 pub struct FirstRunText {
     pub title: &'static str,
     pub question: &'static str,

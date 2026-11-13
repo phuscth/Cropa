@@ -566,5 +566,18 @@
       "why": "This task needs a feature that {{provider}} does not offer.",
       "next": "Pick another provider in Settings → AI."
     }
+  },
+  "onboarding": {
+    "title": "Welcome to Cropa",
+    "welcome": "Two quick questions, and you are ready to capture.",
+    "autostart": {
+      "question": "Start Cropa when you sign in to Windows?",
+      "yes": "Yes, start Cropa with Windows",
+      "no": "No, I will start it myself",
+      "continue": "Continue"
+    },
+    "ai": {
+      "heading": "Optional: AI features"
+    }
   }
 }

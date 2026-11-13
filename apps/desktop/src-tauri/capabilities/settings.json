@@ -23,7 +23,6 @@
     "allow-ai-cancel",
     "allow-set-ai-provider",
     "allow-set-ai-allow-images",
-    "allow-dismiss-ai-onboarding",
     "allow-open-ai-install-guide",
     "allow-open-login-terminal",
     "core:app:allow-version"

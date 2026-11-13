@@ -133,6 +133,12 @@ export const commands = {
 	openAiInstallGuide: (provider: AiCli) => typedError<null, CommandError>(__TAURI_INVOKE("open_ai_install_guide", { provider })),
 	/**  Run the CLI's own login command in a console window the user can type into. */
 	openLoginTerminal: (provider: AiCli) => typedError<null, CommandError>(__TAURI_INVOKE("open_login_terminal", { provider })),
+	/**
+	 *  The welcome window's answer to "Start Cropa with Windows?". Applies it and
+	 *  marks the question as answered even when applying failed, so it is never
+	 *  asked again; the error is returned so the window can tell the user.
+	 */
+	answerAutostartQuestion: (enabled: boolean) => typedError<boolean, CommandError>(__TAURI_INVOKE("answer_autostart_question", { enabled })),
 };
 
 /** Events */

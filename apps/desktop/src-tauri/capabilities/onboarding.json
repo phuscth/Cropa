@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "onboarding",
+  "description": "Welcome window: asks the first-launch questions (start with Windows, AI setup) and closes itself.",
+  "windows": ["onboarding"],
+  "permissions": [
+    "allow-get-settings",
+    "allow-answer-autostart-question",
+    "allow-ai-detect",
+    "allow-set-ai-provider",
+    "allow-dismiss-ai-onboarding",
+    "allow-open-ai-install-guide",
+    "allow-open-login-terminal",
+    "core:window:allow-close"
+  ]
+}

@@ -12,10 +12,11 @@ import {
 } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+import { detectProviders } from './detect.ts';
 import { cliStatus, listProviders, providerName, type ListedProvider } from './providers.ts';
 
 interface Props {
-  /** `first`: the first-launch question, ended by choosing or "Later". `change`: opened from the AI section. */
+  /** `first`: the welcome window's question, ended by choosing or "Later". `change`: opened from the AI section. */
   mode: 'first' | 'change';
   /** The user chose a provider, or dismissed the first-launch question. */
   onSaved: (settings: Settings) => void;
@@ -39,8 +40,7 @@ export function AiOnboarding({ mode, onSaved, onCancel }: Props) {
   const [busy, setBusy] = useState(false);
 
   const detect = useCallback(() => {
-    commands
-      .aiDetect()
+    detectProviders()
       .then((found) => { setProviders(listProviders(found, import.meta.env.DEV)); })
       .catch((cause: unknown) => {
         setProviders([]);
