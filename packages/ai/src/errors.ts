@@ -1,11 +1,12 @@
 /**
- * Error kinds a provider run can end with. Mirrors `AgentError` in the
+ * Error kinds a transport run can end with. Mirrors `AgentError` in the
  * `cropa-agent` crate; keep both lists in step.
  */
 export const AGENT_ERROR_KINDS = [
   'NotInstalled',
   'NotLoggedIn',
   'UsageLimit',
+  'Unsupported',
   'Timeout',
   'Protocol',
   'Cancelled',
@@ -13,6 +14,37 @@ export const AGENT_ERROR_KINDS = [
 
 export type AgentErrorKind = (typeof AGENT_ERROR_KINDS)[number];
 
+/** Kinds a task run adds on top of the transport's. */
+export const TASK_ERROR_KINDS = ['InvalidOutput', 'Locked'] as const;
+
+export type TaskErrorKind = (typeof TASK_ERROR_KINDS)[number];
+
+export type AiErrorKind = AgentErrorKind | TaskErrorKind;
+
 export function isAgentErrorKind(value: unknown): value is AgentErrorKind {
   return typeof value === 'string' && (AGENT_ERROR_KINDS as readonly string[]).includes(value);
+}
+
+/** What a transport rejects with. */
+export class AgentError extends Error {
+  readonly kind: AgentErrorKind;
+
+  constructor(kind: AgentErrorKind, message?: string) {
+    super(message ?? kind);
+    this.name = 'AgentError';
+    this.kind = kind;
+  }
+}
+
+/**
+ * Maps anything a transport rejected with to a kind. Plain objects with a
+ * known `kind` count too: the desktop side receives them from Rust commands.
+ */
+export function toAgentErrorKind(err: unknown, signal?: AbortSignal): AgentErrorKind {
+  if (signal?.aborted) return 'Cancelled';
+  if (err instanceof AgentError) return err.kind;
+  if (typeof err === 'object' && err !== null && 'kind' in err && isAgentErrorKind(err.kind)) {
+    return err.kind;
+  }
+  return 'Protocol';
 }

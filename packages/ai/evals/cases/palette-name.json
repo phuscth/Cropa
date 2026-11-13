@@ -1,0 +1,13 @@
+{
+  "task": "palette-name",
+  "cases": [
+    { "id": "sunset", "input": { "colors": ["#ff7a59", "#ffb347", "#c2185b"] } },
+    { "id": "ocean", "input": { "colors": ["#0b3d91", "#1e88e5", "#80deea"] } },
+    { "id": "forest", "input": { "colors": ["#1b4332", "#2d6a4f", "#95d5b2"] } },
+    { "id": "pastel", "input": { "colors": ["#fde2e4", "#e2ece9", "#dfe7fd", "#fff1e6"] } },
+    { "id": "mono-dark", "input": { "colors": ["#111111", "#2a2a2a", "#444"] } },
+    { "id": "neon", "input": { "colors": ["#ff00ff", "#00ffff", "#39ff14"] } },
+    { "id": "earth", "input": { "colors": ["#8d6e63", "#a1887f", "#d7ccc8"] } },
+    { "id": "single", "input": { "colors": ["#6200ee"] } }
+  ]
+}

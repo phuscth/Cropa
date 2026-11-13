@@ -9,13 +9,16 @@
   },
   "scripts": {
     "lint": "eslint .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "eval": "node evals/run.ts"
   },
   "dependencies": {
-    "@cropa/core": "workspace:*"
+    "@cropa/core": "workspace:*",
+    "zod": "4.6.7"
   },
   "devDependencies": {
     "@cropa/config": "workspace:*",
+    "@types/node": "26.6.6",
     "eslint": "10.14.0",
     "vitest": "5.1.0"
   }
