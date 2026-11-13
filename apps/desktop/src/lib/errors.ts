@@ -74,3 +74,14 @@ export function describePresetFile(t: TFunction, problem: PresetFileProblem): Us
   if (problem.kind === 'PresetFileInvalid') return render(t, kind, { detail: problem.detail });
   return render(t, kind, {});
 }
+
+/** A picture the user chose as a background could not be used, or one could not be shown. */
+export type BackgroundImageProblem =
+  | { kind: 'BackgroundImageDimensions'; limit: number }
+  | { kind: 'BackgroundImageUnreadable' }
+  | { kind: 'BackgroundImageLoad' };
+
+export function describeBackgroundImage(t: TFunction, problem: BackgroundImageProblem): UserError {
+  const vars = problem.kind === 'BackgroundImageDimensions' ? { limit: String(problem.limit) } : {};
+  return render(t, problem.kind, vars);
+}

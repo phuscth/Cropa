@@ -4,7 +4,10 @@ import { describe, expect, it } from 'vitest';
 import {
   accept,
   applyBackground,
-  hasImageLayer,
+  backgroundImageRef,
+  backgroundImageRefs,
+  setBackgroundImage,
+  withoutMissingImages,
   sameBackground,
   tryAccept,
   aspectPreset,
@@ -322,8 +325,72 @@ describe('background presets', () => {
     expect(canUndo(h)).toBe(false);
   });
 
-  it('flags image backgrounds and no built-in preset', () => {
-    expect(hasImageLayer(setBackgroundKind(fresh(), 'image').background)).toBe(true);
-    for (const preset of builtinPresets) expect(hasImageLayer(preset.background)).toBe(false);
+});
+
+describe('image backgrounds', () => {
+  const layersOf = (scene: Scene) => scene.background.layers;
+
+  it('starts a picture without blur and the screenshot with a soft one', () => {
+    const picture = expectValid(setBackgroundImage(fresh(), 'builtin:silk'));
+    expect(layersOf(picture)).toEqual([{ type: 'image', ref: 'builtin:silk', fit: 'cover' }]);
+    expect(backgroundKind(picture.background)).toBe('image');
+    expect(backgroundImageRef(picture.background)).toBe('builtin:silk');
+    expect(backgroundBlur(picture.background)).toBe(0);
+
+    const capture = expectValid(setBackgroundImage(fresh(), CAPTURE_REF));
+    expect(backgroundImageRef(capture.background)).toBe(CAPTURE_REF);
+    expect(backgroundBlur(capture.background)).toBeGreaterThan(0);
+  });
+
+  it('keeps the blur and the opacity when the image changes', () => {
+    const start = withLayers(fresh(), [
+      { type: 'image', ref: 'builtin:silk', fit: 'contain', opacity: 0.5 },
+      { type: 'blur', radius: 40 },
+    ]);
+    const next = expectValid(setBackgroundImage(start, 'user:img-1f'));
+    expect(layersOf(next)).toEqual([
+      { type: 'image', ref: 'user:img-1f', fit: 'cover', opacity: 0.5 },
+      { type: 'blur', radius: 40 },
+    ]);
+  });
+
+  it('is the same scene when that image is already chosen', () => {
+    const scene = setBackgroundImage(fresh(), 'builtin:dunes');
+    expect(setBackgroundImage(scene, 'builtin:dunes')).toBe(scene);
+  });
+
+  it('does not take the blur of the gradient it replaces', () => {
+    const blurred = setBackgroundBlur(fresh(), 30);
+    const next = setBackgroundImage(blurred, 'builtin:bokeh');
+    expect(backgroundBlur(next.background)).toBe(0);
+  });
+
+  it('lists each image ref once and leaves out the screenshot', () => {
+    const spec = withLayers(fresh(), [
+      { type: 'image', ref: CAPTURE_REF, fit: 'cover' },
+      { type: 'image', ref: 'user:img-1', fit: 'cover' },
+      { type: 'image', ref: 'user:img-1', fit: 'contain' },
+      { type: 'image', ref: 'builtin:silk', fit: 'cover' },
+    ]).background;
+    expect(backgroundImageRefs(spec)).toEqual(['user:img-1', 'builtin:silk']);
+    expect(backgroundImageRefs(fresh().background)).toEqual([]);
+  });
+
+  it('swaps a missing image for plain grey of the same opacity and leaves the rest alone', () => {
+    const spec = withLayers(fresh(), [
+      { type: 'solid', color: '#112233' },
+      { type: 'image', ref: 'user:img-gone', fit: 'cover', opacity: 0.4 },
+      { type: 'image', ref: 'builtin:silk', fit: 'cover' },
+      { type: 'blur', radius: 8 },
+    ]).background;
+    const next = withoutMissingImages(spec, ['user:img-gone']);
+    expect(next.layers).toEqual([
+      { type: 'solid', color: '#112233' },
+      { type: 'solid', color: '#d4d4d8', opacity: 0.4 },
+      { type: 'image', ref: 'builtin:silk', fit: 'cover' },
+      { type: 'blur', radius: 8 },
+    ]);
+    expect(migrateScene({ ...fresh(), background: next }).ok).toBe(true);
+    expect(withoutMissingImages(spec, [])).toBe(spec);
   });
 });

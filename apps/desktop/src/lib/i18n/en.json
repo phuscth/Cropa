@@ -23,14 +23,30 @@
         "radial": "Radial gradient",
         "conic": "Conic gradient",
         "mesh": "Mesh",
-        "image": "Image (the capture, blurred)"
+        "image": "Image"
       },
       "color": "Colour {{n}}",
       "colorPicker": "Pick colour {{n}}",
       "colorHex": "Colour {{n}} as hex",
       "angle": "Angle",
       "blur": "Blur",
-      "matchImage": "Match image colour"
+      "matchImage": "Match image colour",
+      "images": {
+        "label": "Background image",
+        "capture": "Screenshot",
+        "names": {
+          "silk": "Silk",
+          "dunes": "Dunes",
+          "bokeh": "Bokeh",
+          "contour": "Contour"
+        },
+        "add": "Add your own image",
+        "yours": "Your images",
+        "more": "Delete {{name}}",
+        "deleteConfirm": "Delete this image? Presets that use it will show a plain background.",
+        "delete": "Delete",
+        "cancel": "Cancel"
+      }
     },
     "frame": {
       "title": "Frame",
@@ -85,7 +101,6 @@
     "presets": {
       "title": "Presets",
       "saveCurrent": "Save current background",
-      "imageNotSavable": "Image backgrounds can't be saved as a preset",
       "import": "Import preset file",
       "saved": "Saved",
       "empty": "Save the current background to reuse it on other captures.",
@@ -98,7 +113,9 @@
       "cancel": "Cancel",
       "deleteConfirm": "Delete “{{name}}”? This can't be undone.",
       "unreadable": "“{{name}}” can't be read",
-      "exported": "Exported {{fileName}}"
+      "exported": "Exported {{fileName}}",
+      "imageMissing": "This preset uses an image that is not on this computer. It may have been deleted, or the preset was made on another computer. A plain background is shown instead; pick an image to replace it.",
+      "exportedWithImage": "Exported {{fileName}}. This preset uses one of your own images, which is not inside the file; on another computer it shows a plain background."
     },
     "annotate": {
       "toolbar": "Annotation tools",
@@ -366,6 +383,56 @@
       "what": "Couldn't save the image.",
       "why": "A new capture replaced the image in the editor while the Save dialog was open.",
       "next": "Save the new image, or open the earlier one from History and save it again."
+    },
+    "BackgroundImageNotSupported": {
+      "what": "Couldn't add the image.",
+      "why": "Only PNG, JPEG and WebP pictures can be used as a background.",
+      "next": "Pick a PNG, JPEG or WebP file."
+    },
+    "BackgroundImageTooLarge": {
+      "what": "Couldn't add the image.",
+      "why": "The file is larger than {{detail}} MB.",
+      "next": "Pick a smaller file, or save a smaller copy of the picture first."
+    },
+    "BackgroundImagesFull": {
+      "what": "Couldn't add the image.",
+      "why": "You already have the most images Cropa can keep (100).",
+      "next": "Delete an image you no longer use and try again."
+    },
+    "BackgroundImageMissing": {
+      "what": "That image is no longer there.",
+      "why": "Its file was deleted, possibly from another window or by another app.",
+      "next": "Add the image again."
+    },
+    "BackgroundImagesTooNew": {
+      "what": "Couldn't change your images.",
+      "why": "Your images were saved by a newer version of Cropa, so this version leaves them untouched.",
+      "next": "Update Cropa to the latest version."
+    },
+    "BackgroundImagesRead": {
+      "what": "Couldn't load your images.",
+      "why": "Cropa couldn't read its images folder ({{detail}}).",
+      "next": "Check that your user folder isn't locked, then reopen the editor."
+    },
+    "BackgroundImagesSave": {
+      "what": "Couldn't save the image.",
+      "why": "Cropa couldn't write to its images folder ({{detail}}).",
+      "next": "Check that your user folder has free space and isn't locked, then try again."
+    },
+    "BackgroundImageDimensions": {
+      "what": "Couldn't add the image.",
+      "why": "The picture is wider or taller than {{limit}} pixels.",
+      "next": "Pick a smaller picture, or resize it first."
+    },
+    "BackgroundImageUnreadable": {
+      "what": "Couldn't add the image.",
+      "why": "The file couldn't be read as a picture. It may be damaged.",
+      "next": "Pick another file."
+    },
+    "BackgroundImageLoad": {
+      "what": "Couldn't show that image.",
+      "why": "The image couldn't be loaded. A user image may have been deleted.",
+      "next": "Pick another image."
     }
   }
 }
