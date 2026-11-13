@@ -79,6 +79,9 @@
       "scale": "Tỉ lệ",
       "scaleFixed": "Kích thước theo nền tảng luôn xuất ở 1x ({{width}} × {{height}} px)",
       "saved": "Đã lưu {{fileName}}",
+      "drag": "Kéo",
+      "dragHold": "Giữ chuột trong khi kéo ảnh ra ngoài",
+      "dragHint": "Kéo ảnh vào ứng dụng khác, thư mục hoặc khung chat",
       "copied": "Đã sao chép vào bộ nhớ tạm",
       "openFolder": "Mở thư mục"
     },
@@ -236,6 +239,11 @@
       "what": "Không sao chép được ảnh chụp.",
       "why": "Có thể một ứng dụng khác đang giữ clipboard ({{detail}}).",
       "next": "Đóng ứng dụng đó hoặc thử lại."
+    },
+    "Drag": {
+      "what": "Không kéo được ảnh.",
+      "why": "Cropa không chuyển được ảnh cho Windows ({{detail}}).",
+      "next": "Hãy thử lại, hoặc dùng Sao chép hoặc Lưu."
     },
     "ExportInvalid": {
       "what": "Không dùng được ảnh này.",

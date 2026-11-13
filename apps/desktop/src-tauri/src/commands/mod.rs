@@ -50,6 +50,8 @@ pub enum CommandError {
     SaveDialog(String),
     #[error("that file is no longer where it was saved")]
     SavedFileGone,
+    #[error("could not start dragging the image: {0}")]
+    Drag(String),
     #[error("could not open the folder: {0}")]
     OpenFolder(String),
     #[error("could not open the web page: {0}")]

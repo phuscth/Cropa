@@ -188,6 +188,20 @@ pub trait Platform {
     fn reveal_file(&self, path: &Path) -> Result<()>;
     /// Open a web page in the default browser. Only fixed addresses.
     fn open_web_page(&self, url: &'static str) -> Result<()>;
+    /// Start an OS drag (copy only) of the file at `path`, also offering `png`
+    /// as image data. Must be called on the UI thread while the left mouse
+    /// button is held. Blocks, pumping messages, until the user drops or
+    /// cancels; `NotStarted` when the button is already up.
+    fn drag_file(&self, owner: Option<OwnerWindow>, path: &Path, png: &[u8])
+    -> Result<DragOutcome>;
+}
+
+/// How a drag started by [`Platform::drag_file`] ended.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum DragOutcome {
+    Dropped,
+    Cancelled,
+    NotStarted,
 }
 
 /// What the user chose on a floating preview.

@@ -3,8 +3,8 @@
 use std::path::{Path, PathBuf};
 
 use super::{
-    MonitorInfo, OwnerWindow, Permission, PermissionStatus, Platform, PlatformError, PreviewHandle,
-    Result, RgbaImage, SaveFileType, Selection, WindowInfo,
+    DragOutcome, MonitorInfo, OwnerWindow, Permission, PermissionStatus, Platform, PlatformError,
+    PreviewHandle, Result, RgbaImage, SaveFileType, Selection, WindowInfo,
 };
 
 pub struct MacosPlatform;
@@ -80,6 +80,15 @@ impl Platform for MacosPlatform {
     }
 
     fn open_web_page(&self, _url: &'static str) -> Result<()> {
+        Err(PlatformError::Unsupported)
+    }
+
+    fn drag_file(
+        &self,
+        _owner: Option<OwnerWindow>,
+        _path: &Path,
+        _png: &[u8],
+    ) -> Result<DragOutcome> {
         Err(PlatformError::Unsupported)
     }
 }
