@@ -191,16 +191,19 @@ fn check_background(background: &serde_json::Value) -> Result<(), PresetsError> 
     {
         return invalid("layers: every layer needs a type");
     }
+    let is_code = |layer: &serde_json::Value| {
+        layer.get("type").and_then(serde_json::Value::as_str) == Some("code")
+    };
+    if layers.iter().filter(|layer| is_code(layer)).count() > 1 {
+        return invalid("layers: at most one code layer");
+    }
     // A code layer's source has its own limit; the rest of the background is measured without it.
     let mut rest = background.clone();
     if let Some(layers) = rest
         .get_mut("layers")
         .and_then(serde_json::Value::as_array_mut)
     {
-        for layer in layers
-            .iter_mut()
-            .filter(|layer| layer.get("type").and_then(serde_json::Value::as_str) == Some("code"))
-        {
+        for layer in layers.iter_mut().filter(|layer| is_code(layer)) {
             let Some(source) = layer.get_mut("source") else {
                 return invalid("code layer: expected a source");
             };
@@ -480,6 +483,15 @@ mod tests {
         assert!(matches!(
             presets.save(None, "Big", with_source(70_000)),
             Err(PresetsError::TooLarge)
+        ));
+        let code = json!({ "type": "code", "source": "x", "durationMs": 4000, "threeD": false });
+        assert!(matches!(
+            presets.save(
+                None,
+                "Two",
+                json!({ "version": 1, "layers": [code.clone(), code] })
+            ),
+            Err(PresetsError::Invalid(_))
         ));
     }
 
