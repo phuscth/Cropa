@@ -146,6 +146,11 @@ export const commands = {
 	 *  state and creates no window, so it may be a synchronous command.
 	 */
 	getMainView: () => __TAURI_INVOKE<MainView>("get_main_view"),
+	/**
+	 *  Start a region capture, as the capture shortcut and the tray do. It returns
+	 *  at once: the capture runs on its own thread.
+	 */
+	requestCapture: () => __TAURI_INVOKE<void>("request_capture"),
 };
 
 /** Events */
@@ -374,7 +379,9 @@ export type CaptureRequested = {
 	source: CaptureSource,
 };
 
-export type CaptureSource = "Hotkey" | "Tray";
+export type CaptureSource = "Hotkey" | "Tray" | 
+/**  The File menu of the main window. */
+"Menu";
 
 /**
  *  Error returned to the WebView. The UI turns `kind` into a translated

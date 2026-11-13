@@ -168,7 +168,7 @@ try {
     }
     return isPresetColour(rgb) ? rgb : null;
   });
-  const pressed = await webdriver('GET', `/session/${sessionId}/element/${tile}/attribute/aria-pressed`);
+  const pressed = await webdriver('GET', `/session/${sessionId}/element/${tile}/attribute/aria-checked`);
   assert.equal(pressed.value, 'true', `the "${PRESET}" tile is not marked as selected`);
   console.log(`preset changes the preview (${before} -> ${after}): ok`);
 

@@ -3,18 +3,18 @@ import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '../lib/utils.ts';
 
 interface NavRailProps extends ComponentProps<'aside'> {
-  /** The 32px mark at the top. */
+  /** An optional 32px mark above the items. */
   logo?: ReactNode;
   /** Items pinned to the bottom. */
   footer?: ReactNode;
 }
 
-/** A 96px side rail: logo, then items, then a footer pinned to the bottom. */
+/** A 96px side rail: items from the top, then a footer pinned to the bottom. */
 function NavRail({ className, logo, footer, children, ...props }: NavRailProps) {
   return (
     <aside
       data-slot="nav-rail"
-      className={cn('relative z-20 flex w-24 shrink-0 flex-col items-center bg-sidebar pt-6 pb-3', className)}
+      className={cn('relative z-20 flex w-24 shrink-0 flex-col items-center bg-sidebar pt-2 pb-3', className)}
       {...props}
     >
       {logo ? <div className="mb-9 flex size-8 items-center justify-center">{logo}</div> : null}

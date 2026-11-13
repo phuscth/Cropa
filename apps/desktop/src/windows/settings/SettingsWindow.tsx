@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AiSettingsSection } from '../../features/ai/AiSettingsSection.tsx';
-import { SettingRow, SettingsSection } from '../../features/settings/SettingsLayout.tsx';
+import { ABOUT_SECTION_ID, SettingRow, SettingsSection } from '../../features/settings/SettingsLayout.tsx';
 import { useViewActive } from '../../features/shell/view-active.ts';
 import { ShortcutField } from '../../features/settings/ShortcutField.tsx';
 import {
@@ -43,7 +43,8 @@ function startupErrorKind(
   }
 }
 
-export function SettingsView() {
+/** `settingsVersion` goes up when another part of the app changed a setting shown here. */
+export function SettingsView({ settingsVersion = 0 }: { settingsVersion?: number }) {
   const active = useViewActive();
   const { t } = useTranslation();
   const [settings, setSettings] = useState<Settings>();
@@ -100,6 +101,14 @@ export function SettingsView() {
     window.addEventListener('focus', reload);
     return () => { window.removeEventListener('focus', reload); };
   }, [active]);
+
+  useEffect(() => {
+    if (settingsVersion === 0) return;
+    commands
+      .getSettings()
+      .then(setSettings)
+      .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
+  }, [settingsVersion, t]);
 
   /** Run a command that returns a typed Result, mapping errors to the 3-part notice. */
   const run = useCallback(
@@ -403,7 +412,7 @@ export function SettingsView() {
 
         <AiSettingsSection settings={settings} onSettings={setSettings} />
 
-        <SettingsSection title={t('settings.about.title')}>
+        <SettingsSection id={ABOUT_SECTION_ID} title={t('settings.about.title')}>
           <SettingRow label={version ? t('settings.about.version', { version }) : t('app.name')}>
             <Button
               variant="outline"

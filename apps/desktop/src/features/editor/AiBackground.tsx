@@ -21,6 +21,7 @@ import { AiGate } from '../ai/AiGate.tsx';
 import { describeAiError } from '../ai/errors.ts';
 import { providerName } from '../ai/providers.ts';
 import { createDesktopTransport } from '../ai/transport.ts';
+import { Section } from './Section.tsx';
 import { createAiBackgroundSession, isRefining, type AiHistoryAccess } from './ai-background-session.ts';
 import {
   backgroundMockScript,
@@ -189,8 +190,7 @@ export function AiBackground({ history, palette }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-2 border-t pt-3">
-      <h4 className="text-sm font-medium">{t('editor.aiBackground.title')}</h4>
+    <Section title={t('editor.aiBackground.title')}>
       <AiGate access={access}>
         {(enabled) => (
           <div className="flex w-full flex-col items-start gap-2">
@@ -252,22 +252,22 @@ export function AiBackground({ history, palette }: Props) {
               <p className="text-xs text-muted-foreground">{t('editor.aiBackground.effort.hint')}</p>
             </div>
             {state.run ? (
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center gap-2">
                 <span role="status" className="text-sm text-muted-foreground">
                   {state.run.phase === 'checking'
                     ? t('editor.aiBackground.checking')
                     : t('editor.aiBackground.writing')}
                 </span>
                 <Elapsed key={state.run.startedAt} startedAt={state.run.startedAt} />
-                <Button variant="outline" size="sm" onClick={() => { session.cancel(); }}>
+                <Button variant="secondary" size="sm" onClick={() => { session.cancel(); }}>
                   {t('editor.aiBackground.cancel')}
                 </Button>
               </div>
             ) : refining ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex w-full flex-col gap-2">
                 <Button
                   variant="secondary"
-                  size="sm"
+                  className="w-full"
                   disabled={!enabled || !provider || changeText.trim() === ''}
                   onClick={() => {
                     if (provider) session.refine(changeText, palette, provider, effort);
@@ -277,8 +277,8 @@ export function AiBackground({ history, palette }: Props) {
                 </Button>
                 {info && (
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant="secondary"
+                    className="w-full"
                     disabled={!enabled || !provider}
                     title={t('editor.aiBackground.regenerateHint')}
                     aria-label={`${t('editor.aiBackground.regenerate')}. ${t('editor.aiBackground.regenerateHint')}`}
@@ -289,17 +289,17 @@ export function AiBackground({ history, palette }: Props) {
                     {t('editor.aiBackground.regenerate')}
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => { session.startOver(); }}>
+                <Button variant="secondary" className="w-full" onClick={() => { session.startOver(); }}>
                   {t('editor.aiBackground.startOver')}
                 </Button>
-                <Button variant="outline" size="sm" disabled={naming !== null} onClick={openNaming}>
+                <Button variant="secondary" className="w-full" disabled={naming !== null} onClick={openNaming}>
                   {t('editor.aiBackground.saveAsPreset')}
                 </Button>
               </div>
             ) : (
               <Button
                 variant="secondary"
-                size="sm"
+                className="w-full"
                 disabled={!enabled || !provider || description.trim() === ''}
                 onClick={() => {
                   if (provider) session.generate(description, palette, provider, effort);
@@ -343,6 +343,6 @@ export function AiBackground({ history, palette }: Props) {
       </AiGate>
       {runNotice && <ErrorNotice error={runNotice} onDismiss={() => { session.dismissNotice(); }} />}
       {notice && <ErrorNotice error={notice} onDismiss={() => { setNotice(undefined); }} />}
-    </div>
+    </Section>
   );
 }

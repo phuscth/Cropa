@@ -1,16 +1,21 @@
 import { Card, CardRow } from '@cropa/ui';
 import { useId, type ReactNode } from 'react';
 
+/** The anchor of the About group, which the Help menu scrolls into view. */
+export const ABOUT_SECTION_ID = 'settings-about';
+
 interface SectionProps {
   title: string;
+  /** An anchor, so another part of the app can scroll the group into view. */
+  id?: string;
   children: ReactNode;
 }
 
 /** A settings group: a heading above a card of rows. */
-export function SettingsSection({ title, children }: SectionProps) {
+export function SettingsSection({ title, id, children }: SectionProps) {
   const headingId = useId();
   return (
-    <section aria-labelledby={headingId} className="flex flex-col">
+    <section id={id} aria-labelledby={headingId} className="flex flex-col">
       <h2 id={headingId} className="text-heading mb-3">
         {title}
       </h2>

@@ -48,23 +48,6 @@ const SETTINGS_ICON = (
   </Icon>
 );
 
-/** The Cropa mark: two crop corners around a pink square. */
-function Logo() {
-  return (
-    <svg viewBox="0 0 32 32" className="size-8" fill="none" aria-hidden="true">
-      <path
-        d="M9 3v16a4 4 0 0 0 4 4h16M3 9h16a4 4 0 0 1 4 4v16"
-        stroke="currentColor"
-        strokeWidth="2.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        className="text-foreground"
-      />
-      <rect x="13" y="13" width="6" height="6" rx="1.5" className="fill-primary" />
-    </svg>
-  );
-}
-
 /** The side rail of the main window: it switches between its views. */
 export function AppRail({ current, onSelect }: Props) {
   const { t } = useTranslation();
@@ -83,7 +66,6 @@ export function AppRail({ current, onSelect }: Props) {
   return (
     <NavRail
       aria-label={t('rail.label')}
-      logo={<Logo />}
       footer={item('Settings', t('rail.settings'), SETTINGS_ICON)}
     >
       {item('Editor', t('rail.editor'), EDITOR_ICON)}

@@ -3,9 +3,8 @@
     "name": "Cropa"
   },
   "editor": {
-    "title": "Editor",
     "empty": "Chưa có ảnh chụp.",
-    "hint": "Bấm {{shortcut}} hoặc chọn “Chụp vùng” ở khay hệ thống.",
+    "hint": "Bấm {{shortcut}}, chọn Tệp > Chụp vùng, hoặc chọn “Chụp vùng” ở khay hệ thống.",
     "undo": "Hoàn tác",
     "redo": "Làm lại",
     "previewAlt": "Xem trước ảnh chụp đã đóng khung",
@@ -157,7 +156,8 @@
       "exportedWithoutCodeWithImage": "Đã xuất {{fileName}} nhưng không kèm hiệu ứng AI: tệp preset không thể chứa mã. Preset này còn dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn.",
       "exportedWithImage": "Đã xuất {{fileName}}. Preset này dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn.",
       "aiName": "{{name}} (AI)",
-      "aiBadge": "AI"
+      "aiBadge": "AI",
+      "currentName": "Nền hiện tại"
     },
     "annotate": {
       "toolbar": "Công cụ chú thích",
@@ -180,6 +180,19 @@
       "delete": "Xóa",
       "textPlaceholder": "Nhập văn bản",
       "step": "Bước {{n}}"
+    },
+    "panel": {
+      "label": "Cài đặt trình chỉnh sửa",
+      "tabs": "Nhóm cài đặt",
+      "background": "Nền",
+      "frame": "Khung"
+    },
+    "details": {
+      "title": "Chi tiết",
+      "image": "Ảnh",
+      "output": "Ảnh xuất ở 1x",
+      "format": "Định dạng gốc",
+      "size": "{{width}} × {{height}} px"
     }
   },
   "rail": {
@@ -644,5 +657,35 @@
     "ai": {
       "heading": "Tùy chọn: tính năng AI"
     }
+  },
+  "menu": {
+    "label": "Menu ứng dụng",
+    "copyImage": "Sao chép ảnh",
+    "file": {
+      "title": "Tệp",
+      "captureRegion": "Chụp vùng",
+      "save": "Lưu",
+      "saveAs": "Lưu thành…",
+      "exportPreset": "Xuất preset…",
+      "closeWindow": "Đóng cửa sổ"
+    },
+    "edit": {
+      "title": "Chỉnh sửa"
+    },
+    "view": {
+      "title": "Xem",
+      "theme": "Giao diện"
+    },
+    "help": {
+      "title": "Trợ giúp",
+      "about": "Giới thiệu Cropa",
+      "support": "Ủng hộ Cropa"
+    }
+  },
+  "window": {
+    "minimize": "Thu nhỏ",
+    "maximize": "Phóng to",
+    "restore": "Khôi phục",
+    "close": "Đóng"
   }
 }

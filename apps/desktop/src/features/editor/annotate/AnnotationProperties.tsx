@@ -49,7 +49,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
     <div
       role="toolbar"
       aria-label={t('editor.annotate.properties')}
-      className="absolute top-3 left-1/2 z-10 flex -translate-x-1/2 items-center gap-3 rounded-xl border bg-popover px-3 py-1.5 shadow-md"
+      className="pointer-events-auto flex min-h-10 max-w-full flex-wrap items-center gap-3 rounded-xl border bg-popover px-3 py-1 shadow-md"
     >
       {colored && (
         <div role="group" aria-label={t('editor.annotate.color')} className="flex items-center gap-1">

@@ -48,6 +48,8 @@
   --canvas: #eaeaea;
   /* Side surface of the chrome: the settings section list and the editor sidebar. */
   --sidebar: #f5f5f5;
+  /* The editor panel: a step darker than the side surface in light mode, a step lighter in dark mode. */
+  --panel: #efefef;
   --canvas-foreground: #676767;
   --checker-a: #ffffff;
   --checker-b: #d6d6d6;
@@ -93,6 +95,7 @@
 
     --canvas: #141414;
     --sidebar: #202020;
+    --panel: #262626;
     --canvas-foreground: #a4a4a4;
     --checker-a: #464646;
     --checker-b: #353535;
@@ -137,6 +140,7 @@
   --color-selected: var(--selected);
   --color-selected-foreground: var(--selected-foreground);
   --color-sidebar: var(--sidebar);
+  --color-panel: var(--panel);
   --color-canvas: var(--canvas);
   --color-canvas-foreground: var(--canvas-foreground);
   --color-checker-a: var(--checker-a);

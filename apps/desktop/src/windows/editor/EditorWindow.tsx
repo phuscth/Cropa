@@ -15,6 +15,7 @@ import { AnnotationProperties } from '../../features/editor/annotate/AnnotationP
 import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
 import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
 import { screenshotPalette } from '../../features/editor/code-frames.ts';
+import { publishEditorActions } from '../../features/shell/editor-actions.ts';
 import { useViewActive } from '../../features/shell/view-active.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
 import { exportPlan, type ExportScale } from '../../features/editor/export/plan.ts';
@@ -239,124 +240,148 @@ export function EditorView() {
   const scaleFixed = history.scene.output.width !== null;
   const fixedSize = exportPlan(history.scene, format, scale);
 
+  useEffect(() => {
+    publishEditorActions({
+      hasImage,
+      busy,
+      canUndo: history.canUndo,
+      canRedo: history.canRedo,
+      undo,
+      redo,
+      copy: () => { void copy(); },
+      quickSave: () => { void quickSave(); },
+      saveAs: () => { setSaveAsOpen(true); },
+    });
+  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSave]);
+  useEffect(() => () => { publishEditorActions(null); }, []);
+
+  // Undo, redo and export float over the top right of the canvas.
+  const actionBar = (
+    <div className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-full border bg-popover p-1 shadow-md">
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t('editor.undo')}
+        title={`${t('editor.undo')} (Ctrl+Z)`}
+        disabled={!loaded || !history.canUndo}
+        onClick={undo}
+      >
+        <UndoIcon />
+      </Button>
+      <Button
+        variant="ghost"
+        size="icon-sm"
+        aria-label={t('editor.redo')}
+        title={`${t('editor.redo')} (Ctrl+Y)`}
+        disabled={!loaded || !history.canRedo}
+        onClick={redo}
+      >
+        <RedoIcon />
+      </Button>
+      <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
+      <Button
+        variant="ghost"
+        size="sm"
+        className="cursor-grab touch-none select-none"
+        title={t('editor.export.dragHint')}
+        draggable={false}
+        disabled={!loaded || busy}
+        {...dragHandlers}
+      >
+        <GripIcon />
+        {t('editor.export.drag')}
+      </Button>
+      <Button
+        variant="ghost"
+        size="sm"
+        title={`${t('editor.export.copy')} (Ctrl+C)`}
+        disabled={!loaded || busy}
+        onClick={() => { void copy(); }}
+      >
+        {t('editor.export.copy')}
+      </Button>
+      <Popover open={saveAsOpen} onOpenChange={setSaveAsOpen}>
+        <PopoverAnchor asChild>
+          <Button
+            variant="ghost"
+            size="sm"
+            title={`${t('editor.export.saveAs')} (Ctrl+Shift+S)`}
+            disabled={!loaded || busy}
+            onClick={() => { setSaveAsOpen((open) => !open); }}
+          >
+            {t('editor.export.saveAs')}
+          </Button>
+        </PopoverAnchor>
+        <PopoverContent className="flex flex-col gap-4">
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">{t('editor.export.format')}</span>
+            <SegmentedControl
+              aria-label={t('editor.export.format')}
+              value={format}
+              onValueChange={(next) => { setFormat(next as ExportFormat); }}
+            >
+              {FORMATS.map((f) => (
+                <SegmentedControlItem key={f} value={f}>
+                  {f.toUpperCase()}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+          </div>
+          <div className="flex flex-col gap-2">
+            <span className="text-sm font-medium">{t('editor.export.scale')}</span>
+            <SegmentedControl
+              aria-label={t('editor.export.scale')}
+              value={String(scaleFixed ? 1 : scale)}
+              disabled={scaleFixed}
+              onValueChange={(next) => { setScale(Number(next) as ExportScale); }}
+            >
+              {SCALES.map((s) => (
+                <SegmentedControlItem key={s} value={String(s)}>
+                  {`${String(s)}x`}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
+            {scaleFixed && (
+              <p className="text-sm text-muted-foreground tabular-nums">
+                {t('editor.export.scaleFixed', {
+                  width: fixedSize.width,
+                  height: fixedSize.height,
+                })}
+              </p>
+            )}
+          </div>
+          <Button
+            className="w-full"
+            onClick={() => {
+              setSaveAsOpen(false);
+              void saveAs(format, scale);
+            }}
+          >
+            {t('editor.export.saveAsConfirm')}
+          </Button>
+        </PopoverContent>
+      </Popover>
+      <Button
+        size="sm"
+        title={`${t('editor.export.save')} (Ctrl+S)`}
+        disabled={!loaded || busy}
+        onClick={() => { void quickSave(); }}
+      >
+        {t('editor.export.save')}
+      </Button>
+    </div>
+  );
+
   return (
-    <main className="flex min-w-0 flex-1 flex-col">
-      <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
-        <h1 className="mr-auto text-sm font-medium">{t('editor.title')}</h1>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t('editor.undo')}
-          title={`${t('editor.undo')} (Ctrl+Z)`}
-          disabled={!loaded || !history.canUndo}
-          onClick={undo}
-        >
-          <UndoIcon />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon-sm"
-          aria-label={t('editor.redo')}
-          title={`${t('editor.redo')} (Ctrl+Y)`}
-          disabled={!loaded || !history.canRedo}
-          onClick={redo}
-        >
-          <RedoIcon />
-        </Button>
-        <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
-        <Button
-          variant="outline"
-          size="sm"
-          className="cursor-grab touch-none select-none"
-          title={t('editor.export.dragHint')}
-          draggable={false}
-          disabled={!loaded || busy}
-          {...dragHandlers}
-        >
-          <GripIcon />
-          {t('editor.export.drag')}
-        </Button>
-        <Button
-          variant="outline"
-          size="sm"
-          title={`${t('editor.export.copy')} (Ctrl+C)`}
-          disabled={!loaded || busy}
-          onClick={() => { void copy(); }}
-        >
-          {t('editor.export.copy')}
-        </Button>
-        <Popover open={saveAsOpen} onOpenChange={setSaveAsOpen}>
-          <PopoverAnchor asChild>
-            <Button
-              variant="outline"
-              size="sm"
-              title={`${t('editor.export.saveAs')} (Ctrl+Shift+S)`}
-              disabled={!loaded || busy}
-              onClick={() => { setSaveAsOpen((open) => !open); }}
-            >
-              {t('editor.export.saveAs')}
-            </Button>
-          </PopoverAnchor>
-          <PopoverContent className="flex flex-col gap-4">
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium">{t('editor.export.format')}</span>
-              <SegmentedControl
-                aria-label={t('editor.export.format')}
-                value={format}
-                onValueChange={(next) => { setFormat(next as ExportFormat); }}
-              >
-                {FORMATS.map((f) => (
-                  <SegmentedControlItem key={f} value={f}>
-                    {f.toUpperCase()}
-                  </SegmentedControlItem>
-                ))}
-              </SegmentedControl>
-            </div>
-            <div className="flex flex-col gap-2">
-              <span className="text-sm font-medium">{t('editor.export.scale')}</span>
-              <SegmentedControl
-                aria-label={t('editor.export.scale')}
-                value={String(scaleFixed ? 1 : scale)}
-                disabled={scaleFixed}
-                onValueChange={(next) => { setScale(Number(next) as ExportScale); }}
-              >
-                {SCALES.map((s) => (
-                  <SegmentedControlItem key={s} value={String(s)}>
-                    {`${String(s)}x`}
-                  </SegmentedControlItem>
-                ))}
-              </SegmentedControl>
-              {scaleFixed && (
-                <p className="text-sm text-muted-foreground tabular-nums">
-                  {t('editor.export.scaleFixed', {
-                    width: fixedSize.width,
-                    height: fixedSize.height,
-                  })}
-                </p>
-              )}
-            </div>
-            <Button
-              className="w-full"
-              onClick={() => {
-                setSaveAsOpen(false);
-                void saveAs(format, scale);
-              }}
-            >
-              {t('editor.export.saveAsConfirm')}
-            </Button>
-          </PopoverContent>
-        </Popover>
-        <Button
-          size="sm"
-          title={`${t('editor.export.save')} (Ctrl+S)`}
-          disabled={!loaded || busy}
-          onClick={() => { void quickSave(); }}
-        >
-          {t('editor.export.save')}
-        </Button>
-      </header>
+    <main className="flex min-w-0 flex-1">
       {loaded ? (
-        <div className="flex min-h-0 flex-1">
+        <>
+          <EditorSidebar
+            history={history}
+            imageSize={{ width: loaded.bitmap.width, height: loaded.bitmap.height }}
+            edgeColor={loaded.edge}
+            palette={loaded.palette}
+          />
           <section className="relative flex min-w-0 flex-1 bg-canvas">
             <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
             <ScenePreview
@@ -366,21 +391,25 @@ export function EditorView() {
                 <AnnotationOverlay annotate={annotate} scene={displayScene} geometry={geometry} />
               )}
             />
-            {showProperties && <AnnotationProperties annotate={annotate} />}
-            {error ? (
-              <div className={`absolute right-4 left-20 ${showProperties ? 'top-16' : 'top-4'}`}>
-                <ErrorNotice error={error} />
-              </div>
-            ) : (
-              exportProblem && (
-                <div className={`absolute right-4 left-20 ${showProperties ? 'top-16' : 'top-4'}`}>
-                  <ErrorNotice
-                    error={exportProblem}
-                    onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
-                  />
+            {actionBar}
+            {/* The annotation properties and the notices stack under the action bar, so they never overlap. */}
+            <div className="pointer-events-none absolute top-16 right-3 left-20 z-10 flex flex-col items-end gap-2">
+              {showProperties && <AnnotationProperties annotate={annotate} />}
+              {error ? (
+                <div className="pointer-events-auto self-stretch">
+                  <ErrorNotice error={error} />
                 </div>
-              )
-            )}
+              ) : (
+                exportProblem && (
+                  <div className="pointer-events-auto self-stretch">
+                    <ErrorNotice
+                      error={exportProblem}
+                      onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
+                    />
+                  </div>
+                )
+              )}
+            </div>
             {exporter.notice && (
               <div
                 role="status"
@@ -413,12 +442,10 @@ export function EditorView() {
               </div>
             )}
           </section>
-          <aside className="w-80 shrink-0 overflow-y-auto border-l bg-sidebar">
-            <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
-          </aside>
-        </div>
+        </>
       ) : (
-        <section className="flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
+        <section className="relative flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
+          {actionBar}
           {error && <ErrorNotice error={error} />}
           <p className="text-lg text-foreground">{t('editor.empty')}</p>
           {shortcut && <p>{t('editor.hint', { shortcut })}</p>}

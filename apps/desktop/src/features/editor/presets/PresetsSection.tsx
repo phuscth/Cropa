@@ -16,6 +16,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
+  Tile,
+  TileGroup,
 } from '@cropa/ui';
 import { useCallback, useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
@@ -43,6 +45,7 @@ import {
   sameBackground,
   withoutMissingImages,
 } from '../scene-edits.ts';
+import { registerPresetExport } from '../../shell/editor-actions.ts';
 import { Section } from '../Section.tsx';
 import type { SceneHistory } from '../use-scene-history.ts';
 import { isAiPreset, presetFileProblem } from './preset-file.ts';
@@ -50,6 +53,8 @@ import { presetThumbnail } from './thumbnails.ts';
 
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'edit'>;
+  /** Called before a preset file is exported, so the status line is on screen. */
+  onExport?: () => void;
 }
 
 type Mode =
@@ -104,54 +109,50 @@ function PresetThumb({ background }: { background: BackgroundSpec }) {
     return () => { alive = false; };
   }, [background]);
   return url ? (
-    <img src={url} alt="" draggable={false} className="h-12 w-16 rounded-lg object-cover" />
+    <img src={url} alt="" draggable={false} className="size-full object-cover" />
   ) : (
-    <div className="h-12 w-16 rounded-lg bg-secondary" />
+    <div className="size-full bg-secondary" />
   );
 }
 
-interface TileProps {
+interface PresetTileProps {
+  value: string;
   name: string;
   background: BackgroundSpec;
-  selected: boolean;
-  onSelect: () => void;
+  /** An item laid over the tile, such as its menu. */
   menu?: ReactNode;
   /** A selector for the end-to-end tests that does not depend on the language. */
   testId?: string;
 }
 
-function Tile({ name, background, selected, onSelect, menu, testId }: TileProps) {
+function PresetTile({ value, name, background, menu, testId }: PresetTileProps) {
   const { t } = useTranslation();
   const label = isAiPreset(background) ? t('editor.presets.aiName', { name }) : name;
   return (
-    <div className="group relative">
-      <button
-        type="button"
-        data-testid={testId}
-        aria-label={label}
-        title={label}
-        aria-pressed={selected}
-        onClick={onSelect}
-        className={`block rounded-lg outline-none focus-visible:ring-4 focus-visible:ring-primary/16 ${
-          selected ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'
-        }`}
-      >
-        <PresetThumb background={background} />
-      </button>
-      {isAiPreset(background) && (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute bottom-1 left-1 rounded bg-background/80 px-1 text-[10px] leading-4 font-medium"
-        >
-          {t('editor.presets.aiBadge')}
-        </span>
-      )}
-      {menu}
-    </div>
+    <Tile
+      value={value}
+      label={label}
+      data-testid={testId}
+      overlay={
+        <>
+          {isAiPreset(background) && (
+            <span
+              aria-hidden="true"
+              className="pointer-events-none absolute top-1 left-1 rounded bg-background/80 px-1 text-[10px] leading-4 font-medium"
+            >
+              {t('editor.presets.aiBadge')}
+            </span>
+          )}
+          {menu}
+        </>
+      }
+    >
+      <PresetThumb background={background} />
+    </Tile>
   );
 }
 
-export function PresetsSection({ history }: Props) {
+export function PresetsSection({ history, onExport }: Props) {
   const { t, i18n } = useTranslation();
   const { scene, edit } = history;
   const [library, setLibrary] = useState<Library>({ presets: [], unreadable: [] });
@@ -241,7 +242,7 @@ export function PresetsSection({ history }: Props) {
     statusTimer.current = window.setTimeout(() => { setStatus(undefined); }, STATUS_MS);
   };
 
-  const exportFile = async (preset: SavedPreset) => {
+  const exportFile = async (preset: { name: string; background: BackgroundSpec }) => {
     // A file cannot carry a code layer, so it gets the layers under it.
     const fileSpec = withoutCodeLayers(preset.background);
     if (!fileSpec) {
@@ -314,9 +315,21 @@ export function PresetsSection({ history }: Props) {
     edit((s) => applyBackground(s, withoutMissingImages(background, missing)));
     if (missing.length > 0) showStatus(t('editor.presets.imageMissing'));
   };
-  const select = (background: BackgroundSpec) => () => {
-    void apply(background);
+  const builtins = [...builtinPresets, ...devPresets];
+  const selectedBuiltin = builtins.find((preset) => sameBackground(scene.background, preset.background));
+  const selectedSaved = library.presets.find((preset) => sameBackground(scene.background, preset.background));
+
+  // The File menu exports the background on screen, under the name of the preset it matches.
+  const exportCurrent = () => {
+    onExport?.();
+    const name = selectedBuiltin
+      ? presetName(selectedBuiltin, i18n.language)
+      : (selectedSaved?.name ?? t('editor.presets.currentName'));
+    void exportFile({ name, background: scene.background });
   };
+  const exportCurrentRef = useRef(exportCurrent);
+  useEffect(() => { exportCurrentRef.current = exportCurrent; });
+  useEffect(() => registerPresetExport(() => { exportCurrentRef.current(); }), []);
 
   return (
     <Section
@@ -361,42 +374,51 @@ export function PresetsSection({ history }: Props) {
     >
       {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
 
-      <div className="grid grid-cols-4 gap-2">
-        {[...builtinPresets, ...devPresets].map((preset) => {
-          const label = presetName(preset, i18n.language);
-          return (
-            <Tile
-              key={preset.id}
-              name={label}
-              background={preset.background}
-              selected={sameBackground(scene.background, preset.background)}
-              onSelect={select(preset.background)}
-              testId={`preset-${preset.id}`}
-            />
-          );
-        })}
-      </div>
+      <TileGroup
+        aria-label={t('editor.presets.title')}
+        value={selectedBuiltin?.id}
+        onValueChange={(id) => {
+          const preset = builtins.find((candidate) => candidate.id === id);
+          if (preset) void apply(preset.background);
+        }}
+      >
+        {builtins.map((preset) => (
+          <PresetTile
+            key={preset.id}
+            value={preset.id}
+            name={presetName(preset, i18n.language)}
+            background={preset.background}
+            testId={`preset-${preset.id}`}
+          />
+        ))}
+      </TileGroup>
 
-      <h4 className="text-sm text-muted-foreground">{t('editor.presets.saved')}</h4>
+      <h4 className="mt-2 text-xs text-muted-foreground">{t('editor.presets.saved')}</h4>
       {library.presets.length === 0 && library.unreadable.length === 0 && (
         <p className="text-sm text-muted-foreground">{t('editor.presets.empty')}</p>
       )}
       {library.presets.length > 0 && (
-        <div className="grid grid-cols-4 gap-2">
+        <TileGroup
+          aria-label={t('editor.presets.saved')}
+          value={selectedSaved?.id}
+          onValueChange={(id) => {
+            const preset = library.presets.find((candidate) => candidate.id === id);
+            if (preset) void apply(preset.background);
+          }}
+        >
           {library.presets.map((preset) => (
-            <Tile
+            <PresetTile
               key={preset.id}
+              value={preset.id}
               name={preset.name}
               background={preset.background}
-              selected={sameBackground(scene.background, preset.background)}
-              onSelect={select(preset.background)}
               menu={
                 <DropdownMenu>
                   <DropdownMenuTrigger asChild>
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="absolute top-0.5 right-0.5 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+                      className="absolute top-1 right-1 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
                       aria-label={t('editor.presets.more', { name: preset.name })}
                     >
                       <DotsIcon />
@@ -420,7 +442,7 @@ export function PresetsSection({ history }: Props) {
               }
             />
           ))}
-        </div>
+        </TileGroup>
       )}
       {library.unreadable.map((entry) => (
         <div key={entry.id} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">

@@ -25,6 +25,9 @@ struct Spec {
     size: (f64, f64),
     min_size: Option<(f64, f64)>,
     resizable: bool,
+    /// Whether the operating system draws the title bar and frame. The main
+    /// window draws its own title bar in the page.
+    decorations: bool,
 }
 
 const SPECS: &[Spec] = &[
@@ -35,6 +38,7 @@ const SPECS: &[Spec] = &[
         size: (1180.0, 760.0),
         min_size: Some((800.0, 520.0)),
         resizable: true,
+        decorations: false,
     },
     Spec {
         label: ONBOARDING,
@@ -43,6 +47,7 @@ const SPECS: &[Spec] = &[
         size: (520.0, 560.0),
         min_size: None,
         resizable: false,
+        decorations: true,
     },
 ];
 
@@ -82,6 +87,10 @@ fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewW
         .inner_size(spec.size.0, spec.size.1)
         .resizable(spec.resizable)
         .maximizable(spec.resizable)
+        .decorations(spec.decorations)
+        // An undecorated window keeps the native shadow and rounded corners
+        // only with this set (it is the default, stated so it stays).
+        .shadow(true)
         .center()
         .visible(false);
     if let Some((width, height)) = spec.min_size {

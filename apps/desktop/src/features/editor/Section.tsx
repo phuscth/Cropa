@@ -1,6 +1,9 @@
 import type { ReactNode } from 'react';
 
-/** A titled block of the sidebar. `actions` sit at the right of the title row. */
+/**
+ * A block of the editor panel under a small uppercase label. `actions` sit at
+ * the right of the label row.
+ */
 export function Section({
   title,
   actions,
@@ -11,9 +14,11 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-4 border-b px-5 py-4 last:border-b-0">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm font-medium text-foreground">{title}</h3>
+    <section className="flex flex-col gap-2">
+      <div className="flex min-h-6 items-center justify-between gap-2">
+        <h3 className="text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase">
+          {title}
+        </h3>
         {actions && <div className="-my-1 flex items-center gap-1">{actions}</div>}
       </div>
       {children}
