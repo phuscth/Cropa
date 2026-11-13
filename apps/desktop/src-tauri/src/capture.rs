@@ -20,7 +20,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use tauri_specta::Event;
 
 use crate::editor;
-use crate::history::{History, HistoryChanged};
+use crate::history::{History, HistoryChanged, epoch_millis};
 use crate::i18n::{CaptureFailure, Lang, capture_failed_text, capture_text};
 use crate::platform::{
     self, MonitorInfo, Platform, PreviewAction, PreviewCloser, PreviewHandle, Selection,
@@ -49,6 +49,7 @@ static PREVIEW: Mutex<Option<PreviewCloser>> = Mutex::new(None);
 struct PendingPreview {
     actions: Receiver<PreviewAction>,
     image: Arc<RgbaImage>,
+    captured_at: SystemTime,
 }
 
 /// Clears [`BUSY`] when dropped, including on a panic or an early return.
@@ -157,8 +158,10 @@ fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) -> Option<PendingPrevie
     );
 
     let image = Arc::new(image);
+    // The history entry and the editor both name this capture by this time.
+    let captured_at = SystemTime::now();
     if save_history {
-        save_to_history(app, Arc::clone(&image));
+        save_to_history(app, Arc::clone(&image), captured_at);
     }
 
     let monitor = &shots.get(selection.monitor)?.0;
@@ -171,7 +174,11 @@ fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) -> Option<PendingPrevie
             // Stored while the busy flag is still held, so the next capture
             // always finds and closes this preview.
             *PREVIEW.lock().unwrap_or_else(PoisonError::into_inner) = Some(closer);
-            Some(PendingPreview { actions, image })
+            Some(PendingPreview {
+                actions,
+                image,
+                captured_at,
+            })
         }
         Err(err) => {
             // The clipboard already holds the capture.
@@ -183,11 +190,15 @@ fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) -> Option<PendingPrevie
 
 /// Wait for the user's choice on the preview. It never touches the clipboard.
 fn wait_for_choice<R: Runtime>(app: &AppHandle<R>, pending: PendingPreview) {
-    let PendingPreview { actions, image } = pending;
+    let PendingPreview {
+        actions,
+        image,
+        captured_at,
+    } = pending;
     // A disconnect means the preview was closed another way: nothing to do.
     if actions.recv() == Ok(PreviewAction::Edit) {
         match encode_png(&image) {
-            Ok(png) => editor::open(app, png),
+            Ok(png) => editor::open(app, png, Some(epoch_millis(captured_at))),
             Err(err) => log::warn!("could not open the capture in the editor: {err}"),
         }
     }
@@ -206,13 +217,13 @@ fn encode_png(image: &RgbaImage) -> Result<Vec<u8>, image::ImageError> {
 
 /// Keep the capture in the history folder. It runs on its own thread, after
 /// the clipboard already holds the capture, and a failure is only logged.
-fn save_to_history<R: Runtime>(app: &AppHandle<R>, image: Arc<RgbaImage>) {
+fn save_to_history<R: Runtime>(app: &AppHandle<R>, image: Arc<RgbaImage>, captured_at: SystemTime) {
     let app = app.clone();
     let spawned = std::thread::Builder::new()
         .name("cropa-history".into())
         .spawn(move || {
             let started = Instant::now();
-            match app.state::<History>().save(&image, SystemTime::now()) {
+            match app.state::<History>().save(&image, captured_at) {
                 Ok(_) => {
                     log::info!(
                         "capture saved to history in {} ms",

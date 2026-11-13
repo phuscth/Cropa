@@ -59,7 +59,28 @@
       "auto": "Tự động",
       "custom": "Tùy chọn",
       "width": "Chiều rộng của tỉ lệ",
-      "height": "Chiều cao của tỉ lệ"
+      "height": "Chiều cao của tỉ lệ",
+      "platform": {
+        "title": "Nền tảng",
+        "x": "X",
+        "facebook": "Facebook",
+        "linkedin": "LinkedIn",
+        "threads": "Threads",
+        "size": "{{width}} × {{height}} px"
+      }
+    },
+    "dismiss": "Đóng",
+    "export": {
+      "copy": "Sao chép",
+      "save": "Lưu",
+      "saveAs": "Lưu thành…",
+      "saveAsConfirm": "Lưu thành…",
+      "format": "Định dạng",
+      "scale": "Tỉ lệ",
+      "scaleFixed": "Kích thước theo nền tảng luôn xuất ở 1x ({{width}} × {{height}} px)",
+      "saved": "Đã lưu {{fileName}}",
+      "copied": "Đã sao chép vào bộ nhớ tạm",
+      "openFolder": "Mở thư mục"
     }
   },
   "history": {
@@ -270,6 +291,21 @@
       "what": "Đã có lỗi xảy ra.",
       "why": "{{detail}}",
       "next": "Thử lại. Nếu vẫn lỗi, hãy mở lại Cropa."
+    },
+    "ExportRender": {
+      "what": "Không tạo được ảnh.",
+      "why": "Không thể vẽ hoặc mã hóa ảnh ({{detail}}).",
+      "next": "Hãy thử tỉ lệ hoặc độ đệm nhỏ hơn, hoặc đóng bớt ứng dụng khác để giải phóng bộ nhớ, rồi thử lại."
+    },
+    "ExportFormatUnsupported": {
+      "what": "Không tạo được ảnh {{format}}.",
+      "why": "Phiên bản WebView2 này không mã hóa được {{format}}.",
+      "next": "Hãy chọn PNG hoặc JPEG, hoặc cập nhật Microsoft Edge WebView2."
+    },
+    "ExportImageChanged": {
+      "what": "Không lưu được ảnh.",
+      "why": "Một ảnh chụp mới đã thay ảnh trong trình chỉnh sửa khi hộp thoại Lưu đang mở.",
+      "next": "Hãy lưu ảnh mới, hoặc mở ảnh trước đó từ Lịch sử rồi lưu lại."
     }
   }
 }

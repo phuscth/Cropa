@@ -12,6 +12,7 @@ recorded.
 |---|---|---|---|---|
 | Microsoft Edge WebView2 Runtime | App UI | Microsoft software licence | n/a | Installed by the NSIS bootstrapper if missing |
 | [n8n-io/nod](https://github.com/n8n-io/nod) theme | Colour tokens, radii, shadows and easing curves in `packages/config/tailwind.css` | Apache-2.0 | n/a | Values adapted from its `src/web/theme.css` and changed for Cropa; compiled into the app's CSS |
+| Inter typeface (via @fontsource/inter 5.3.0) | Text and step numbers drawn on images by the renderer | OFL-1.1 | n/a | WOFF2 files (Latin, Latin Extended, Vietnamese; weights 600 and 700) bundled into the app by Vite |
 
 Planned entries (added when the feature that uses them lands): an ffmpeg LGPL
 build, and the `gif` and `quantette` crates.
@@ -23,3 +24,7 @@ Copyright 2026 n8n GmbH. Licensed under the
 Its NOTICE file reads: "This product includes software developed at n8n GmbH
 (https://n8n.io/)." Cropa adapts only the theme values listed above, not nod's
 components or any other file.
+
+## Inter
+
+Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter). Licensed under the SIL Open Font License, Version 1.1 (https://openfontlicense.org). The font files are unmodified subsets as published by Fontsource.

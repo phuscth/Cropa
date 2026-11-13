@@ -32,6 +32,9 @@ importers:
       '@cropa/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@fontsource/inter':
+        specifier: 5.3.0
+        version: 5.3.0
       '@tauri-apps/api':
         specifier: 2.12.4
         version: 2.12.4

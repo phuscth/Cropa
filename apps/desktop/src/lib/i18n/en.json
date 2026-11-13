@@ -59,7 +59,28 @@
       "auto": "Auto",
       "custom": "Custom",
       "width": "Ratio width",
-      "height": "Ratio height"
+      "height": "Ratio height",
+      "platform": {
+        "title": "Platform",
+        "x": "X",
+        "facebook": "Facebook",
+        "linkedin": "LinkedIn",
+        "threads": "Threads",
+        "size": "{{width}} × {{height}} px"
+      }
+    },
+    "dismiss": "Dismiss",
+    "export": {
+      "copy": "Copy",
+      "save": "Save",
+      "saveAs": "Save as…",
+      "saveAsConfirm": "Save as…",
+      "format": "Format",
+      "scale": "Scale",
+      "scaleFixed": "Platform sizes always export at 1x ({{width}} × {{height}} px)",
+      "saved": "Saved {{fileName}}",
+      "copied": "Copied to the clipboard",
+      "openFolder": "Open folder"
     }
   },
   "history": {
@@ -270,6 +291,21 @@
       "what": "Something went wrong.",
       "why": "{{detail}}",
       "next": "Try again. If it keeps happening, restart Cropa."
+    },
+    "ExportRender": {
+      "what": "Couldn't create the image.",
+      "why": "The image could not be drawn or encoded ({{detail}}).",
+      "next": "Try a smaller scale or padding, or close other apps to free memory, then try again."
+    },
+    "ExportFormatUnsupported": {
+      "what": "Couldn't create the {{format}} image.",
+      "why": "This version of WebView2 can't encode {{format}}.",
+      "next": "Choose PNG or JPEG, or update Microsoft Edge WebView2."
+    },
+    "ExportImageChanged": {
+      "what": "Couldn't save the image.",
+      "why": "A new capture replaced the image in the editor while the Save dialog was open.",
+      "next": "Save the new image, or open the earlier one from History and save it again."
     }
   }
 }

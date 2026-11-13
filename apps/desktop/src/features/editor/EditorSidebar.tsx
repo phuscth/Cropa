@@ -1,4 +1,4 @@
-import { outputSize } from '@cropa/core';
+import { PLATFORM_IDS, PLATFORM_SIZES, outputSize, type PlatformId } from '@cropa/core';
 import {
   ColorInput,
   Button,
@@ -28,6 +28,7 @@ import {
   backgroundKind,
   frameRanges,
   matchImageColor,
+  platformMatches,
   presetRatio,
   setAspectRatio,
   setBackgroundAngle,
@@ -39,6 +40,7 @@ import {
   setInset,
   setInsetColor,
   setPadding,
+  setPlatformSize,
   setRadius,
   setShadowLevel,
   shadowLevel,
@@ -156,6 +158,12 @@ export function EditorSidebar({ history, edgeColor }: Props) {
   const ratio = scene.output.aspectRatio;
   // The last colour the border had, for when a drag brings it back from width 0.
   const [borderColor, setBorderColorMemo] = useState('#ffffff');
+  // Facebook and Threads share a size, so the scene alone can't say which was clicked.
+  const [lastPlatform, setLastPlatform] = useState<PlatformId>();
+  const platform =
+    lastPlatform && platformMatches(scene, lastPlatform)
+      ? lastPlatform
+      : PLATFORM_IDS.find((id) => platformMatches(scene, id));
   if (frame.border && frame.border.color !== borderColor) setBorderColorMemo(frame.border.color);
 
   const chooseAspect = (value: string) => {
@@ -169,6 +177,12 @@ export function EditorSidebar({ history, edgeColor }: Props) {
     } else {
       edit((s) => setAspectRatio(s, presetRatio(choice)));
     }
+  };
+
+  const choosePlatform = (value: string) => {
+    const id = value as PlatformId;
+    setLastPlatform(id);
+    edit((s) => setPlatformSize(s, id));
   };
 
   const px = (value: number) => t('editor.units.px', { value });
@@ -323,7 +337,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
       <Section title={t('editor.aspect.title')}>
         <SegmentedControl
           aria-label={t('editor.aspect.title')}
-          value={preset}
+          value={platform ? undefined : preset}
           onValueChange={chooseAspect}
           className="grid-flow-row grid-cols-3"
         >
@@ -333,7 +347,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
             </SegmentedControlItem>
           ))}
         </SegmentedControl>
-        {preset === 'custom' && ratio && (
+        {!platform && preset === 'custom' && ratio && (
           <div className="flex items-center gap-2">
             <RatioField
               label={t('editor.aspect.width')}
@@ -348,6 +362,28 @@ export function EditorSidebar({ history, edgeColor }: Props) {
             />
           </div>
         )}
+        <Row label={t('editor.aspect.platform.title')}>
+          <SegmentedControl
+            aria-label={t('editor.aspect.platform.title')}
+            value={platform}
+            onValueChange={choosePlatform}
+            className="grid-flow-row grid-cols-2"
+          >
+            {PLATFORM_IDS.map((id) => (
+              <SegmentedControlItem key={id} value={id}>
+                {t(`editor.aspect.platform.${id}`)}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+          {platform && (
+            <p className="text-sm text-muted-foreground tabular-nums">
+              {t('editor.aspect.platform.size', {
+                width: PLATFORM_SIZES[platform].width,
+                height: PLATFORM_SIZES[platform].height,
+              })}
+            </p>
+          )}
+        </Row>
       </Section>
     </>
   );

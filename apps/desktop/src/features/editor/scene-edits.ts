@@ -1,4 +1,11 @@
-import { clamp, migrateScene, type BackgroundSpec, type Scene } from '@cropa/core';
+import {
+  applyPlatformSize,
+  clamp,
+  migrateScene,
+  type BackgroundSpec,
+  type PlatformId,
+  type Scene,
+} from '@cropa/core';
 
 type Layer = BackgroundSpec['layers'][number];
 type Frame = Scene['frame'];
@@ -376,11 +383,33 @@ const RATIOS: Record<Exclude<AspectPreset, 'auto' | 'custom'>, [number, number]>
   '9:16': [9, 16],
 };
 
+/** Sets the ratio; a plain ratio also leaves a platform size, whose output has a fixed width. */
 export function setAspectRatio(scene: Scene, ratio: [number, number] | null): Scene {
   const current = scene.output.aspectRatio;
-  if (current === null && ratio === null) return scene;
-  if (current && ratio && current[0] === ratio[0] && current[1] === ratio[1]) return scene;
-  return { ...scene, output: { ...scene.output, aspectRatio: ratio } };
+  if (scene.output.width === null) {
+    if (current === null && ratio === null) return scene;
+    if (current && ratio && current[0] === ratio[0] && current[1] === ratio[1]) return scene;
+  }
+  return { ...scene, output: { aspectRatio: ratio, width: null } };
+}
+
+/** Frames the scene for a platform; the same scene back when it already is. */
+export function setPlatformSize(scene: Scene, id: PlatformId): Scene {
+  const next = applyPlatformSize(scene, id);
+  return sameOutput(scene, next) ? scene : next;
+}
+
+/** True when the scene's output is the size of platform `id`. */
+export function platformMatches(scene: Scene, id: PlatformId): boolean {
+  return sameOutput(scene, applyPlatformSize(scene, id));
+}
+
+function sameOutput(a: Scene, b: Scene): boolean {
+  const ra = a.output.aspectRatio;
+  const rb = b.output.aspectRatio;
+  if (a.output.width !== b.output.width) return false;
+  if (ra === null || rb === null) return ra === rb;
+  return Math.abs(ra[0] - rb[0]) < 1e-9 && Math.abs(ra[1] - rb[1]) < 1e-9;
 }
 
 /** The ratio of a preset; null for `auto` and `custom`. */

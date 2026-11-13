@@ -1,0 +1,54 @@
+import { render, type Scene } from '@cropa/core';
+
+import type { ExportFormat } from '../../../lib/bindings.ts';
+import { ExportEncodeError } from '../../../lib/errors.ts';
+import { loadInter } from '../fonts.ts';
+import { renderEnv } from '../render-env.ts';
+import { exportPlan, type ExportScale } from './plan.ts';
+
+function context(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas is not available');
+  return ctx;
+}
+
+function toDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') resolve(reader.result);
+      else reject(new Error('The encoded image could not be read'));
+    };
+    reader.onerror = () => { reject(reader.error ?? new Error('The encoded image could not be read')); };
+    reader.readAsDataURL(blob);
+  });
+}
+
+/** Renders the scene with the shared renderer and encodes it as a data URL. */
+export async function renderImage(
+  scene: Scene,
+  bitmap: ImageBitmap,
+  format: ExportFormat,
+  scale: ExportScale,
+): Promise<string> {
+  await loadInter();
+  const plan = exportPlan(scene, format, scale);
+  const canvas = new OffscreenCanvas(plan.width, plan.height);
+  render(scene, 0, context(canvas), renderEnv(bitmap));
+
+  let source = canvas;
+  if (format === 'jpeg') {
+    // JPEG has no alpha: transparent pixels would turn black, so put the image on white.
+    source = new OffscreenCanvas(plan.width, plan.height);
+    const ctx = context(source);
+    ctx.fillStyle = '#ffffff';
+    ctx.fillRect(0, 0, plan.width, plan.height);
+    ctx.drawImage(canvas, 0, 0);
+  }
+
+  const blob = await source.convertToBlob(
+    plan.quality === undefined ? { type: plan.mime } : { type: plan.mime, quality: plan.quality },
+  );
+  if (blob.type !== plan.mime) throw new ExportEncodeError(format);
+  return toDataUrl(blob);
+}

@@ -14,6 +14,7 @@ import {
   CAPTURE_REF,
   frameRanges,
   matchImageColor,
+  platformMatches,
   presetRatio,
   setAspectRatio,
   setBackgroundAngle,
@@ -23,6 +24,7 @@ import {
   setBorderColor,
   setBorderWidth,
   setPadding,
+  setPlatformSize,
   setRadius,
   setShadowLevel,
   shadowLevel,
@@ -263,5 +265,27 @@ describe('aspect ratio', () => {
     expect(setAspectRatio(scene, [16, 9])).toBe(scene);
     const auto = fresh();
     expect(setAspectRatio(auto, null)).toBe(auto);
+  });
+});
+
+describe('platform sizes', () => {
+  it('leaves a platform size when a plain ratio is chosen', () => {
+    const platform = setPlatformSize(fresh(), 'x');
+    expect(platform.output.width).toBe(1920);
+    const plain = setAspectRatio(platform, [16, 9]);
+    expect(plain.output).toEqual({ aspectRatio: [16, 9], width: null });
+    expect(platformMatches(plain, 'x')).toBe(false);
+  });
+
+  it('matches facebook and threads alike, and only the platform set', () => {
+    const scene = setPlatformSize(fresh(), 'facebook');
+    expect(platformMatches(scene, 'facebook')).toBe(true);
+    expect(platformMatches(scene, 'threads')).toBe(true);
+    expect(platformMatches(scene, 'linkedin')).toBe(false);
+  });
+
+  it('returns the same scene when the platform size is already set', () => {
+    const scene = setPlatformSize(fresh(), 'linkedin');
+    expect(setPlatformSize(scene, 'linkedin')).toBe(scene);
   });
 });
