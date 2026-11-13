@@ -106,6 +106,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
         <canvas
           ref={canvasRef}
           role="img"
+          data-testid="editor-preview"
           aria-label={t('editor.previewAlt')}
           className="checkerboard"
           style={{ width: css.width, height: css.height }}
