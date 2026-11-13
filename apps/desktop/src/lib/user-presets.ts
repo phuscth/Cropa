@@ -4,6 +4,18 @@ import type { BackgroundSpec } from '@cropa/core';
 import { commands } from './bindings.ts';
 import type { CommandError } from './bindings.ts';
 
+const listeners = new Set<() => void>();
+
+/** Calls `listener` after a preset was saved or deleted, from anywhere in this window. Returns the way to stop. */
+export function onUserPresetsChanged(listener: () => void): () => void {
+  listeners.add(listener);
+  return () => { listeners.delete(listener); };
+}
+
+function changed(): void {
+  for (const listener of listeners) listener();
+}
+
 export type Result<T> = { status: 'ok'; data: T } | { status: 'error'; error: CommandError };
 
 /** A background the user saved under a name. */
@@ -69,12 +81,15 @@ export async function saveUserPreset(preset: {
   }
   const result = await commands.saveUserPreset(preset.id ?? null, preset.name, checked.value);
   if (result.status === 'error') return result;
+  changed();
   return {
     status: 'ok',
     data: { id: result.data.id, name: result.data.name, background: checked.value },
   };
 }
 
-export function deleteUserPreset(id: string): Promise<Result<null>> {
-  return commands.deleteUserPreset(id);
+export async function deleteUserPreset(id: string): Promise<Result<null>> {
+  const result = await commands.deleteUserPreset(id);
+  if (result.status === 'ok') changed();
+  return result;
 }

@@ -31,8 +31,22 @@
       "noWebgl": {
         "what": "This background needs 3D graphics.",
         "why": "WebGL isn't available in this window, so a 3D background can't run here.",
-        "next": "Try a description without 3D objects. The closest preset stays in place."
-      }
+        "next": "Try a description without 3D objects. The closest preset stays in place.",
+        "nextKept": "Try a description without 3D objects. Your current background is unchanged."
+      },
+      "madeWith": "Made with {{provider}} · Effort: {{effort}}",
+      "changeLabel": "Change it",
+      "changePlaceholder": "More wind, or make it night",
+      "apply": "Apply change",
+      "regenerate": "Regenerate",
+      "regenerateHint": "Runs the same description again and replaces this background.",
+      "startOver": "Start over",
+      "saveAsPreset": "Save as preset",
+      "presetName": "Preset name",
+      "save": "Save",
+      "saved": "Saved to your presets.",
+      "elapsed": "{{seconds}} s",
+      "unchanged": "Your current background is unchanged."
     },
     "background": {
       "title": "Background",
@@ -141,7 +155,9 @@
       "imageMissing": "This preset uses an image that is not on this computer. It may have been deleted, or the preset was made on another computer. A plain background is shown instead; pick an image to replace it.",
       "exportedWithoutCode": "Exported {{fileName}} without the AI animation: preset files can't carry code.",
       "exportedWithoutCodeWithImage": "Exported {{fileName}} without the AI animation: preset files can't carry code. This preset also uses one of your own images, which is not inside the file; on another computer it shows a plain background.",
-      "exportedWithImage": "Exported {{fileName}}. This preset uses one of your own images, which is not inside the file; on another computer it shows a plain background."
+      "exportedWithImage": "Exported {{fileName}}. This preset uses one of your own images, which is not inside the file; on another computer it shows a plain background.",
+      "aiName": "{{name}} (AI)",
+      "aiBadge": "AI"
     },
     "annotate": {
       "toolbar": "Annotation tools",

@@ -19,6 +19,8 @@ pub const CURRENT_VERSION: u32 = 1;
 pub const FILE_NAME: &str = "presets.json";
 /// The same limit `@cropa/core` puts on a preset file.
 pub const MAX_BACKGROUND_BYTES: usize = 16384;
+/// The source of a code layer is held apart from `MAX_BACKGROUND_BYTES`: the same limit as the code sandbox.
+pub const MAX_CODE_SOURCE_BYTES: usize = 65536;
 pub const MAX_PRESETS: usize = 200;
 const MAX_NAME_CHARS: usize = 40;
 const MAX_LAYERS: usize = 16;
@@ -189,7 +191,28 @@ fn check_background(background: &serde_json::Value) -> Result<(), PresetsError> 
     {
         return invalid("layers: every layer needs a type");
     }
-    let size = serde_json::to_vec(background).map_or(usize::MAX, |bytes| bytes.len());
+    // A code layer's source has its own limit; the rest of the background is measured without it.
+    let mut rest = background.clone();
+    if let Some(layers) = rest
+        .get_mut("layers")
+        .and_then(serde_json::Value::as_array_mut)
+    {
+        for layer in layers
+            .iter_mut()
+            .filter(|layer| layer.get("type").and_then(serde_json::Value::as_str) == Some("code"))
+        {
+            let Some(source) = layer.get_mut("source") else {
+                return invalid("code layer: expected a source");
+            };
+            match source.as_str() {
+                Some(text) if text.len() <= MAX_CODE_SOURCE_BYTES => {}
+                Some(_) => return Err(PresetsError::TooLarge),
+                None => return invalid("code layer: source must be text"),
+            }
+            *source = serde_json::Value::String(String::new());
+        }
+    }
+    let size = serde_json::to_vec(&rest).map_or(usize::MAX, |bytes| bytes.len());
     if size > MAX_BACKGROUND_BYTES {
         return Err(PresetsError::TooLarge);
     }
@@ -427,6 +450,36 @@ mod tests {
         assert!(matches!(
             bad(json!({ "version": 1, "layers": [{ "type": "solid", "color": long }] })),
             PresetsError::TooLarge
+        ));
+    }
+
+    #[test]
+    fn a_code_layer_source_may_exceed_the_background_limit_up_to_its_own() {
+        let dir = TempDir::new("code");
+        let presets = dir.presets();
+        let with_source = |bytes: usize| {
+            json!({
+                "version": 1,
+                "layers": [
+                    { "type": "solid", "color": "#112233" },
+                    { "type": "code", "source": "x".repeat(bytes), "durationMs": 4000, "threeD": false }
+                ]
+            })
+        };
+        let saved = presets.save(None, "AI", with_source(20_000)).unwrap();
+        assert_eq!(presets.list().unwrap(), vec![saved]);
+        assert!(
+            presets
+                .save(None, "Edge", with_source(MAX_CODE_SOURCE_BYTES))
+                .is_ok()
+        );
+        assert!(matches!(
+            presets.save(None, "Big", with_source(MAX_CODE_SOURCE_BYTES + 1)),
+            Err(PresetsError::TooLarge)
+        ));
+        assert!(matches!(
+            presets.save(None, "Big", with_source(70_000)),
+            Err(PresetsError::TooLarge)
         ));
     }
 

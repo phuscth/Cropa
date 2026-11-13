@@ -133,4 +133,10 @@ export const EVAL_TASKS: Record<string, EvalTask> = {
     mock: backgroundMock,
     validate: validateBackground,
   },
+  'background-refine': {
+    task: backgroundTask,
+    cases: 'cases/background-refine.json',
+    mock: backgroundMock,
+    validate: validateBackground,
+  },
 };

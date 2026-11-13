@@ -31,8 +31,22 @@
       "noWebgl": {
         "what": "Nền này cần đồ họa 3D.",
         "why": "WebGL không khả dụng trong cửa sổ này nên nền 3D không chạy được.",
-        "next": "Hãy thử một mô tả không có vật thể 3D. Preset gần nhất vẫn được giữ."
-      }
+        "next": "Hãy thử một mô tả không có vật thể 3D. Preset gần nhất vẫn được giữ.",
+        "nextKept": "Hãy thử một mô tả không có vật thể 3D. Nền hiện tại của bạn không thay đổi."
+      },
+      "madeWith": "Tạo bằng {{provider}} · Mức nỗ lực: {{effort}}",
+      "changeLabel": "Chỉnh sửa nền",
+      "changePlaceholder": "Gió mạnh hơn, hoặc chuyển sang ban đêm",
+      "apply": "Áp dụng thay đổi",
+      "regenerate": "Tạo lại",
+      "regenerateHint": "Chạy lại cùng mô tả và thay thế nền này.",
+      "startOver": "Làm lại từ đầu",
+      "saveAsPreset": "Lưu thành preset",
+      "presetName": "Tên preset",
+      "save": "Lưu",
+      "saved": "Đã lưu vào preset của bạn.",
+      "elapsed": "{{seconds}} giây",
+      "unchanged": "Nền hiện tại của bạn không thay đổi."
     },
     "background": {
       "title": "Nền",
@@ -141,7 +155,9 @@
       "imageMissing": "Preset này dùng một ảnh không có trên máy này. Ảnh có thể đã bị xóa, hoặc preset được tạo trên máy khác. Nền trơn được hiển thị thay thế; hãy chọn một ảnh để thay.",
       "exportedWithoutCode": "Đã xuất {{fileName}} nhưng không kèm hiệu ứng AI: tệp preset không thể chứa mã.",
       "exportedWithoutCodeWithImage": "Đã xuất {{fileName}} nhưng không kèm hiệu ứng AI: tệp preset không thể chứa mã. Preset này còn dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn.",
-      "exportedWithImage": "Đã xuất {{fileName}}. Preset này dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn."
+      "exportedWithImage": "Đã xuất {{fileName}}. Preset này dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn.",
+      "aiName": "{{name}} (AI)",
+      "aiBadge": "AI"
     },
     "annotate": {
       "toolbar": "Công cụ chú thích",

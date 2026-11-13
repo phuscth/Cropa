@@ -31,6 +31,7 @@ import {
 import {
   deleteUserPreset,
   listUserPresets,
+  onUserPresetsChanged,
   saveUserPreset,
   type Result,
   type SavedPreset,
@@ -44,7 +45,7 @@ import {
 } from '../scene-edits.ts';
 import { Section } from '../Section.tsx';
 import type { SceneHistory } from '../use-scene-history.ts';
-import { presetFileProblem } from './preset-file.ts';
+import { isAiPreset, presetFileProblem } from './preset-file.ts';
 import { presetThumbnail } from './thumbnails.ts';
 
 interface Props {
@@ -120,13 +121,15 @@ interface TileProps {
 }
 
 function Tile({ name, background, selected, onSelect, menu, testId }: TileProps) {
+  const { t } = useTranslation();
+  const label = isAiPreset(background) ? t('editor.presets.aiName', { name }) : name;
   return (
     <div className="group relative">
       <button
         type="button"
         data-testid={testId}
-        aria-label={name}
-        title={name}
+        aria-label={label}
+        title={label}
         aria-pressed={selected}
         onClick={onSelect}
         className={`block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring ${
@@ -135,6 +138,14 @@ function Tile({ name, background, selected, onSelect, menu, testId }: TileProps)
       >
         <PresetThumb background={background} />
       </button>
+      {isAiPreset(background) && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute bottom-1 left-1 rounded bg-background/80 px-1 text-[10px] leading-4 font-medium"
+        >
+          {t('editor.presets.aiBadge')}
+        </span>
+      )}
       {menu}
     </div>
   );
@@ -161,7 +172,7 @@ export function PresetsSection({ history }: Props) {
   useEffect(() => { tRef.current = t; });
   useEffect(() => () => { window.clearTimeout(statusTimer.current); }, []);
 
-  /** Rust is the source of truth, so every change reloads the list. */
+  /** Rust is the source of truth, so every change reloads the list (see `onUserPresetsChanged`). */
   const reload = useCallback(async () => {
     const result = await listUserPresets();
     if (result.status === 'error') {
@@ -171,7 +182,12 @@ export function PresetsSection({ history }: Props) {
     setLibrary(result.data);
   }, []);
   useEffect(() => {
-    void reload().catch((cause: unknown) => { setError(describeUnexpected(tRef.current, cause)); });
+    const load = () => {
+      void reload().catch((cause: unknown) => { setError(describeUnexpected(tRef.current, cause)); });
+    };
+    load();
+    // A preset saved or deleted anywhere in this window, such as from the AI background section.
+    return onUserPresetsChanged(load);
   }, [reload]);
 
   /** Runs a command with the buttons disabled; shows its error, and tells whether it worked. */
@@ -204,10 +220,7 @@ export function PresetsSection({ history }: Props) {
     if (!mode || busy) return;
     if (mode.kind === 'delete') {
       const done = await run(() => deleteUserPreset(mode.preset.id));
-      if (done !== undefined) {
-        close();
-        await reload();
-      }
+      if (done !== undefined) close();
       return;
     }
     const trimmed = name.trim();
@@ -219,10 +232,7 @@ export function PresetsSection({ history }: Props) {
           : { name: trimmed, background: scene.background },
       ),
     );
-    if (saved) {
-      close();
-      await reload();
-    }
+    if (saved) close();
   };
 
   const showStatus = (text: string) => {
@@ -291,7 +301,6 @@ export function PresetsSection({ history }: Props) {
       }),
     );
     if (saved) {
-      await reload();
       const { missing } = await ensureImages(parsed.value.background);
       if (missing.length > 0) showStatus(t('editor.presets.imageMissing'));
     }
@@ -423,7 +432,7 @@ export function PresetsSection({ history }: Props) {
             size="sm"
             disabled={busy}
             onClick={() => {
-              void run(() => deleteUserPreset(entry.id)).then(() => reload());
+              void run(() => deleteUserPreset(entry.id));
             }}
           >
             {t('editor.presets.delete')}

@@ -1,4 +1,4 @@
-import type { PresetError } from '@cropa/core';
+import type { BackgroundSpec, PresetError } from '@cropa/core';
 
 export type PresetFileProblem =
   | { kind: 'PresetFileTooLarge'; limitKb: number }
@@ -23,4 +23,9 @@ export function presetFileProblem(error: PresetError): PresetFileProblem {
     case 'has-code':
       return { kind: 'PresetFileHasCode' };
   }
+}
+
+/** True for a background with an AI-written code layer: its tile shows an AI badge. */
+export function isAiPreset(background: BackgroundSpec): boolean {
+  return background.layers.some((layer) => layer.type === 'code');
 }
