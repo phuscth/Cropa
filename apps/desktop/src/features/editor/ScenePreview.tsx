@@ -1,23 +1,21 @@
-import { outputSize, render, type RenderEnv, type Scene } from '@cropa/core';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { outputSize, render, type Scene } from '@cropa/core';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { CAPTURE_REF } from './scene-edits.ts';
+import type { PreviewGeometry } from './annotate/geometry.ts';
+import { createRedactionCache } from './redaction-cache.ts';
+import { renderEnv } from './render-env.ts';
 
 interface Props {
   scene: Scene;
   bitmap: ImageBitmap;
+  /** Drawn over the canvas, in a layer with exactly its CSS box. */
+  overlay?: (geometry: PreviewGeometry) => ReactNode;
 }
 
 interface Box {
   width: number;
   height: number;
-}
-
-function createContext(width: number, height: number) {
-  const ctx = new OffscreenCanvas(width, height).getContext('2d');
-  if (!ctx) throw new Error('2D canvas is not available');
-  return ctx;
 }
 
 /** The largest box with the aspect of `output` that fits in `available`. */
@@ -30,12 +28,16 @@ function fit(output: Box, available: Box): Box {
 }
 
 /** Draws the scene with the shared renderer, at most once per animation frame. */
-export function ScenePreview({ scene, bitmap }: Props) {
+export function ScenePreview({ scene, bitmap, overlay }: Props) {
   const { t } = useTranslation();
   const areaRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [area, setArea] = useState<Box>({ width: 0, height: 0 });
   const [device, setDevice] = useState<Box>();
+  const env = useMemo(() => renderEnv(bitmap), [bitmap]);
+  // Blur and pixelate are costly to recompute, so the preview keeps their result
+  // between frames; export renders the full scene without it.
+  const redactions = useRef(createRedactionCache());
 
   useLayoutEffect(() => {
     const element = areaRef.current;
@@ -90,27 +92,27 @@ export function ScenePreview({ scene, bitmap }: Props) {
       // Resizing the backing store clears it, so it is only done when the size changed.
       if (canvas.width !== backingW) canvas.width = backingW;
       if (canvas.height !== backingH) canvas.height = backingH;
-      const env: RenderEnv = {
-        screenshot: bitmap,
-        image: (ref) => (ref === CAPTURE_REF ? bitmap : undefined),
-        createContext,
-      };
-      render(scene, 0, ctx, env);
+      const cached = redactions.current.scene(scene, env);
+      render(cached.scene, 0, ctx, cached.env);
       performance.clearMeasures('cropa:preview-render');
       performance.measure('cropa:preview-render', { start, end: performance.now() });
     });
     return () => { cancelAnimationFrame(frame); };
-  }, [scene, bitmap, backingW, backingH, area.width]);
+  }, [scene, env, backingW, backingH, area.width]);
 
   return (
     <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-      <canvas
-        ref={canvasRef}
-        role="img"
-        aria-label={t('editor.previewAlt')}
-        className="checkerboard"
-        style={{ width: css.width, height: css.height }}
-      />
+      <div className="relative" style={{ width: css.width, height: css.height }}>
+        <canvas
+          ref={canvasRef}
+          role="img"
+          data-testid="editor-preview"
+          aria-label={t('editor.previewAlt')}
+          className="checkerboard"
+          style={{ width: css.width, height: css.height }}
+        />
+        {overlay?.({ css, backing: { width: backingW, height: backingH } })}
+      </div>
     </div>
   );
 }

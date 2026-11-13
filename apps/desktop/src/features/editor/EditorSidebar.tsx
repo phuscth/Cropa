@@ -1,4 +1,4 @@
-import { outputSize } from '@cropa/core';
+import { PLATFORM_IDS, PLATFORM_SIZES, outputSize, type PlatformId } from '@cropa/core';
 import {
   ColorInput,
   Button,
@@ -12,7 +12,7 @@ import {
   SelectValue,
   Slider,
 } from '@cropa/ui';
-import { useState, type ReactNode } from 'react';
+import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
@@ -28,6 +28,7 @@ import {
   backgroundKind,
   frameRanges,
   matchImageColor,
+  platformMatches,
   presetRatio,
   setAspectRatio,
   setBackgroundAngle,
@@ -39,6 +40,7 @@ import {
   setInset,
   setInsetColor,
   setPadding,
+  setPlatformSize,
   setRadius,
   setShadowLevel,
   shadowLevel,
@@ -46,33 +48,14 @@ import {
   type BackgroundKind,
   type ShadowLevel,
 } from './scene-edits.ts';
+import { PresetsSection } from './presets/PresetsSection.tsx';
+import { Row, Section } from './Section.tsx';
 import type { SceneHistory } from './use-scene-history.ts';
 
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'blocked' | 'edit' | 'preview' | 'commit'>;
   /** The colour found at the screenshot's edges, or null when it has none. */
   edgeColor: string | null;
-}
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="flex flex-col gap-3 border-b p-4 last:border-b-0">
-      <h3 className="text-xs font-medium text-muted-foreground">{title}</h3>
-      {children}
-    </section>
-  );
-}
-
-function Row({ label, value, children }: { label: string; value?: string; children: ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span>{label}</span>
-        {value !== undefined && <span className="text-muted-foreground tabular-nums">{value}</span>}
-      </div>
-      {children}
-    </div>
-  );
 }
 
 interface SliderRowProps {
@@ -156,6 +139,12 @@ export function EditorSidebar({ history, edgeColor }: Props) {
   const ratio = scene.output.aspectRatio;
   // The last colour the border had, for when a drag brings it back from width 0.
   const [borderColor, setBorderColorMemo] = useState('#ffffff');
+  // Facebook and Threads share a size, so the scene alone can't say which was clicked.
+  const [lastPlatform, setLastPlatform] = useState<PlatformId>();
+  const platform =
+    lastPlatform && platformMatches(scene, lastPlatform)
+      ? lastPlatform
+      : PLATFORM_IDS.find((id) => platformMatches(scene, id));
   if (frame.border && frame.border.color !== borderColor) setBorderColorMemo(frame.border.color);
 
   const chooseAspect = (value: string) => {
@@ -171,6 +160,12 @@ export function EditorSidebar({ history, edgeColor }: Props) {
     }
   };
 
+  const choosePlatform = (value: string) => {
+    const id = value as PlatformId;
+    setLastPlatform(id);
+    edit((s) => setPlatformSize(s, id));
+  };
+
   const px = (value: number) => t('editor.units.px', { value });
 
   return (
@@ -180,6 +175,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
           <ErrorNotice error={describeOutputTooLarge(t)} />
         </div>
       )}
+      <PresetsSection history={history} />
       <Section title={t('editor.background.title')}>
         <Row label={t('editor.background.type')}>
           <Select
@@ -323,7 +319,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
       <Section title={t('editor.aspect.title')}>
         <SegmentedControl
           aria-label={t('editor.aspect.title')}
-          value={preset}
+          value={platform ? undefined : preset}
           onValueChange={chooseAspect}
           className="grid-flow-row grid-cols-3"
         >
@@ -333,7 +329,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
             </SegmentedControlItem>
           ))}
         </SegmentedControl>
-        {preset === 'custom' && ratio && (
+        {!platform && preset === 'custom' && ratio && (
           <div className="flex items-center gap-2">
             <RatioField
               label={t('editor.aspect.width')}
@@ -348,6 +344,28 @@ export function EditorSidebar({ history, edgeColor }: Props) {
             />
           </div>
         )}
+        <Row label={t('editor.aspect.platform.title')}>
+          <SegmentedControl
+            aria-label={t('editor.aspect.platform.title')}
+            value={platform}
+            onValueChange={choosePlatform}
+            className="grid-flow-row grid-cols-2"
+          >
+            {PLATFORM_IDS.map((id) => (
+              <SegmentedControlItem key={id} value={id}>
+                {t(`editor.aspect.platform.${id}`)}
+              </SegmentedControlItem>
+            ))}
+          </SegmentedControl>
+          {platform && (
+            <p className="text-sm text-muted-foreground tabular-nums">
+              {t('editor.aspect.platform.size', {
+                width: PLATFORM_SIZES[platform].width,
+                height: PLATFORM_SIZES[platform].height,
+              })}
+            </p>
+          )}
+        </Row>
       </Section>
     </>
   );

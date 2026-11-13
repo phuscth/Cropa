@@ -59,7 +59,68 @@
       "auto": "Tự động",
       "custom": "Tùy chọn",
       "width": "Chiều rộng của tỉ lệ",
-      "height": "Chiều cao của tỉ lệ"
+      "height": "Chiều cao của tỉ lệ",
+      "platform": {
+        "title": "Nền tảng",
+        "x": "X",
+        "facebook": "Facebook",
+        "linkedin": "LinkedIn",
+        "threads": "Threads",
+        "size": "{{width}} × {{height}} px"
+      }
+    },
+    "dismiss": "Đóng",
+    "export": {
+      "copy": "Sao chép",
+      "save": "Lưu",
+      "saveAs": "Lưu thành…",
+      "saveAsConfirm": "Lưu thành…",
+      "format": "Định dạng",
+      "scale": "Tỉ lệ",
+      "scaleFixed": "Kích thước theo nền tảng luôn xuất ở 1x ({{width}} × {{height}} px)",
+      "saved": "Đã lưu {{fileName}}",
+      "copied": "Đã sao chép vào bộ nhớ tạm",
+      "openFolder": "Mở thư mục"
+    },
+    "presets": {
+      "title": "Preset",
+      "saveCurrent": "Lưu nền hiện tại",
+      "imageNotSavable": "Không thể lưu nền ảnh thành preset",
+      "import": "Nhập tệp preset",
+      "saved": "Đã lưu",
+      "empty": "Lưu nền hiện tại để dùng lại cho các ảnh chụp khác.",
+      "more": "Thao tác khác cho {{name}}",
+      "rename": "Đổi tên…",
+      "export": "Xuất…",
+      "delete": "Xóa",
+      "name": "Tên preset",
+      "save": "Lưu",
+      "cancel": "Hủy",
+      "deleteConfirm": "Xóa “{{name}}”? Không thể hoàn tác.",
+      "unreadable": "Không đọc được “{{name}}”",
+      "exported": "Đã xuất {{fileName}}"
+    },
+    "annotate": {
+      "toolbar": "Công cụ chú thích",
+      "tools": {
+        "select": "Chọn",
+        "arrow": "Mũi tên",
+        "rect": "Hình chữ nhật",
+        "text": "Văn bản",
+        "step": "Số bước",
+        "blur": "Làm mờ",
+        "pixelate": "Làm vỡ hạt"
+      },
+      "properties": "Thuộc tính chú thích",
+      "color": "Màu",
+      "otherColor": "Màu khác",
+      "strokeWidth": "Nét",
+      "fontSize": "Cỡ chữ",
+      "stepSize": "Kích thước",
+      "strength": "Độ mạnh",
+      "delete": "Xóa",
+      "textPlaceholder": "Nhập văn bản",
+      "step": "Bước {{n}}"
     }
   },
   "history": {
@@ -270,6 +331,41 @@
       "what": "Đã có lỗi xảy ra.",
       "why": "{{detail}}",
       "next": "Thử lại. Nếu vẫn lỗi, hãy mở lại Cropa."
+    },
+    "ExportRender": {
+      "what": "Không tạo được ảnh.",
+      "why": "Không thể vẽ hoặc mã hóa ảnh ({{detail}}).",
+      "next": "Hãy thử tỉ lệ hoặc độ đệm nhỏ hơn, hoặc đóng bớt ứng dụng khác để giải phóng bộ nhớ, rồi thử lại."
+    },
+    "ExportFormatUnsupported": {
+      "what": "Không tạo được ảnh {{format}}.",
+      "why": "Phiên bản WebView2 này không mã hóa được {{format}}.",
+      "next": "Hãy chọn PNG hoặc JPEG, hoặc cập nhật Microsoft Edge WebView2."
+    },
+    "PresetFileTooLarge": {
+      "what": "Không nhập được preset.",
+      "why": "Tệp lớn hơn {{limit}} KB nên không phải là preset của Cropa.",
+      "next": "Hãy chọn tệp preset đã xuất từ Cropa."
+    },
+    "PresetFileNotJson": {
+      "what": "Không nhập được preset.",
+      "why": "Tệp không phải JSON hợp lệ.",
+      "next": "Hãy chọn tệp preset đã xuất từ Cropa."
+    },
+    "PresetFileInvalid": {
+      "what": "Không nhập được preset.",
+      "why": "Tệp không đúng định dạng preset ({{detail}}).",
+      "next": "Hãy kiểm tra tệp, hoặc xuất lại preset từ Cropa."
+    },
+    "PresetFileTooNew": {
+      "what": "Không nhập được preset.",
+      "why": "Tệp được tạo bởi phiên bản Cropa mới hơn.",
+      "next": "Hãy cập nhật Cropa rồi nhập lại."
+    },
+    "ExportImageChanged": {
+      "what": "Không lưu được ảnh.",
+      "why": "Một ảnh chụp mới đã thay ảnh trong trình chỉnh sửa khi hộp thoại Lưu đang mở.",
+      "next": "Hãy lưu ảnh mới, hoặc mở ảnh trước đó từ Lịch sử rồi lưu lại."
     }
   }
 }

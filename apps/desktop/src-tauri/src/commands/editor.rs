@@ -2,19 +2,34 @@
 // macro cannot take references.
 #![allow(clippy::needless_pass_by_value)]
 
+use serde::Serialize;
+use specta::Type;
 use tauri::{AppHandle, Manager};
 
 use super::{CommandError, png_data_url};
 use crate::editor::EditorImage;
 
-/// The image the editor shows, as a `data:` URL, or `None` when it has none.
+/// What the editor shows: the image and when it was captured.
+#[derive(Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorImageData {
+    /// A `data:` URL.
+    pub image: String,
+    /// Milliseconds since the Unix epoch; `None` when the capture time is unknown.
+    pub captured_at: Option<f64>,
+}
+
+/// The image the editor shows with its capture time, or `None` when it has none.
 #[tauri::command]
 #[specta::specta]
-pub async fn get_editor_image(app: AppHandle) -> Result<Option<String>, CommandError> {
+pub async fn get_editor_image(app: AppHandle) -> Result<Option<EditorImageData>, CommandError> {
     tauri::async_runtime::spawn_blocking(move || {
         app.state::<EditorImage>()
             .get()
-            .map(|png| png_data_url(&png))
+            .map(|current| EditorImageData {
+                image: png_data_url(&current.png),
+                captured_at: current.captured_at,
+            })
     })
     .await
     .map_err(|err| CommandError::HistoryRead(err.to_string()))

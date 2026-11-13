@@ -1,8 +1,11 @@
-import { defaultScene, migrateScene, outputSize, type Scene } from '@cropa/core';
+import { builtinPresets, defaultScene, migrateScene, outputSize, type Scene } from '@cropa/core';
 import { describe, expect, it } from 'vitest';
 
 import {
   accept,
+  applyBackground,
+  hasImageLayer,
+  sameBackground,
   tryAccept,
   aspectPreset,
   ASPECT_PRESETS,
@@ -14,6 +17,7 @@ import {
   CAPTURE_REF,
   frameRanges,
   matchImageColor,
+  platformMatches,
   presetRatio,
   setAspectRatio,
   setBackgroundAngle,
@@ -23,11 +27,13 @@ import {
   setBorderColor,
   setBorderWidth,
   setPadding,
+  setPlatformSize,
   setRadius,
   setShadowLevel,
   shadowLevel,
   SHADOW_LEVELS,
 } from './scene-edits.ts';
+import { canUndo, historyReducer, initHistory } from './history.ts';
 
 const fresh = () => defaultScene({ width: 1200, height: 800 });
 const expectValid = (scene: Scene) => {
@@ -263,5 +269,61 @@ describe('aspect ratio', () => {
     expect(setAspectRatio(scene, [16, 9])).toBe(scene);
     const auto = fresh();
     expect(setAspectRatio(auto, null)).toBe(auto);
+  });
+});
+
+describe('platform sizes', () => {
+  it('leaves a platform size when a plain ratio is chosen', () => {
+    const platform = setPlatformSize(fresh(), 'x');
+    expect(platform.output.width).toBe(1920);
+    const plain = setAspectRatio(platform, [16, 9]);
+    expect(plain.output).toEqual({ aspectRatio: [16, 9], width: null });
+    expect(platformMatches(plain, 'x')).toBe(false);
+  });
+
+  it('matches facebook and threads alike, and only the platform set', () => {
+    const scene = setPlatformSize(fresh(), 'facebook');
+    expect(platformMatches(scene, 'facebook')).toBe(true);
+    expect(platformMatches(scene, 'threads')).toBe(true);
+    expect(platformMatches(scene, 'linkedin')).toBe(false);
+  });
+
+  it('returns the same scene when the platform size is already set', () => {
+    const scene = setPlatformSize(fresh(), 'linkedin');
+    expect(setPlatformSize(scene, 'linkedin')).toBe(scene);
+  });
+});
+
+describe('background presets', () => {
+  it('replaces only the background', () => {
+    const scene = fresh();
+    const background = builtinPresets[0]?.background;
+    if (!background) throw new Error('no built-in preset');
+    const next = applyBackground(scene, background);
+    expect(next.background).toBe(background);
+    expect({ ...next, background: scene.background }).toEqual(scene);
+  });
+
+  it('returns the same scene for an equal background', () => {
+    const scene = fresh();
+    expect(applyBackground(scene, structuredClone(scene.background))).toBe(scene);
+    expect(sameBackground(scene.background, structuredClone(scene.background))).toBe(true);
+  });
+
+  it('is one undo step through the history', () => {
+    const start = fresh();
+    const background = builtinPresets[0]?.background;
+    if (!background || sameBackground(start.background, background)) throw new Error('bad fixture');
+    let h = initHistory(start);
+    h = historyReducer(h, { type: 'edit', scene: (s) => applyBackground(s, background) });
+    expect(h.present.background).toBe(background);
+    h = historyReducer(h, { type: 'undo' });
+    expect(h.present).toBe(start);
+    expect(canUndo(h)).toBe(false);
+  });
+
+  it('flags image backgrounds and no built-in preset', () => {
+    expect(hasImageLayer(setBackgroundKind(fresh(), 'image').background)).toBe(true);
+    for (const preset of builtinPresets) expect(hasImageLayer(preset.background)).toBe(false);
   });
 });

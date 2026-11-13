@@ -104,10 +104,11 @@ pub async fn delete_all_history(app: AppHandle) -> Result<(), CommandError> {
 #[tauri::command]
 #[specta::specta]
 pub async fn open_history_in_editor(app: AppHandle, id: String) -> Result<(), CommandError> {
-    let png = blocking(&app, move |history| {
-        history.original(&id).map_err(read_error)
+    let (png, captured_at) = blocking(&app, move |history| {
+        let png = history.original(&id).map_err(read_error)?;
+        Ok((png, History::captured_at(&id).ok()))
     })
     .await?;
-    editor::open(&app, png);
+    editor::open(&app, png, captured_at);
     Ok(())
 }

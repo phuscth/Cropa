@@ -42,8 +42,8 @@ export const commands = {
 	deleteHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_history_image", { id })),
 	deleteAllHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("delete_all_history")),
 	openHistoryInEditor: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("open_history_in_editor", { id })),
-	/**  The image the editor shows, as a `data:` URL, or `None` when it has none. */
-	getEditorImage: () => typedError<string | null, CommandError>(__TAURI_INVOKE("get_editor_image")),
+	/**  The image the editor shows with its capture time, or `None` when it has none. */
+	getEditorImage: () => typedError<EditorImageData_Serialize | null, CommandError>(__TAURI_INVOKE("get_editor_image")),
 	/**
 	 *  Ctrl+S: save the rendered image (a `data:` URL of `format`) to the save
 	 *  folder, named after the capture time. `session_file` is the id of this
@@ -81,6 +81,12 @@ export const commands = {
 	saveUserPreset: (id: string | null, name: string, background: Json) => typedError<UserPreset, CommandError>(__TAURI_INVOKE("save_user_preset", { id, name, background })),
 	/**  Deletes a saved preset. A preset that is already gone is not an error. */
 	deleteUserPreset: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_user_preset", { id })),
+	/**
+	 *  Exports a preset: shows a Save dialog for a `.json` file and writes `text`
+	 *  there. `None` when the user cancels. The text is the preset file the WebView
+	 *  built.
+	 */
+	savePresetFile: (suggestedName: string, text: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("save_preset_file", { suggestedName, text })),
 };
 
 /** Events */
@@ -115,6 +121,25 @@ export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse"
 
 /**  The editor has another image to show. */
 export type EditorImageChanged = null;
+
+/**  What the editor shows: the image and when it was captured. */
+export type EditorImageData = EditorImageData_Serialize | EditorImageData_Deserialize;
+
+/**  What the editor shows: the image and when it was captured. */
+export type EditorImageData_Deserialize = {
+	/**  A `data:` URL. */
+	image: string,
+	/**  Milliseconds since the Unix epoch; `None` when the capture time is unknown. */
+	capturedAt?: number | null,
+};
+
+/**  What the editor shows: the image and when it was captured. */
+export type EditorImageData_Serialize = {
+	/**  A `data:` URL. */
+	image: string,
+	/**  Milliseconds since the Unix epoch; `None` when the capture time is unknown. */
+	capturedAt: number | null,
+};
 
 /**  An image file format the editor can export. */
 export type ExportFormat = "png" | "jpeg" | "webp";
