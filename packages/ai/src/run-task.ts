@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { TaskOutputError, toAgentErrorKind } from './errors.ts';
 import type { AiErrorKind } from './errors.ts';
 import type { Provider, Task } from './task.ts';
-import type { Transport, TransportEvent, TransportOutput, TransportRequest } from './transport.ts';
+import type { Effort, Transport, TransportEvent, TransportOutput, TransportRequest } from './transport.ts';
 
 const DEFAULT_TIMEOUT_MS = 60_000;
 const MAX_DETAIL_CHARS = 1000;
@@ -39,6 +39,8 @@ export interface RunTaskOptions<T = unknown> {
   /** Asks the user before images leave the machine. Required by `image-in` tasks. */
   confirmImages?: (images: readonly string[]) => Promise<boolean>;
   timeoutMs?: number;
+  /** How much thinking the turn may spend; low when absent. */
+  effort?: Effort;
   /** Checks the postprocessed result, for what a schema cannot say (for example that code runs). */
   validate?: (result: T, ctx: { attempt: 1 | 2; signal?: AbortSignal }) => Promise<Validation>;
 }
@@ -93,6 +95,7 @@ export function runTask<I, S extends z.ZodType, T>(
       schema: task.jsonSchema,
       images,
       wantImage,
+      ...(opts.effort ? { effort: opts.effort } : {}),
       timeoutMs: task.timeoutMs ?? opts.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     };
 

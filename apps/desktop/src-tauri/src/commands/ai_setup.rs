@@ -17,7 +17,7 @@ use tauri::State;
 use super::CommandError;
 use super::settings::persist;
 use crate::platform::{self, Platform};
-use crate::settings::{AiProvider, Settings};
+use crate::settings::{AiEffort, AiProvider, Settings};
 use crate::state::AppState;
 
 const CODEX_INSTALL_URL: &str = "https://developers.openai.com/codex/cli";
@@ -86,6 +86,16 @@ pub fn set_ai_allow_images(
     enabled: bool,
 ) -> Result<Settings, CommandError> {
     persist(&state, |s| s.ai.allow_images = enabled)
+}
+
+/// Remember how much effort AI tasks use. Low, medium or high only.
+#[tauri::command]
+#[specta::specta]
+pub fn set_ai_effort(
+    state: State<'_, AppState>,
+    effort: AiEffort,
+) -> Result<Settings, CommandError> {
+    persist(&state, |s| s.ai.effort = effort)
 }
 
 /// "Later" on the first-launch AI question: stop asking, keep the provider.

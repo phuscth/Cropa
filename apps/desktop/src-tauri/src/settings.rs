@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-pub const CURRENT_VERSION: u32 = 5;
+pub const CURRENT_VERSION: u32 = 6;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
@@ -45,6 +45,17 @@ pub enum AiProvider {
     Mock,
 }
 
+/// How much thinking an AI task may spend. Higher is slower and uses more of the user's
+/// quota. On disk: `"low"`, `"medium"` or `"high"`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum AiEffort {
+    #[default]
+    Low,
+    Medium,
+    High,
+}
+
 /// AI choices. The login itself is never stored: Cropa uses the CLI the user
 /// installed and logged in to.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -58,6 +69,10 @@ pub struct AiSettings {
     /// Whether a task may send screenshots to the provider (each send is also
     /// confirmed).
     pub allow_images: bool,
+    /// The effort tasks run with; the last choice the user made.
+    #[serde(deserialize_with = "known_effort")]
+    #[specta(type = AiEffort)]
+    pub effort: AiEffort,
     /// Whether the first-launch AI question has been answered or dismissed.
     pub onboarding_answered: bool,
 }
@@ -69,6 +84,13 @@ fn known_provider<'de, D: serde::Deserializer<'de>>(
 ) -> Result<Option<AiProvider>, D::Error> {
     let value = serde_json::Value::deserialize(deserializer)?;
     Ok(serde_json::from_value(value).ok())
+}
+
+/// An effort this build does not know (a file from a newer build) loads as low, so the rest of
+/// the file is kept.
+fn known_effort<'de, D: serde::Deserializer<'de>>(deserializer: D) -> Result<AiEffort, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).unwrap_or_default())
 }
 
 /// `"ai": null` loads as the defaults.
@@ -141,11 +163,12 @@ pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => over_defaults(v4_to_v5(v3_to_v4(v2_to_v3(v1_to_v2(value))))),
-        2 => over_defaults(v4_to_v5(v3_to_v4(v2_to_v3(value)))),
-        3 => over_defaults(v4_to_v5(v3_to_v4(value))),
-        4 => over_defaults(v4_to_v5(value)),
-        5 => over_defaults(value),
+        1 => over_defaults(v5_to_v6(v4_to_v5(v3_to_v4(v2_to_v3(v1_to_v2(value)))))),
+        2 => over_defaults(v5_to_v6(v4_to_v5(v3_to_v4(v2_to_v3(value))))),
+        3 => over_defaults(v5_to_v6(v4_to_v5(v3_to_v4(value)))),
+        4 => over_defaults(v5_to_v6(v4_to_v5(value))),
+        5 => over_defaults(v5_to_v6(value)),
+        6 => over_defaults(value),
         other => Err(MigrateError::TooNew(other)),
     }
 }
@@ -192,6 +215,21 @@ fn v4_to_v5(mut value: serde_json::Value) -> serde_json::Value {
             "allowImages": false,
             "onboardingAnswered": false
         }));
+    }
+    value
+}
+
+/// The AI effort was introduced in version 6; every existing file starts on low, which is what
+/// both adapters used before it could be chosen.
+fn v5_to_v6(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(file) = value.as_object_mut() {
+        file.insert("version".into(), 6.into());
+        if let Some(ai) = file
+            .get_mut("ai")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            ai.entry("effort").or_insert("low".into());
+        }
     }
     value
 }
@@ -307,6 +345,7 @@ mod tests {
             ai: AiSettings {
                 provider: Some(AiProvider::Codex),
                 allow_images: true,
+                effort: AiEffort::High,
                 onboarding_answered: true,
             },
             ..Settings::default()
@@ -315,7 +354,8 @@ mod tests {
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["theme"], "dark");
-        assert_eq!(on_disk["version"], 5);
+        assert_eq!(on_disk["version"], 6);
+        assert_eq!(on_disk["ai"]["effort"], "high");
         assert_eq!(on_disk["ai"]["provider"], "codex");
         assert_eq!(on_disk["ai"]["allowImages"], true);
         assert_eq!(on_disk["ai"]["onboardingAnswered"], true);
@@ -371,7 +411,7 @@ mod tests {
             "version": 1, "captureShortcut": "Ctrl+Alt+P", "theme": "light", "autostart": true
         });
         let migrated = migrate(with_theme).unwrap();
-        assert_eq!(migrated.version, 5);
+        assert_eq!(migrated.version, 6);
         assert!(migrated.autostart_asked);
         assert!(migrated.save_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -384,12 +424,12 @@ mod tests {
     }
 
     #[test]
-    fn a_version_2_file_migrates_to_5_and_keeps_its_fields() {
+    fn a_version_2_file_migrates_to_6_and_keeps_its_fields() {
         let v2 = serde_json::json!({
             "version": 2, "captureShortcut": "Ctrl+Alt+P", "theme": "dark", "autostartAsked": false
         });
         let migrated = migrate(v2).unwrap();
-        assert_eq!(migrated.version, 5);
+        assert_eq!(migrated.version, 6);
         assert!(migrated.save_history);
         assert!(!migrated.exclude_from_clipboard_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -410,13 +450,13 @@ mod tests {
     }
 
     #[test]
-    fn a_version_3_file_migrates_to_5_without_a_save_folder() {
+    fn a_version_3_file_migrates_to_6_without_a_save_folder() {
         let v3 = serde_json::json!({
             "version": 3, "captureShortcut": "Ctrl+Alt+P", "theme": "dark",
             "autostartAsked": true, "saveHistory": false, "excludeFromClipboardHistory": true
         });
         let migrated = migrate(v3).unwrap();
-        assert_eq!(migrated.version, 5);
+        assert_eq!(migrated.version, 6);
         assert_eq!(migrated.save_folder, None);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::Dark);
@@ -435,13 +475,13 @@ mod tests {
     }
 
     #[test]
-    fn a_version_4_file_migrates_to_5_and_asks_about_ai_once() {
+    fn a_version_4_file_migrates_to_6_and_asks_about_ai_once() {
         let v4 = serde_json::json!({
             "version": 4, "captureShortcut": "Ctrl+Alt+P", "theme": "dark",
             "saveFolder": "D:/Pictures/Cropa"
         });
         let migrated = migrate(v4).unwrap();
-        assert_eq!(migrated.version, 5);
+        assert_eq!(migrated.version, 6);
         assert_eq!(migrated.ai, AiSettings::default());
         assert!(!migrated.ai.onboarding_answered);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -462,6 +502,32 @@ mod tests {
         assert_eq!(ai.provider, Some(AiProvider::Claude));
         assert!(ai.allow_images);
         assert!(ai.onboarding_answered);
+    }
+
+    #[test]
+    fn a_version_5_file_gets_low_effort_and_a_chosen_effort_is_kept() {
+        let v5 = serde_json::json!({
+            "version": 5,
+            "ai": { "provider": "claude", "allowImages": true, "onboardingAnswered": true }
+        });
+        let migrated = migrate(v5).unwrap();
+        assert_eq!(migrated.version, 6);
+        assert_eq!(migrated.ai.effort, AiEffort::Low);
+        assert_eq!(migrated.ai.provider, Some(AiProvider::Claude));
+
+        let v6 = serde_json::json!({ "version": 6, "ai": { "effort": "high" } });
+        assert_eq!(migrate(v6).unwrap().ai.effort, AiEffort::High);
+    }
+
+    #[test]
+    fn an_unknown_effort_loads_as_low_and_keeps_the_rest() {
+        let file = serde_json::json!({
+            "version": 6, "theme": "dark", "ai": { "effort": "max", "allowImages": true }
+        });
+        let migrated = migrate(file).unwrap();
+        assert_eq!(migrated.ai.effort, AiEffort::Low);
+        assert!(migrated.ai.allow_images);
+        assert_eq!(migrated.theme, ThemePreference::Dark);
     }
 
     #[test]
@@ -506,8 +572,8 @@ mod tests {
     #[test]
     fn a_newer_version_is_rejected() {
         assert!(matches!(
-            migrate(serde_json::json!({ "version": 6 })),
-            Err(MigrateError::TooNew(6))
+            migrate(serde_json::json!({ "version": 7 })),
+            Err(MigrateError::TooNew(7))
         ));
     }
 

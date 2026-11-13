@@ -315,6 +315,18 @@ describe('runTask', () => {
     expect(seen).toEqual(['attempt 1', 'tick', 'attempt 2']);
   });
 
+  describe('effort', () => {
+    it('puts the effort of the options into every request, and none when absent', async () => {
+      const transport = new MockTransport([invalid, valid]);
+      await runTask(makeTask(), {}, { transport, provider: provider(), effort: 'high' }).done;
+      expect(transport.calls.map((c) => c.effort)).toEqual(['high', 'high']);
+
+      const plain = new MockTransport([valid]);
+      await runTask(makeTask(), {}, { transport: plain, provider: provider() }).done;
+      expect(plain.calls[0]).not.toHaveProperty('effort');
+    });
+  });
+
   describe('validate', () => {
     type Result = { word: string; image: string | undefined };
     const run = (

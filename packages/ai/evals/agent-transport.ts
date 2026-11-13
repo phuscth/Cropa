@@ -129,6 +129,7 @@ export function createAgentTransport(provider: RealProvider, binary: string): Tr
             prompt: req.prompt,
             schema: req.schema,
             timeoutMs: req.timeoutMs,
+            effort: req.effort ?? 'low',
           })}\n`,
         );
       });

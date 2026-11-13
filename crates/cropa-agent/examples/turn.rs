@@ -2,7 +2,7 @@
 //! It spends quota, so tests never run it.
 //!
 //! stdin: one JSON line `{ "provider": "codex"|"claude", "system", "prompt", "schema",
-//! "timeoutMs" }`. The harness then keeps stdin open; closing it cancels the turn.
+//! "timeoutMs", "effort"? }`. The harness then keeps stdin open; closing it cancels the turn.
 //! stdout: one JSON line, `{ "json": ... }` or `{ "error": "<AgentError kind>" }`.
 //!
 //! `cargo build -p cropa-agent --example turn`
@@ -10,7 +10,7 @@
 use std::io::{self, BufRead, Read};
 use std::time::Duration;
 
-use cropa_agent::{AgentCli, AgentError, CancelToken, ClaudeCode, CodexExec, RunRequest};
+use cropa_agent::{AgentCli, AgentError, CancelToken, ClaudeCode, CodexExec, Effort, RunRequest};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -22,6 +22,8 @@ struct TurnRequest {
     prompt: String,
     schema: Option<serde_json::Value>,
     timeout_ms: u64,
+    /// "low" (the default), "medium" or "high".
+    effort: Option<String>,
 }
 
 fn error_kind(error: &AgentError) -> &'static str {
@@ -72,6 +74,15 @@ fn main() {
         }
     });
 
+    let effort = match request.effort.as_deref() {
+        None | Some("low") => Effort::Low,
+        Some("medium") => Effort::Medium,
+        Some("high") => Effort::High,
+        Some(_) => {
+            print(&json!({ "error": "Unsupported" }));
+            return;
+        }
+    };
     let run = RunRequest {
         system: request.system,
         prompt: request.prompt,
@@ -79,6 +90,7 @@ fn main() {
         images: Vec::new(),
         want_image: false,
         model: None,
+        effort,
         timeout: Duration::from_millis(request.timeout_ms),
     };
     match agent.run(run, &cancel, &mut |_| {}) {

@@ -1,9 +1,10 @@
 import { backgroundTask, runTask } from '@cropa/ai';
 import type { PaletteColour } from '@cropa/core';
-import { Button } from '@cropa/ui';
+import { Button, SegmentedControl, SegmentedControlItem } from '@cropa/ui';
 import { useEffect, useId, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { commands, type AiEffort } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import type { UserError } from '../../lib/errors.ts';
 import { useAiAccess } from '../ai/access.ts';
@@ -28,6 +29,8 @@ interface Props {
   palette: readonly PaletteColour[];
 }
 
+const EFFORTS: readonly AiEffort[] = ['low', 'medium', 'high'];
+
 type Phase = 'idle' | 'writing' | 'checking';
 
 /**
@@ -43,6 +46,9 @@ export function AiBackground({ history, palette }: Props) {
   const [description, setDescription] = useState('');
   const [phase, setPhase] = useState<Phase>('idle');
   const [notice, setNotice] = useState<UserError>();
+  // The choice made in this session; until then, the one saved in settings.
+  const [chosen, setChosen] = useState<AiEffort>();
+  const effort = chosen ?? access.effort;
   const controller = useRef<AbortController>(undefined);
 
   // Leaving the editor, or loading another screenshot, cancels a run in flight: its answer was
@@ -51,6 +57,12 @@ export function AiBackground({ history, palette }: Props) {
 
   const provider = access.provider;
   const running = phase !== 'idle';
+
+  const chooseEffort = (next: AiEffort) => {
+    setChosen(next);
+    // Remembered for next time; a failed save only means the choice lasts this session.
+    void Promise.resolve(commands.setAiEffort(next)).catch(() => undefined);
+  };
 
   const generate = () => {
     if (!provider || description.trim() === '') return;
@@ -72,6 +84,7 @@ export function AiBackground({ history, palette }: Props) {
       ),
       provider: { name: provider, capabilities: [] },
       signal: abort.signal,
+      effort,
       validate: validator.validate,
       onEvent: (event) => {
         if (abort.signal.aborted) return;
@@ -124,6 +137,22 @@ export function AiBackground({ history, palette }: Props) {
               onChange={(event) => { setDescription(event.target.value); }}
               className="w-full resize-none rounded-md border bg-background px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50"
             />
+            <div className="flex w-full flex-col gap-1">
+              <span className="text-xs text-muted-foreground">{t('editor.aiBackground.effort.label')}</span>
+              <SegmentedControl
+                aria-label={t('editor.aiBackground.effort.label')}
+                value={effort}
+                disabled={!enabled || running}
+                onValueChange={(next) => { chooseEffort(next as AiEffort); }}
+              >
+                {EFFORTS.map((level) => (
+                  <SegmentedControlItem key={level} value={level}>
+                    {t(`editor.aiBackground.effort.${level}`)}
+                  </SegmentedControlItem>
+                ))}
+              </SegmentedControl>
+              <p className="text-xs text-muted-foreground">{t('editor.aiBackground.effort.hint')}</p>
+            </div>
             {running ? (
               <div className="flex items-center gap-2">
                 <span role="status" className="text-sm text-muted-foreground">

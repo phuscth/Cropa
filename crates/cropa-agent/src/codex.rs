@@ -15,7 +15,7 @@ use crate::adapter::{
     read_png, scratch_dir,
 };
 use crate::cancel::CancelToken;
-use crate::cli::{AgentCli, AgentError, Detection, Event, RunOutput, RunRequest};
+use crate::cli::{AgentCli, AgentError, Detection, Effort, Event, RunOutput, RunRequest};
 use crate::path_search::find_executable;
 use crate::runner::{Finished, LineFlow, ProcessError, ProcessSpec, run_process};
 
@@ -101,6 +101,7 @@ fn build_args(
     schema_file: Option<&Path>,
     images: &[PathBuf],
     model: Option<&str>,
+    effort: Effort,
 ) -> Vec<OsString> {
     let mut args: Vec<OsString> = [
         "exec",
@@ -112,8 +113,6 @@ fn build_args(
         "--ignore-user-config",
         "--ignore-rules",
         "-c",
-        "model_reasoning_effort=\"low\"",
-        "-c",
         "project_doc_max_bytes=0",
         "-c",
         "web_search=\"disabled\"",
@@ -121,6 +120,9 @@ fn build_args(
     .into_iter()
     .map(OsString::from)
     .collect();
+    // From the enum, so it is one of three fixed words.
+    args.push("-c".into());
+    args.push(format!("model_reasoning_effort=\"{}\"", effort.as_arg()).into());
     for feature in DISABLED_FEATURES {
         args.push("--disable".into());
         args.push((*feature).into());
@@ -503,7 +505,12 @@ impl AgentCli for CodexExec {
 
         let spec = ProcessSpec {
             program: executable,
-            args: build_args(schema_file.as_deref(), &image_files, req.model.as_deref()),
+            args: build_args(
+                schema_file.as_deref(),
+                &image_files,
+                req.model.as_deref(),
+                req.effort,
+            ),
             env: adapter_env(&[LOGIN_ENV]),
             stdin: Some(stdin_text(&req.system, &req.prompt)),
             timeout: req.timeout,
@@ -671,6 +678,7 @@ mod tests {
             Some(Path::new("/t/output-schema.json")),
             &[PathBuf::from("/t/input-0.png")],
             Some("gpt-5"),
+            Effort::Low,
         );
         let mut expected: Vec<String> = [
             "exec",
@@ -682,11 +690,11 @@ mod tests {
             "--ignore-user-config",
             "--ignore-rules",
             "-c",
-            "model_reasoning_effort=\"low\"",
-            "-c",
             "project_doc_max_bytes=0",
             "-c",
             "web_search=\"disabled\"",
+            "-c",
+            "model_reasoning_effort=\"low\"",
         ]
         .map(str::to_owned)
         .to_vec();
@@ -707,6 +715,23 @@ mod tests {
     }
 
     #[test]
+    fn each_effort_becomes_its_own_fixed_reasoning_setting() {
+        for (effort, word) in [
+            (Effort::Low, "low"),
+            (Effort::Medium, "medium"),
+            (Effort::High, "high"),
+        ] {
+            let args = build_args(None, &[], None, effort);
+            let settings: Vec<&str> = args
+                .iter()
+                .filter_map(|a| a.to_str())
+                .filter(|a| a.starts_with("model_reasoning_effort="))
+                .collect();
+            assert_eq!(settings, [format!("model_reasoning_effort=\"{word}\"")]);
+        }
+    }
+
+    #[test]
     fn the_prompt_goes_on_stdin_after_the_isolation_note() {
         let text = String::from_utf8(stdin_text("--system", "--prompt")).unwrap();
         assert_eq!(text, format!("{ISOLATION_NOTE}\n\n--system\n\n--prompt"));
@@ -724,6 +749,7 @@ mod tests {
             images: Vec::new(),
             want_image: false,
             model: Some("--config".to_owned()),
+            effort: Effort::default(),
             timeout: std::time::Duration::from_secs(5),
         };
         assert_eq!(

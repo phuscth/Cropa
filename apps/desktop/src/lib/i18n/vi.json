@@ -21,6 +21,13 @@
       "cancel": "Hủy",
       "writing": "Đang viết nền…",
       "checking": "Đang kiểm tra nền có chạy được không…",
+      "effort": {
+        "label": "Mức nỗ lực",
+        "low": "Thấp",
+        "medium": "Vừa",
+        "high": "Cao",
+        "hint": "Mức cao hơn mất nhiều thời gian hơn và dùng nhiều hạn mức AI của bạn hơn."
+      },
       "noWebgl": {
         "what": "Nền này cần đồ họa 3D.",
         "why": "WebGL không khả dụng trong cửa sổ này nên nền 3D không chạy được.",

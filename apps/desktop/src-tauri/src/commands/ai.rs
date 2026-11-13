@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use base64::Engine;
 use cropa_agent::{
     AgentCli, AgentError, CLAUDE_ENABLED, CODEX_ENABLED, CancelToken, ClaudeCode, CodexExec,
-    Detection, Event, RunOutput, RunRequest, TurnDir,
+    Detection, Effort, Event, RunOutput, RunRequest, TurnDir,
 };
 #[cfg(debug_assertions)]
 use cropa_agent::{Mock, MockScript};
@@ -26,6 +26,7 @@ use tauri::ipc::Channel;
 use tauri::{AppHandle, Manager};
 
 use super::png_data_url;
+use crate::settings::AiEffort;
 
 const MAX_RUN_ID_CHARS: usize = 64;
 const MAX_MODEL_CHARS: usize = 64;
@@ -112,7 +113,24 @@ pub struct AiRequest {
     pub images: Vec<String>,
     pub want_image: bool,
     pub model: Option<String>,
+    /// How much thinking the turn may spend; low when absent.
+    pub effort: Option<AiEffort>,
     pub timeout_ms: Option<u32>,
+}
+
+/// The effort a request asks for; low when it says nothing.
+fn effort_of(requested: Option<AiEffort>) -> Effort {
+    requested.map_or(Effort::Low, Effort::from)
+}
+
+impl From<AiEffort> for Effort {
+    fn from(effort: AiEffort) -> Self {
+        match effort {
+            AiEffort::Low => Self::Low,
+            AiEffort::Medium => Self::Medium,
+            AiEffort::High => Self::High,
+        }
+    }
 }
 
 /// Progress of a run, sent over the channel.
@@ -486,6 +504,7 @@ fn run_turn(
         images: paths,
         want_image: request.want_image,
         model: request.model,
+        effort: effort_of(request.effort),
         timeout,
     };
     let RunOutput { json, image } = agent.run(run, cancel, &mut |event| {
@@ -638,6 +657,32 @@ mod tests {
         assert_eq!(clamp_timeout(Some(1)), Duration::from_secs(5));
         assert_eq!(clamp_timeout(Some(u32::MAX)), Duration::from_secs(300));
         assert_eq!(clamp_timeout(Some(20_000)), Duration::from_secs(20));
+    }
+
+    #[test]
+    fn an_effort_maps_to_its_own_level_and_defaults_to_low() {
+        assert_eq!(effort_of(None), Effort::Low);
+        assert_eq!(effort_of(Some(AiEffort::Low)), Effort::Low);
+        assert_eq!(effort_of(Some(AiEffort::Medium)), Effort::Medium);
+        assert_eq!(effort_of(Some(AiEffort::High)), Effort::High);
+    }
+
+    #[test]
+    fn a_request_carries_only_a_known_effort() {
+        let request = |effort: &str| {
+            serde_json::from_value::<AiRequest>(serde_json::json!({
+                "system": "s", "prompt": "p", "schema": null, "images": [],
+                "wantImage": false, "model": null, "timeoutMs": null, "effort": effort
+            }))
+        };
+        assert_eq!(request("high").unwrap().effort, Some(AiEffort::High));
+        assert!(request("max").is_err());
+        assert!(request("--help").is_err());
+        let without: AiRequest = serde_json::from_value(serde_json::json!({
+            "system": "s", "prompt": "p", "images": [], "wantImage": false
+        }))
+        .unwrap();
+        assert_eq!(without.effort, None);
     }
 
     #[test]

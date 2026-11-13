@@ -1,7 +1,7 @@
 import { runTask } from '../src/run-task.ts';
 import type { Validation } from '../src/run-task.ts';
 import type { Provider, Task } from '../src/task.ts';
-import type { Transport } from '../src/transport.ts';
+import type { Effort, Transport } from '../src/transport.ts';
 
 export interface EvalCase {
   id: string;
@@ -65,6 +65,8 @@ export interface EvalOptions {
   cases: readonly EvalCase[];
   transport: Transport;
   provider: Provider;
+  /** The effort every turn runs with; low when absent. */
+  effort?: Effort;
   /** How many times each case runs. */
   runs?: number;
   /** Checks each postprocessed answer; a failed one is sent back once, as in the app. */
@@ -102,6 +104,7 @@ export async function runEval(opts: EvalOptions): Promise<EvalReport> {
       const { done } = runTask(opts.task, c.input, {
         transport: opts.transport,
         provider: opts.provider,
+        ...(opts.effort ? { effort: opts.effort } : {}),
         onEvent: (e) => {
           if (e.type === 'attempt') attempts++;
         },

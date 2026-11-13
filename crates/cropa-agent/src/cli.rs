@@ -5,6 +5,27 @@ use std::time::Duration;
 
 use crate::cancel::CancelToken;
 
+/// How much thinking a turn may spend. Higher is slower and uses more of the user's quota.
+/// The adapters turn each value into a fixed argument, so a request can never carry any other text.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub enum Effort {
+    #[default]
+    Low,
+    Medium,
+    High,
+}
+
+impl Effort {
+    /// The word both CLIs use for this level.
+    pub const fn as_arg(self) -> &'static str {
+        match self {
+            Self::Low => "low",
+            Self::Medium => "medium",
+            Self::High => "high",
+        }
+    }
+}
+
 /// One turn: a system prompt, a prompt and optional input pictures.
 #[derive(Debug, Clone)]
 pub struct RunRequest {
@@ -16,6 +37,7 @@ pub struct RunRequest {
     pub images: Vec<PathBuf>,
     pub want_image: bool,
     pub model: Option<String>,
+    pub effort: Effort,
     pub timeout: Duration,
 }
 

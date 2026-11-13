@@ -18,6 +18,7 @@ const HELP = `Usage: pnpm --filter @cropa/ai eval --task <task> --provider <prov
               claude  one real turn per case through the Claude Code CLI you are logged in to
   --limit N   run only the first N cases
   --cases a,b run only the cases with these ids
+  --effort    low (default) | medium | high: how much thinking each real turn may spend
 
 Real providers spend your own quota and take minutes: run them by hand, never in CI. The
 first real run builds crates/cropa-agent/examples/turn.rs with cargo.
@@ -43,6 +44,7 @@ const { values } = parseArgs({
     provider: { type: 'string' },
     limit: { type: 'string' },
     cases: { type: 'string' },
+    effort: { type: 'string' },
     help: { type: 'boolean' },
   },
 });
@@ -73,6 +75,10 @@ if (values.limit !== undefined) {
   cases = cases.slice(0, limit);
 }
 
+const efforts = ['low', 'medium', 'high'] as const;
+const effort = efforts.find((level) => level === (values.effort ?? 'low'));
+if (!effort) fail(`--effort must be one of: ${efforts.join(', ')}`);
+
 const transport: Transport =
   values.provider === 'mock'
     ? entry.mock()
@@ -84,6 +90,7 @@ const report = await runEval({
   cases,
   transport,
   provider,
+  effort,
   ...(entry.validate ? { validate: entry.validate } : {}),
 });
 

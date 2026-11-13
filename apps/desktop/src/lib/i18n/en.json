@@ -21,6 +21,13 @@
       "cancel": "Cancel",
       "writing": "Writing the background…",
       "checking": "Checking that it runs…",
+      "effort": {
+        "label": "Effort",
+        "low": "Low",
+        "medium": "Medium",
+        "high": "High",
+        "hint": "Higher effort takes longer and uses more of your AI quota."
+      },
       "noWebgl": {
         "what": "This background needs 3D graphics.",
         "why": "WebGL isn't available in this window, so a 3D background can't run here.",

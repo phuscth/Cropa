@@ -1,5 +1,8 @@
 export type JsonSchema = Record<string, unknown>;
 
+/** How much thinking a turn may spend. Higher is slower and uses more of the user's quota. */
+export type Effort = 'low' | 'medium' | 'high';
+
 export interface TransportRequest {
   system: string;
   prompt: string;
@@ -7,6 +10,8 @@ export interface TransportRequest {
   /** Opaque references (paths the desktop side understands). */
   images: readonly string[];
   wantImage: boolean;
+  /** Low when absent. */
+  effort?: Effort;
   timeoutMs: number;
 }
 

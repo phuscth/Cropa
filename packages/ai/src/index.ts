@@ -12,6 +12,7 @@ export {
 export type { AgentErrorKind, AiErrorKind, TaskErrorKind } from './errors.ts';
 
 export type {
+  Effort,
   JsonSchema,
   Transport,
   TransportEvent,
