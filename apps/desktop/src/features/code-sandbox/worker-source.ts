@@ -8,7 +8,7 @@ export function sourceBytes(source: string): number {
 }
 
 export function usesThree(source: string): boolean {
-  return /\bTHREE\s*\./.test(source);
+  return /\bTHREE\s*[.[]/.test(source);
 }
 
 const EXPORT_DEFAULT = /^\s*export\s+default\b/m;

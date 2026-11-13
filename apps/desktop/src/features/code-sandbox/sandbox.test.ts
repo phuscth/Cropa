@@ -92,6 +92,8 @@ function canvasClass(world: WorldOptions): new (width: number, height: number) =
 function createWorld(patch: Partial<WorldOptions> = {}) {
   const options: WorldOptions = { webgl: true, silentFrames: false, silentLoad: false, bootFails: false, ...patch };
   const hosts: FakeHost[] = [];
+  // Counts close() on bitmaps a test module made itself.
+  const strayBitmaps = { closed: 0 };
 
   const createHost: CreateHost = () => {
     const listeners = new Set<(data: unknown) => void>();
@@ -113,6 +115,9 @@ function createWorld(patch: Partial<WorldOptions> = {}) {
         SharedWorker: () => undefined,
         OffscreenCanvas: canvasClass(options),
         structuredClone,
+        closeTracked: () => {
+          strayBitmaps.closed++;
+        },
       });
       vm.runInContext('globalThis.self = globalThis;', context);
       try {
@@ -151,7 +156,7 @@ function createWorld(patch: Partial<WorldOptions> = {}) {
     return host;
   };
 
-  return { hosts, createHost, options };
+  return { hosts, createHost, options, strayBitmaps };
 }
 
 const scene: CodeScene = {
@@ -369,6 +374,38 @@ describe('errors while rendering', () => {
     expect(await sandbox.renderFrame(0.1, scene)).toMatchObject({ back: { width: 4, height: 3 } });
   });
 
+  it('closes bitmaps from messages it did not ask for', async () => {
+    const { createHost, strayBitmaps } = createWorld();
+    const sandbox = createCodeSandbox({ createHost });
+    await sandbox.load(
+      moduleSource(`function back(ctx, t, scene) {
+  for (let i = 0; i < 3; i++) {
+    const bitmap = { width: 1, height: 1, close: closeTracked };
+    postMessage({ type: 'frame', id: 999, back: bitmap, front: bitmap });
+  }
+  ${SOLID('3')}
+}`),
+    );
+    expect(pixel((await sandbox.renderFrame(0, scene)).back)).toEqual([3, 0, 0, 255]);
+    await Promise.resolve();
+    expect(strayBitmaps.closed).toBe(6);
+  });
+
+  it('recreates the sandbox when the module floods it with messages', async () => {
+    const { createHost, hosts } = createWorld();
+    const sandbox = createCodeSandbox({ createHost });
+    await sandbox.load(
+      moduleSource(`function back(ctx, t, scene) {
+  if (t > 0.5) for (let i = 0; i < 40; i++) postMessage({ type: 'noise' });
+  ${SOLID('4')}
+}`),
+    );
+    await expect(sandbox.renderFrame(0.9, scene)).rejects.toMatchObject({ kind: 'sandbox-failed' });
+    expect(hosts[0]?.disposed).toBe(true);
+    expect(pixel((await sandbox.renderFrame(0.1, scene)).back)).toEqual([4, 0, 0, 255]);
+    expect(hosts).toHaveLength(2);
+  });
+
   it('rejects a Promise returned from back', async () => {
     const { createHost } = createWorld();
     const sandbox = createCodeSandbox({ createHost });
@@ -434,13 +471,18 @@ describe('timeouts and boot failures', () => {
   });
 
   it('maps a worker that could not be created to sandbox-failed', async () => {
+    let listen: (data: unknown) => void = () => undefined;
     const host: SandboxHost = {
       ready: Promise.resolve(),
-      send: () => undefined,
+      send: (message) => {
+        if (message.type === 'start') {
+          queueMicrotask(() => {
+            listen({ type: 'boot-error', message: 'SecurityError' });
+          });
+        }
+      },
       onMessage: (listener) => {
-        queueMicrotask(() => {
-          listener({ type: 'boot-error', message: 'SecurityError' });
-        });
+        listen = listener;
         return () => undefined;
       },
       dispose: () => undefined,
@@ -476,6 +518,16 @@ describe('three.js', () => {
     const sandbox = createCodeSandbox({ createHost, loadThree: () => Promise.resolve('var THREE = { ok: true };') });
     await sandbox.load(threeModule);
     expect(pixel((await sandbox.renderFrame(0, scene)).back)).toEqual([9, 0, 0, 255]);
+  });
+
+  it('loads three for bracket access too', async () => {
+    const { createHost } = createWorld({ webgl: false });
+    const loadThree = vi.fn(() => Promise.resolve('var THREE = {};'));
+    const sandbox = createCodeSandbox({ createHost, loadThree });
+    await expect(sandbox.load(moduleSource("function back() { return THREE['Scene']; }"))).rejects.toMatchObject({
+      kind: 'no-webgl',
+    });
+    expect(loadThree).toHaveBeenCalledOnce();
   });
 
   it('does not load three for a source that does not mention it', async () => {
@@ -581,7 +633,8 @@ describe('content security policy', () => {
     const config = JSON.parse(
       readFileSync(fileURLToPath(new URL('../../../src-tauri/tauri.conf.json', import.meta.url)), 'utf8'),
     ) as { app: { security: { csp: Record<string, string> } } };
-    expect(config.app.security.csp['script-src']).toContain(hash);
+    const scriptSrc = config.app.security.csp['script-src'] ?? '';
+    expect(scriptSrc.match(/'sha256-[^']+'/g)).toEqual([hash]);
     expect(config.app.security.csp['worker-src']).toBe('blob:');
   });
 });

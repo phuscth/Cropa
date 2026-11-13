@@ -31,6 +31,7 @@ export interface CodeSandboxOptions {
 export const DEFAULT_FRAME_TIMEOUT_MS = 250;
 const DEFAULT_LOAD_TIMEOUT_MS = 3000;
 const MAX_CANVAS_SIDE = 16384;
+const MAX_STRAY_MESSAGES = 16;
 
 const ERROR_KINDS: readonly string[] = [
   'timeout',
@@ -105,26 +106,63 @@ export function createCodeSandbox(options: CodeSandboxOptions = {}): CodeSandbox
     return run;
   }
 
+  // The one request waiting for a reply; calls are serialized, so there is at most one.
+  let waiter: { pick: (data: Message) => boolean; fail: (error: Error) => void } | null = null;
+  let strays = 0;
+
   function dropHost(): void {
     host?.dispose();
     host = null;
   }
 
-  /** Resolves with the first message `pick` accepts; a timeout or a dispose ends the wait. */
+  /**
+   * Every message from a host passes through here. Whatever the waiting request does not take is
+   * dropped and its bitmaps closed, so a module posting its own bitmaps cannot pile up memory, and
+   * too many such messages in one request window recreate the sandbox.
+   */
+  function watchHost(current: SandboxHost): void {
+    current.onMessage((data) => {
+      const message = asMessage(data);
+      if (current === host && message !== null && waiter?.pick(message)) return;
+      closeBitmap(message?.['back']);
+      closeBitmap(message?.['front']);
+      if (current !== host) return;
+      strays++;
+      if (strays <= MAX_STRAY_MESSAGES) return;
+      const pending = waiter;
+      dropHost();
+      needsReload = true;
+      pending?.fail(
+        new CodeSandboxError(
+          'sandbox-failed',
+          `The module posted more than ${MAX_STRAY_MESSAGES} unexpected messages. Do not call postMessage; draw only in back and front.`,
+        ),
+      );
+    });
+  }
+
+  /** Resolves with the first message `pick` accepts; a timeout, a flood or a dispose ends the wait. */
   async function waitFor<T>(
-    current: SandboxHost,
     pick: (data: Message) => T | undefined,
     timeoutMs: number,
     onTimeout: () => Error,
   ): Promise<T> {
-    let off = (): void => undefined;
     let timer: ReturnType<typeof setTimeout> | undefined;
+    strays = 0;
     const reply = new Promise<T>((resolve, reject) => {
-      off = current.onMessage((data) => {
-        const message = asMessage(data);
-        const picked = message ? pick(message) : undefined;
-        if (picked !== undefined) resolve(picked);
-      });
+      // A duplicate reply that arrives before this wait is torn down is a stray, not a second answer.
+      let answered = false;
+      waiter = {
+        pick: (message) => {
+          if (answered) return false;
+          const picked = pick(message);
+          if (picked === undefined) return false;
+          answered = true;
+          resolve(picked);
+          return true;
+        },
+        fail: reject,
+      };
       timer = setTimeout(() => {
         reject(onTimeout());
       }, timeoutMs);
@@ -133,7 +171,7 @@ export function createCodeSandbox(options: CodeSandboxOptions = {}): CodeSandbox
       return await Promise.race([reply, disposedSignal]);
     } finally {
       clearTimeout(timer);
-      off();
+      waiter = null;
     }
   }
 
@@ -143,6 +181,7 @@ export function createCodeSandbox(options: CodeSandboxOptions = {}): CodeSandbox
     dropHost();
     const current = createHost();
     host = current;
+    watchHost(current);
     try {
       try {
         await Promise.race([current.ready, disposedSignal]);
@@ -151,7 +190,6 @@ export function createCodeSandbox(options: CodeSandboxOptions = {}): CodeSandbox
         throw new CodeSandboxError('sandbox-failed', 'The background sandbox did not start.');
       }
       const answer = waitFor<Message>(
-        current,
         (data) =>
           data['type'] === 'loaded' || data['type'] === 'worker-error' || data['type'] === 'boot-error'
             ? data
@@ -201,7 +239,6 @@ export function createCodeSandbox(options: CodeSandboxOptions = {}): CodeSandbox
     freshHost = false;
     const sceneCopy = structuredClone(scene);
     const answer = waitFor<Message>(
-      current,
       (data) => {
         if (data['type'] === 'worker-error') return data;
         return data['type'] === 'frame' && data['id'] === id ? data : undefined;

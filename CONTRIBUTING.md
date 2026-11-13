@@ -91,7 +91,9 @@ be undefined, and nothing may reach the network.
 - A module with `for(;;){}` times out and the editor stays responsive.
 - A module that allocates memory until it fails, and one that floods `postMessage`
   from a `setInterval`: the editor stays responsive. In Task Manager, check that
-  the sandboxed frame runs in its own WebView2 process.
+  the sandboxed frame runs in its own WebView2 process. The runner closes every
+  bitmap it did not ask for and recreates the sandbox after 16 unexpected
+  messages in one request, so a flood ends as `sandbox-failed`.
 
 ## Rules that are easy to miss
 
