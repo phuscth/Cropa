@@ -278,8 +278,9 @@ function describeInput(input: BackgroundInput): string {
     .join(', ');
   const { width, height, frame } = input.frame;
   const round = (n: number) => String(Math.round(n * 10) / 10);
+  const request = cut(input.description.trim(), MAX_DESCRIPTION_CHARS);
   const lines = [
-    `Background to write: ${cut(input.description.trim(), MAX_DESCRIPTION_CHARS)}`,
+    input.currentSource === undefined ? `Background to write: ${request}` : `Change to make: ${request}`,
     `Screenshot palette (heaviest first): ${palette === '' ? 'none' : palette}`,
     `Canvas: ${String(width)}x${String(height)} px.`,
     `Frame (the screenshot's card): x ${round(frame.x)}, y ${round(frame.y)}, width ${round(frame.width)}, height ${round(frame.height)}, corner radius ${round(frame.radius)}, border ${round(frame.border)}.`,
@@ -287,7 +288,7 @@ function describeInput(input: BackgroundInput): string {
   if (input.currentSource !== undefined) {
     lines.push(
       '',
-      'Here is the current module; change it as asked and return the whole module:',
+      'Here is the current module. Keep everything that works as it is (the scene, colours, layout, motion and durationMs) and change only what the request asks for. Return the whole module:',
       '```js',
       input.currentSource.trimEnd(),
       '```',
@@ -298,7 +299,7 @@ function describeInput(input: BackgroundInput): string {
 
 export const backgroundTask = defineTask({
   id: 'background',
-  version: 1,
+  version: 2,
   schema: Output,
   requires: [],
   timeoutMs: 180_000,

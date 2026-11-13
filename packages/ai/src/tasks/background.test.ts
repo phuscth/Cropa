@@ -73,9 +73,13 @@ describe('backgroundTask prompt', () => {
   });
 
   it('includes the current source only when refining', () => {
-    const refine = backgroundTask.buildPrompt({ ...input, currentSource: GOOD });
-    expect(refine.user).toContain('change it as asked and return the whole module');
+    const refine = backgroundTask.buildPrompt({ ...input, description: 'more wind', currentSource: GOOD });
+    expect(refine.user).toContain('Change to make: more wind');
+    expect(refine.user).not.toContain('Background to write');
+    expect(refine.user).toContain('Keep everything that works as it is');
+    expect(refine.user).toContain('Return the whole module');
     expect(refine.user).toContain(GOOD);
+    expect(prompt.user).toContain('Background to write: a meadow in light wind');
   });
 });
 

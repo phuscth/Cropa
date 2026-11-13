@@ -1,7 +1,16 @@
-import { defaultScene, render, type BackgroundSpec, type Scene } from '@cropa/core';
+import {
+  defaultScene,
+  render,
+  withoutCodeLayers,
+  type BackgroundSpec,
+  type RenderEnv,
+  type Scene,
+} from '@cropa/core';
 
 import { ensureImages, loadSmallImage } from '../background-images.ts';
+import { closeCodeFrames, codeEnv, renderCodeFrames } from '../code-frames.ts';
 import { renderEnv } from '../render-env.ts';
+import { isAiPreset } from './preset-file.ts';
 import { withoutMissingImages } from '../scene-edits.ts';
 
 const SOURCE = { width: 160, height: 100 } as const;
@@ -39,15 +48,51 @@ export function thumbnailScene(background: BackgroundSpec): Scene {
 
 const cache = new Map<string, Promise<string>>();
 
+async function drawThumbnail(background: BackgroundSpec, env: RenderEnv): Promise<string> {
+  const canvas = new OffscreenCanvas(THUMB.width, THUMB.height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('2D canvas is not available');
+  render(thumbnailScene(background), 0, ctx, env);
+  return URL.createObjectURL(await canvas.convertToBlob({ type: 'image/png' }));
+}
+
+// Each code thumbnail starts a sandbox, so they are drawn one after the other.
+let codeQueue: Promise<unknown> = Promise.resolve();
+
+function inCodeQueue<T>(job: () => Promise<T>): Promise<T> {
+  const next = codeQueue.then(job, job);
+  codeQueue = next.catch(() => undefined);
+  return next;
+}
+
+/** The first frame of a background with a code layer, drawn by the sandbox; null when it can't be. */
+async function renderCodeThumbnail(background: BackgroundSpec): Promise<string | null> {
+  let frames: Awaited<ReturnType<typeof renderCodeFrames>> = null;
+  try {
+    frames = await renderCodeFrames(thumbnailScene(background), THUMB.width, THUMB.height, 0, []);
+    if (!frames) return null;
+    return await drawThumbnail(background, codeEnv(renderEnv(placeholderShot()), frames));
+  } catch {
+    // No WebGL, a timeout or a sandbox failure: the caller draws the layers under the code.
+    return null;
+  } finally {
+    closeCodeFrames(frames);
+  }
+}
+
 async function renderThumbnail(background: BackgroundSpec): Promise<string> {
   // An image that is gone shows as the plain colour the editor would fall back to.
   const { missing } = await ensureImages(background);
   const shown = withoutMissingImages(background, missing);
-  const canvas = new OffscreenCanvas(THUMB.width, THUMB.height);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D canvas is not available');
-  render(thumbnailScene(shown), 0, ctx, renderEnv(placeholderShot()));
-  return URL.createObjectURL(await canvas.convertToBlob({ type: 'image/png' }));
+  if (shown.layers.some((layer) => layer.type === 'code')) {
+    const drawn = await inCodeQueue(() => renderCodeThumbnail(shown));
+    if (drawn !== null) return drawn;
+    const plain = withoutCodeLayers(shown);
+    // Nothing but code: the tile stays a neutral box.
+    if (!plain) throw new Error('the background is only code and could not be drawn');
+    return drawThumbnail(plain, renderEnv(placeholderShot()));
+  }
+  return drawThumbnail(shown, renderEnv(placeholderShot()));
 }
 
 /** A small preview of a background, rendered once per editor session. */
@@ -56,8 +101,9 @@ export function presetThumbnail(background: BackgroundSpec): Promise<string> {
   let entry = cache.get(key);
   if (!entry) {
     entry = renderThumbnail(background);
-    // A failed render is dropped so a later request can try again.
-    entry.catch(() => { cache.delete(key); });
+    // A failed render is dropped so a later request can try again, except for code: its sandbox
+    // failed once and would start again on every reload, so the tile stays a neutral box.
+    entry.catch(() => { if (!isAiPreset(background)) cache.delete(key); });
     cache.set(key, entry);
   }
   return entry;

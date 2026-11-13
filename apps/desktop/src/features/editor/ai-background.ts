@@ -105,3 +105,30 @@ export function backgroundMockScript(): AiMockScript_Deserialize {
     error: null,
   };
 }
+
+/** The source of the background's code layer, when it has one. */
+export function codeSourceOf(background: BackgroundSpec): string | undefined {
+  for (const layer of background.layers) {
+    if (layer.type === 'code') return layer.source;
+  }
+  return undefined;
+}
+
+/**
+ * `current` with its code layer swapped for the one in `result`, so the layers a user loaded
+ * with a preset stay as they were. `result` alone when `current` has no code layer.
+ */
+export function replaceCodeLayer(current: BackgroundSpec, result: BackgroundSpec): BackgroundSpec {
+  const next = result.layers.find((layer) => layer.type === 'code');
+  if (!next) return current;
+  if (!current.layers.some((layer) => layer.type === 'code')) return result;
+  return { ...current, layers: current.layers.map((layer) => (layer.type === 'code' ? next : layer)) };
+}
+
+/** A preset's name limit, in characters. */
+export const PRESET_NAME_MAX = 40;
+
+/** A preset name from the description of an AI background: one line, at most 40 characters. */
+export function presetNameFrom(description: string): string {
+  return Array.from(description.replace(/\s+/g, ' ').trim()).slice(0, PRESET_NAME_MAX).join('').trim();
+}

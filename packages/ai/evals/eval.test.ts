@@ -321,3 +321,25 @@ describe('background eval on the mock provider', { timeout: 60_000 }, () => {
     expect(report.validation?.p95FrameMs).toBeGreaterThan(0);
   });
 });
+
+describe('background refine eval on the mock provider', { timeout: 60_000 }, () => {
+  const entry = EVAL_TASKS['background-refine'];
+
+  it('refines a module that is already there, and every answer runs and loops', async () => {
+    if (!entry?.validate) throw new Error('the refine eval has no validator');
+    const cases = loadCases(entry.cases, 'background');
+    expect(cases).toHaveLength(3);
+    for (const c of cases) {
+      expect((c.input as BackgroundInput).currentSource).toMatch(/function back\(/);
+    }
+    const report = await runEval({
+      task: entry.task,
+      cases,
+      transport: entry.mock(),
+      provider: { name: 'mock', capabilities: [] },
+      validate: entry.validate,
+    });
+    expect(report).toMatchObject({ cases: 3, validAfterRetry: 3, notices: {} });
+    expect(report.validation).toMatchObject({ runnableAfterRetry: 3, loopClosedAfterRetry: 3 });
+  });
+});
