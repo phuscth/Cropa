@@ -24,7 +24,9 @@ first real run builds crates/cropa-agent/examples/turn.rs with cargo.
 
 Every answer is code written by a model, and the eval runs it to check it. That happens in a
 child Node process under the permission model (read-only access to the checker's own files, no
-file writes, no child processes, no workers, an empty environment), killed on a time limit.`;
+file writes, no child processes, no workers, an empty environment), killed on a time limit. The
+module runs in a vm context with no host objects and no string code generation. The process does
+NOT block the network (Node 24 has no flag for it); that context isolation is the barrier.`;
 
 function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;

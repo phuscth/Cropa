@@ -4,10 +4,21 @@
 // The module is model output, so it never runs in this process. Each check starts a child Node
 // process under the permission model (`--permission`): it may read only the files the checker
 // needs, and it may not write files, spawn processes, start workers or load addons. Its
-// environment is empty. The source goes in on stdin and one JSON line comes back on stdout. The
-// child is killed on a wall-clock limit.
+// environment is empty. The source goes in on stdin, the result comes back over an IPC channel
+// with a per-run nonce, and the child is killed on a wall-clock limit.
+//
+// Inside the child the module runs in a vm context that gets no host object at all: string code
+// generation is off, and the canvas and WebGL shims, postMessage and three.js are all evaluated
+// inside the context (see node-check-child.ts), so no function the module can reach leads back
+// to `process`.
+//
+// The network is NOT blocked by the process. Node 24's permission model has no network flag (a
+// deny-by-default `--allow-net` only exists in later releases, and the repo supports Node >=22.18
+// and runs CI on 24), so a socket opened by code that escaped the context would connect. The
+// in-context isolation above is the barrier, not the process.
 
 import { spawn } from 'node:child_process';
+import { randomBytes } from 'node:crypto';
 import { realpathSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
@@ -52,6 +63,7 @@ const SANDBOX_DIR = here('../../../apps/desktop/src/features/code-sandbox/');
 function readableFiles(): string[] {
   return [
     CHILD,
+    here('./node-check-shims.js'),
     here('../package.json'),
     here('../../../apps/desktop/package.json'),
     `${SANDBOX_DIR}compose-worker.ts`,
@@ -67,15 +79,8 @@ function failure(kind: CodeSandboxErrorKind, message: string): NodeCheck {
   return { ok: false, error: { kind, message }, loops: false, maxFrameMs: 0 };
 }
 
-function parseResult(stdout: string): NodeCheck | null {
-  const last = stdout.trim().split('\n').at(-1);
-  if (last === undefined || last === '') return null;
-  try {
-    const value: unknown = JSON.parse(last);
-    return typeof value === 'object' && value !== null && 'ok' in value ? (value as NodeCheck) : null;
-  } catch {
-    return null;
-  }
+function parseResult(value: unknown): NodeCheck | null {
+  return typeof value === 'object' && value !== null && 'ok' in value ? (value as NodeCheck) : null;
 }
 
 /**
@@ -98,16 +103,19 @@ export function checkModuleInNode(
   return new Promise((resolve) => {
     const args = [
       '--permission',
+      // For vm.SourceTextModule, which loads three.js inside the context.
+      '--experimental-vm-modules',
       ...readableFiles().map((path) => `--allow-fs-read=${path}`),
       CHILD,
     ];
     // An empty environment: nothing of the developer's reaches model code.
     const child = spawn(process.execPath, args, {
       env: {},
-      stdio: ['pipe', 'pipe', 'ignore'],
+      stdio: ['pipe', 'ignore', 'ignore', 'ipc'],
       windowsHide: true,
     });
-    let stdout = '';
+    const nonce = randomBytes(16).toString('hex');
+    let result: NodeCheck | null = null;
     let done = false;
     const finish = (result: NodeCheck): void => {
       if (done) return;
@@ -120,17 +128,19 @@ export function checkModuleInNode(
       finish(failure('timeout', 'The check did not finish in time. Make back and front cheaper and do not loop at the top level.'));
     }, wallMs);
 
-    child.stdout.setEncoding('utf8');
-    child.stdout.on('data', (chunk: string) => {
-      stdout += chunk;
+    // Only a message that carries this run's nonce counts; the child sends exactly one.
+    child.on('message', (message: unknown) => {
+      if (typeof message === 'object' && message !== null && 'nonce' in message && message.nonce === nonce && 'result' in message) {
+        result = parseResult(message.result);
+      }
     });
     child.on('error', () => {
       finish(failure('sandbox-failed', 'The check process could not start.'));
     });
     child.on('close', () => {
-      finish(parseResult(stdout) ?? failure('sandbox-failed', 'The check process ended without a result.'));
+      finish(result ?? failure('sandbox-failed', 'The check process ended without a result.'));
     });
-    child.stdin.on('error', () => undefined);
-    child.stdin.end(JSON.stringify({ source, scene, options: resolved }));
+    child.stdin?.on('error', () => undefined);
+    child.stdin?.end(JSON.stringify({ nonce, source, scene, options: resolved }));
   });
 }

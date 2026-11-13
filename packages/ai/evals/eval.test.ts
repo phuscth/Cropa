@@ -68,33 +68,52 @@ describe('checkModuleInNode', { timeout: 30_000 }, () => {
     });
   });
 
-  it('keeps model code away from the machine even when it reaches the host process', async () => {
-    process.env['CROPA_ESCAPE_TEST_SECRET'] = 'secret';
-    try {
-      // postMessage.constructor is the host Function, so this reaches the checker's own `process`.
-      const report = `
-        const p = postMessage.constructor('return process')();
-        const attempt = (f) => { try { f(); return 'allowed'; } catch (e) { return String(e.code ?? e.message); } };
-        throw new Error(JSON.stringify({
-          env: Object.keys(p.env),
-          spawn: attempt(() => p.getBuiltinModule('child_process').execFileSync('node', ['-v'])),
-          write: attempt(() => p.getBuiltinModule('fs').writeFileSync('escape.txt', 'x')),
-          worker: attempt(() => new (p.getBuiltinModule('worker_threads').Worker)('1', { eval: true })),
-        }));`;
-      const check = await checkModuleInNode(module2d(report), scene);
-      const seen = JSON.parse((check.error?.message ?? '').replace(/^Error: /, '')) as {
-        env: string[];
-        spawn: string;
-        write: string;
-        worker: string;
-      };
-      expect(seen.env).not.toContain('CROPA_ESCAPE_TEST_SECRET');
-      expect(seen.spawn).toBe('ERR_ACCESS_DENIED');
-      expect(seen.write).toBe('ERR_ACCESS_DENIED');
-      expect(seen.worker).toBe('ERR_ACCESS_DENIED');
-    } finally {
-      delete process.env['CROPA_ESCAPE_TEST_SECRET'];
+  describe('hostile modules', () => {
+    // Each one tries to get from the module to the checker's process, which would hold the
+    // developer's environment, files and network. None may get there: the check reports an
+    // error, and no body below ever sees what it asked for.
+    const attempts: [string, string][] = [
+      ['postMessage.constructor', "postMessage.constructor('return process')()"],
+      ['the global object', "globalThis.constructor.constructor('return process')()"],
+      ['Function', "Function('return process')()"],
+      ['an arrow function', "(() => {}).constructor('return process')()"],
+      ['a class', "(class {}).constructor('return process')()"],
+      ['a canvas shim', "new OffscreenCanvas(1, 1).constructor.constructor('return process')()"],
+      ['eval', "eval('process')"],
+    ];
+
+    for (const [name, expression] of attempts) {
+      it(`cannot reach process through ${name}`, async () => {
+        const body = `const reached = ${expression}; throw new Error('LEAK ' + typeof reached);`;
+        const check = await checkModuleInNode(module2d(body), scene);
+        expect(check.ok).toBe(false);
+        expect(check.error?.message ?? '').not.toContain('LEAK');
+        expect(check.error?.kind).toBe('module-error');
+      });
     }
+
+    it('cannot reach process through a THREE class', async () => {
+      const source = `const meta = { durationMs: 2000 };
+function back(ctx, t, scene) {
+  const reached = THREE.Vector3.constructor('return process')();
+  throw new Error('LEAK ' + typeof reached);
+}`;
+      const check = await checkModuleInNode(source, scene);
+      expect(check.ok).toBe(false);
+      expect(check.error?.message ?? '').not.toContain('LEAK');
+    });
+
+    it('has no process, require or module in scope, and the child survives a dynamic import', async () => {
+      const body = `
+        const names = ['process', 'require', 'module', 'Buffer'].filter((n) => typeof globalThis[n] !== 'undefined');
+        throw new Error('SEEN ' + names.join(','));`;
+      const check = await checkModuleInNode(module2d(body), scene);
+      expect(check.error?.message).toContain('SEEN ');
+      expect(check.error?.message).not.toMatch(/SEEN .+/);
+      const imported = await checkModuleInNode(module2d("return import('node:fs');"), scene);
+      expect(imported.ok).toBe(false);
+      expect(imported.error?.kind).toBe('module-error');
+    });
   });
 
   it('stops a module that never returns, at load and in a frame', async () => {
