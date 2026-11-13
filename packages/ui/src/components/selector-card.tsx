@@ -21,7 +21,7 @@ function SelectorCard({ className, title, caption, thumbnail, ...props }: Select
       type="button"
       data-slot="selector-card"
       className={cn(
-        'press focus-ring flex h-12 w-full min-w-0 items-center gap-2.5 rounded-xl bg-card px-2.5 text-left text-card-foreground shadow-soft hover:shadow-soft-hover disabled:pointer-events-none disabled:opacity-50',
+        'group press focus-ring flex h-12 w-full min-w-0 items-center gap-2.5 rounded-xl bg-card px-2.5 text-left text-card-foreground shadow-soft hover:shadow-soft-hover disabled:pointer-events-none disabled:opacity-50',
         className,
       )}
       {...props}
@@ -37,7 +37,7 @@ function SelectorCard({ className, title, caption, thumbnail, ...props }: Select
       </span>
       <svg
         viewBox="0 0 16 16"
-        className="size-4 shrink-0 text-tertiary-foreground"
+        className="size-4 shrink-0 text-tertiary-foreground transition-transform duration-200 ease-enter group-data-[state=open]:rotate-180"
         fill="none"
         stroke="currentColor"
         strokeWidth="1.5"
