@@ -83,6 +83,10 @@ impl Platform for MacosPlatform {
         Err(PlatformError::Unsupported)
     }
 
+    fn open_console(&self, _program: &Path, _args: &[&str]) -> Result<()> {
+        Err(PlatformError::Unsupported)
+    }
+
     fn drag_file(
         &self,
         _owner: Option<OwnerWindow>,

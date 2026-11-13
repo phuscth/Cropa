@@ -39,6 +39,11 @@ fn main() {
         "ai_run",
         "ai_cancel",
         "ai_detect",
+        "set_ai_provider",
+        "set_ai_allow_images",
+        "dismiss_ai_onboarding",
+        "open_ai_install_guide",
+        "open_login_terminal",
     ]);
 
     // tauri-build embeds its Windows manifest (Common Controls v6) only into

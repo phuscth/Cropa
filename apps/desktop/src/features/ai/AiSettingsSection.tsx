@@ -1,0 +1,276 @@
+import { paletteNameTask, runTask, type AgentErrorKind, type Capability } from '@cropa/ai';
+import { Button } from '@cropa/ui';
+import { useEffect, useRef, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+
+import {
+  commands,
+  type AiErrorKind as MockErrorKind,
+  type AiMockScript_Deserialize,
+  type CommandError,
+  type Settings,
+} from '../../lib/bindings.ts';
+import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
+import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+import { aiAccess } from './access.ts';
+import { AiGate } from './AiGate.tsx';
+import { AiOnboarding } from './AiOnboarding.tsx';
+import { describeAiError } from './errors.ts';
+import { capabilitiesOf, providerName } from './providers.ts';
+import { createDesktopTransport } from './transport.ts';
+
+const TEST_COLORS = ['#1e3a8a', '#f59e0b', '#f8fafc'];
+const TEST_TIMEOUT_MS = 60_000;
+
+/** What the mock provider does in a connection test: succeed, answer badly, or fail like a CLI. */
+const MOCK_FAILURES: readonly (readonly [AgentErrorKind, MockErrorKind])[] = [
+  ['NotInstalled', 'notInstalled'],
+  ['NotLoggedIn', 'notLoggedIn'],
+  ['UsageLimit', 'usageLimit'],
+  ['Unsupported', 'unsupported'],
+  ['Timeout', 'timeout'],
+  ['Protocol', 'protocol'],
+  ['Cancelled', 'cancelled'],
+];
+
+function mockScript(choice: string): AiMockScript_Deserialize {
+  const base = {
+    delayMs: 1500,
+    events: [{ kind: 'delta' as const, text: '…' }],
+    result: null,
+    error: null,
+  };
+  if (choice === 'success') return { ...base, result: { name: 'Quiet Harbour', mood: 'calm' } };
+  // Two malformed answers in a row: the retry fails too, so the task reports InvalidOutput.
+  if (choice === 'malformed') return { ...base, result: {} };
+  const failure = MOCK_FAILURES.find(([kind]) => kind === choice);
+  return { ...base, error: failure?.[1] ?? null };
+}
+
+type TestState =
+  | { kind: 'idle' }
+  | { kind: 'running' }
+  | { kind: 'passed'; name: string; mood: string; seconds: string }
+  | { kind: 'failed'; error: UserError };
+
+interface Props {
+  settings: Settings | undefined;
+  onSettings: (settings: Settings) => void;
+}
+
+/** Settings → AI: the provider, sending images, a connection test and what AI use means. */
+export function AiSettingsSection({ settings, onSettings }: Props) {
+  const { t } = useTranslation();
+  const access = aiAccess(settings);
+  const [choosing, setChoosing] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<UserError>();
+  const [test, setTest] = useState<TestState>({ kind: 'idle' });
+  const [mockChoice, setMockChoice] = useState('success');
+  const controller = useRef<AbortController>(undefined);
+
+  const provider = access.provider;
+  const testRunning = test.kind === 'running';
+
+  // The provider or the first-launch answer changed from outside this section:
+  // close the change panel and forget the last test result.
+  const aiKey = `${provider ?? ''}|${String(settings?.ai.onboardingAnswered ?? false)}`;
+  const [seenKey, setSeenKey] = useState(aiKey);
+  if (seenKey !== aiKey) {
+    setSeenKey(aiKey);
+    setChoosing(false);
+    setTest({ kind: 'idle' });
+  }
+
+  // A running test is cancelled when the provider changes or this section unmounts.
+  useEffect(() => () => { controller.current?.abort(); }, [provider]);
+
+  // Closing the window only hides it, so cancel a running test when it is hidden.
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.visibilityState === 'hidden') controller.current?.abort();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    return () => { document.removeEventListener('visibilitychange', onVisibility); };
+  }, []);
+
+  const save = async (
+    call: () => Promise<
+      { status: 'ok'; data: Settings } | { status: 'error'; error: CommandError }
+    >,
+  ) => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      const result = await call();
+      if (result.status === 'error') setError(describeCommandError(t, result.error));
+      else onSettings(result.data);
+    } catch (cause) {
+      setError(describeUnexpected(t, cause));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const name = provider ? providerName(t, provider) : '';
+
+  const runTest = async () => {
+    if (!provider) return;
+    const abort = new AbortController();
+    controller.current = abort;
+    setTest({ kind: 'running' });
+
+    let capabilities: Capability[] = [];
+    try {
+      const found = await commands.aiDetect();
+      const detection = found.find((d) => d.provider === provider);
+      if (detection) capabilities = capabilitiesOf(detection);
+    } catch {
+      // The run itself reports what is wrong.
+    }
+    const script = import.meta.env.DEV && provider === 'mock' ? mockScript(mockChoice) : null;
+    const started = performance.now();
+    const outcome = await runTask(
+      paletteNameTask,
+      { colors: TEST_COLORS },
+      {
+        transport: createDesktopTransport(provider, {}, script),
+        provider: { name: provider, capabilities },
+        signal: abort.signal,
+        timeoutMs: TEST_TIMEOUT_MS,
+      },
+    ).done;
+    const seconds = ((performance.now() - started) / 1000).toFixed(1);
+
+    if (outcome.source === 'ai') {
+      setTest({ kind: 'passed', ...outcome.result, seconds });
+    } else if (abort.signal.aborted) {
+      setTest({ kind: 'idle' });
+    } else {
+      const kind = outcome.notice?.kind ?? 'Protocol';
+      setTest({ kind: 'failed', error: describeAiError(t, kind, name) });
+    }
+  };
+
+  const showPanel = choosing && settings?.ai.onboardingAnswered === true;
+
+  return (
+    <section className="flex flex-col gap-3 border-t pt-4" aria-labelledby="ai-settings">
+      <h2 id="ai-settings" className="text-sm font-medium">
+        {t('ai.settings.title')}
+      </h2>
+
+      {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
+
+      <div className="flex flex-col gap-2">
+        <p className="text-sm">
+          <span className="text-muted-foreground">{t('ai.settings.provider')} </span>
+          {provider ? name : t('ai.settings.notSetUp')}
+        </p>
+        {showPanel ? (
+          <AiOnboarding
+            mode="change"
+            onSaved={(next) => {
+              setChoosing(false);
+              onSettings(next);
+            }}
+            onCancel={() => { setChoosing(false); }}
+          />
+        ) : (
+          settings?.ai.onboardingAnswered === true && (
+            <div className="flex gap-2">
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={busy || testRunning}
+                onClick={() => { setChoosing(true); }}
+              >
+                {provider ? t('ai.settings.change') : t('ai.settings.setUp')}
+              </Button>
+              {provider && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={busy || testRunning}
+                  onClick={() => { void save(() => commands.setAiProvider(null)); }}
+                >
+                  {t('ai.settings.turnOff')}
+                </Button>
+              )}
+            </div>
+          )
+        )}
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="flex items-center gap-3 text-sm">
+          <input
+            type="checkbox"
+            className="size-4"
+            checked={access.allowImages}
+            disabled={busy || !settings}
+            onChange={(event) => { void save(() => commands.setAiAllowImages(event.target.checked)); }}
+          />
+          {t('ai.settings.allowImages')}
+        </label>
+        <p className="pl-7 text-xs text-muted-foreground">{t('ai.settings.allowImagesHint')}</p>
+      </div>
+
+      <AiGate
+        access={access}
+        onSetUp={settings?.ai.onboardingAnswered ? () => { setChoosing(true); } : undefined}
+      >
+        {(enabled) => (
+          <div className="flex flex-col items-start gap-2">
+            {import.meta.env.DEV && provider === 'mock' && (
+              <label className="flex items-center gap-2 text-xs text-muted-foreground">
+                {t('ai.test.mockResult')}
+                <select
+                  className="rounded-md border bg-background px-2 py-1 text-xs text-foreground"
+                  value={mockChoice}
+                  disabled={test.kind === 'running'}
+                  onChange={(event) => { setMockChoice(event.target.value); }}
+                >
+                  <option value="success">{t('ai.test.mockSuccess')}</option>
+                  <option value="malformed">{t('ai.test.mockMalformed')}</option>
+                  {MOCK_FAILURES.map(([kind]) => (
+                    <option key={kind} value={kind}>
+                      {t(`aiErrors.${kind}.what`, { provider: name })}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
+            {test.kind === 'running' ? (
+              <div className="flex items-center gap-2">
+                <span role="status" className="text-sm text-muted-foreground">
+                  {t('ai.test.running')}
+                </span>
+                <Button variant="outline" size="sm" onClick={() => { controller.current?.abort(); }}>
+                  {t('ai.test.cancel')}
+                </Button>
+              </div>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                disabled={!enabled || busy}
+                onClick={() => { void runTest(); }}
+              >
+                {t('ai.test.button')}
+              </Button>
+            )}
+            {test.kind === 'passed' && (
+              <p role="status" className="text-sm">
+                {t('ai.test.passed', test)}
+              </p>
+            )}
+            {test.kind === 'failed' && <ErrorNotice error={test.error} />}
+          </div>
+        )}
+      </AiGate>
+
+      <p className="text-xs text-muted-foreground">{t('ai.settings.privacy')}</p>
+    </section>
+  );
+}

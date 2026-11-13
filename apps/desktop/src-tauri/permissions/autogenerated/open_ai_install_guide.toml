@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-open-ai-install-guide"
+description = "Enables the open_ai_install_guide command without any pre-configured scope."
+commands.allow = ["open_ai_install_guide"]
+
+[[permission]]
+identifier = "deny-open-ai-install-guide"
+description = "Denies the open_ai_install_guide command without any pre-configured scope."
+commands.deny = ["open_ai_install_guide"]

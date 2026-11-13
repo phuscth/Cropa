@@ -120,6 +120,19 @@ export const commands = {
 	 *  `available: false` until their adapters exist.
 	 */
 	aiDetect: () => __TAURI_INVOKE<AiDetection_Serialize[]>("ai_detect"),
+	/**
+	 *  Choose the provider every AI task uses, or turn AI off with `None`. Either
+	 *  answer ends the first-launch AI question.
+	 */
+	setAiProvider: (provider: AiProvider | null) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_provider", { provider })),
+	/**  Allow tasks to send screenshots to the provider, or not. */
+	setAiAllowImages: (enabled: boolean) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_allow_images", { enabled })),
+	/**  "Later" on the first-launch AI question: stop asking, keep the provider. */
+	dismissAiOnboarding: () => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("dismiss_ai_onboarding")),
+	/**  Open the official install page of a CLI in the default browser. */
+	openAiInstallGuide: (provider: AiCli) => typedError<null, CommandError>(__TAURI_INVOKE("open_ai_install_guide", { provider })),
+	/**  Run the CLI's own login command in a console window the user can type into. */
+	openLoginTerminal: (provider: AiCli) => typedError<null, CommandError>(__TAURI_INVOKE("open_login_terminal", { provider })),
 };
 
 /** Events */
@@ -132,6 +145,9 @@ export const events = {
 };
 
 /* Types */
+/**  A CLI Cropa can help set up. */
+export type AiCli = "codex" | "claude";
+
 /**
  *  What a provider can do here. `available` is false while Cropa has no
  *  adapter for it; the other fields are then unknown.
@@ -220,6 +236,12 @@ export type AiOutput_Serialize = {
 	image: string | null,
 };
 
+/**
+ *  The AI provider every AI task goes through. On disk: `"codex"`, `"claude"`
+ *  or `"mock"`; the mock is a test provider that exists in debug builds only.
+ */
+export type AiProvider = "codex" | "claude" | "mock";
+
 export type AiRequest = AiRequest_Serialize | AiRequest_Deserialize;
 
 export type AiRequest_Deserialize = {
@@ -244,6 +266,50 @@ export type AiRequest_Serialize = {
 	wantImage: boolean,
 	model: string | null,
 	timeoutMs: number | null,
+};
+
+/**
+ *  AI choices. The login itself is never stored: Cropa uses the CLI the user
+ *  installed and logged in to.
+ */
+export type AiSettings = AiSettings_Serialize | AiSettings_Deserialize;
+
+/**
+ *  AI choices. The login itself is never stored: Cropa uses the CLI the user
+ *  installed and logged in to.
+ */
+export type AiSettings_Deserialize = {
+	/**
+	 *  The provider chosen by the user; `None` until one is chosen or after
+	 *  AI is turned off.
+	 */
+	provider?: AiProvider | null,
+	/**
+	 *  Whether a task may send screenshots to the provider (each send is also
+	 *  confirmed).
+	 */
+	allowImages?: boolean,
+	/**  Whether the first-launch AI question has been answered or dismissed. */
+	onboardingAnswered?: boolean,
+};
+
+/**
+ *  AI choices. The login itself is never stored: Cropa uses the CLI the user
+ *  installed and logged in to.
+ */
+export type AiSettings_Serialize = {
+	/**
+	 *  The provider chosen by the user; `None` until one is chosen or after
+	 *  AI is turned off.
+	 */
+	provider: AiProvider | null,
+	/**
+	 *  Whether a task may send screenshots to the provider (each send is also
+	 *  confirmed).
+	 */
+	allowImages: boolean,
+	/**  Whether the first-launch AI question has been answered or dismissed. */
+	onboardingAnswered: boolean,
 };
 
 /**
@@ -273,7 +339,7 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
 
 /**  How a drag out of the editor ended. */
 export type DragResult = "dropped" | "cancelled" | 
@@ -357,6 +423,11 @@ export type Settings_Deserialize = {
 	excludeFromClipboardHistory: boolean,
 	/**  Folder that Ctrl+S saves into; `None` until the user picks one. */
 	saveFolder?: string | null,
+	/**
+	 *  The provider shared by all AI tasks, whether images may be sent to it,
+	 *  and whether the first-launch AI question was answered.
+	 */
+	ai: AiSettings_Deserialize,
 };
 
 /**
@@ -377,6 +448,11 @@ export type Settings_Serialize = {
 	excludeFromClipboardHistory: boolean,
 	/**  Folder that Ctrl+S saves into; `None` until the user picks one. */
 	saveFolder: string | null,
+	/**
+	 *  The provider shared by all AI tasks, whether images may be sent to it,
+	 *  and whether the first-launch AI question was answered.
+	 */
+	ai: AiSettings_Serialize,
 };
 
 export type ShortcutErrorKind = 

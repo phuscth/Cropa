@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-pub const CURRENT_VERSION: u32 = 4;
+pub const CURRENT_VERSION: u32 = 5;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
@@ -35,6 +35,49 @@ impl ThemePreference {
     }
 }
 
+/// The AI provider every AI task goes through. On disk: `"codex"`, `"claude"`
+/// or `"mock"`; the mock is a test provider that exists in debug builds only.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum AiProvider {
+    Codex,
+    Claude,
+    Mock,
+}
+
+/// AI choices. The login itself is never stored: Cropa uses the CLI the user
+/// installed and logged in to.
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase", default)]
+pub struct AiSettings {
+    /// The provider chosen by the user; `None` until one is chosen or after
+    /// AI is turned off.
+    #[serde(deserialize_with = "known_provider")]
+    #[specta(type = Option<AiProvider>)]
+    pub provider: Option<AiProvider>,
+    /// Whether a task may send screenshots to the provider (each send is also
+    /// confirmed).
+    pub allow_images: bool,
+    /// Whether the first-launch AI question has been answered or dismissed.
+    pub onboarding_answered: bool,
+}
+
+/// A provider this build does not know (a file from a newer build) loads as
+/// none, so the rest of the file is kept.
+fn known_provider<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<AiProvider>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value(value).ok())
+}
+
+/// `"ai": null` loads as the defaults.
+fn ai_or_default<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<AiSettings, D::Error> {
+    Ok(Option::<AiSettings>::deserialize(deserializer)?.unwrap_or_default())
+}
+
 /// Start-at-login is not stored here: Windows is the only source of truth for it
 /// (see `commands::settings::get_autostart`).
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
@@ -53,6 +96,11 @@ pub struct Settings {
     pub exclude_from_clipboard_history: bool,
     /// Folder that Ctrl+S saves into; `None` until the user picks one.
     pub save_folder: Option<PathBuf>,
+    /// The provider shared by all AI tasks, whether images may be sent to it,
+    /// and whether the first-launch AI question was answered.
+    #[serde(deserialize_with = "ai_or_default")]
+    #[specta(type = AiSettings)]
+    pub ai: AiSettings,
 }
 
 impl Default for Settings {
@@ -65,6 +113,7 @@ impl Default for Settings {
             save_history: true,
             exclude_from_clipboard_history: false,
             save_folder: None,
+            ai: AiSettings::default(),
         }
     }
 }
@@ -92,10 +141,11 @@ pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => over_defaults(v3_to_v4(v2_to_v3(v1_to_v2(value)))),
-        2 => over_defaults(v3_to_v4(v2_to_v3(value))),
-        3 => over_defaults(v3_to_v4(value)),
-        4 => over_defaults(value),
+        1 => over_defaults(v4_to_v5(v3_to_v4(v2_to_v3(v1_to_v2(value))))),
+        2 => over_defaults(v4_to_v5(v3_to_v4(v2_to_v3(value)))),
+        3 => over_defaults(v4_to_v5(v3_to_v4(value))),
+        4 => over_defaults(v4_to_v5(value)),
+        5 => over_defaults(value),
         other => Err(MigrateError::TooNew(other)),
     }
 }
@@ -132,6 +182,20 @@ fn v3_to_v4(mut value: serde_json::Value) -> serde_json::Value {
     value
 }
 
+/// AI settings were introduced in version 5. Existing users have not been asked
+/// about AI yet, so they are asked once.
+fn v4_to_v5(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(file) = value.as_object_mut() {
+        file.insert("version".into(), 5.into());
+        file.entry("ai").or_insert(serde_json::json!({
+            "provider": null,
+            "allowImages": false,
+            "onboardingAnswered": false
+        }));
+    }
+    value
+}
+
 fn over_defaults(file: serde_json::Value) -> Result<Settings, MigrateError> {
     let mut merged = serde_json::to_value(Settings::default())?;
     if let (Some(base), serde_json::Value::Object(file)) = (merged.as_object_mut(), file) {
@@ -160,7 +224,7 @@ pub fn load(path: &Path) -> Settings {
         .map_err(MigrateError::from)
         .and_then(migrate);
     match parsed {
-        Ok(settings) => settings,
+        Ok(settings) => without_mock_provider(settings),
         Err(err) => {
             log::warn!("settings reset to defaults: {err}");
             if let Err(err) = fs::rename(path, backup_path(path)) {
@@ -169,6 +233,16 @@ pub fn load(path: &Path) -> Settings {
             Settings::default()
         }
     }
+}
+
+/// The mock provider exists in debug builds only; a release build drops it.
+#[cfg_attr(debug_assertions, allow(unused_mut))]
+fn without_mock_provider(mut settings: Settings) -> Settings {
+    #[cfg(not(debug_assertions))]
+    if settings.ai.provider == Some(AiProvider::Mock) {
+        settings.ai.provider = None;
+    }
+    settings
 }
 
 /// Write settings atomically: a temp file next to the target, then rename.
@@ -230,13 +304,21 @@ mod tests {
             save_history: false,
             exclude_from_clipboard_history: true,
             save_folder: Some(PathBuf::from("D:/Pictures/Cropa")),
+            ai: AiSettings {
+                provider: Some(AiProvider::Codex),
+                allow_images: true,
+                onboarding_answered: true,
+            },
             ..Settings::default()
         };
         save(&path, &settings).unwrap();
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["theme"], "dark");
-        assert_eq!(on_disk["version"], 4);
+        assert_eq!(on_disk["version"], 5);
+        assert_eq!(on_disk["ai"]["provider"], "codex");
+        assert_eq!(on_disk["ai"]["allowImages"], true);
+        assert_eq!(on_disk["ai"]["onboardingAnswered"], true);
         assert_eq!(on_disk["autostartAsked"], true);
         assert_eq!(on_disk["saveHistory"], false);
         assert_eq!(on_disk["excludeFromClipboardHistory"], true);
@@ -289,7 +371,7 @@ mod tests {
             "version": 1, "captureShortcut": "Ctrl+Alt+P", "theme": "light", "autostart": true
         });
         let migrated = migrate(with_theme).unwrap();
-        assert_eq!(migrated.version, 4);
+        assert_eq!(migrated.version, 5);
         assert!(migrated.autostart_asked);
         assert!(migrated.save_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -302,12 +384,12 @@ mod tests {
     }
 
     #[test]
-    fn a_version_2_file_migrates_to_4_and_keeps_its_fields() {
+    fn a_version_2_file_migrates_to_5_and_keeps_its_fields() {
         let v2 = serde_json::json!({
             "version": 2, "captureShortcut": "Ctrl+Alt+P", "theme": "dark", "autostartAsked": false
         });
         let migrated = migrate(v2).unwrap();
-        assert_eq!(migrated.version, 4);
+        assert_eq!(migrated.version, 5);
         assert!(migrated.save_history);
         assert!(!migrated.exclude_from_clipboard_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -328,13 +410,13 @@ mod tests {
     }
 
     #[test]
-    fn a_version_3_file_migrates_to_4_without_a_save_folder() {
+    fn a_version_3_file_migrates_to_5_without_a_save_folder() {
         let v3 = serde_json::json!({
             "version": 3, "captureShortcut": "Ctrl+Alt+P", "theme": "dark",
             "autostartAsked": true, "saveHistory": false, "excludeFromClipboardHistory": true
         });
         let migrated = migrate(v3).unwrap();
-        assert_eq!(migrated.version, 4);
+        assert_eq!(migrated.version, 5);
         assert_eq!(migrated.save_folder, None);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::Dark);
@@ -353,10 +435,79 @@ mod tests {
     }
 
     #[test]
+    fn a_version_4_file_migrates_to_5_and_asks_about_ai_once() {
+        let v4 = serde_json::json!({
+            "version": 4, "captureShortcut": "Ctrl+Alt+P", "theme": "dark",
+            "saveFolder": "D:/Pictures/Cropa"
+        });
+        let migrated = migrate(v4).unwrap();
+        assert_eq!(migrated.version, 5);
+        assert_eq!(migrated.ai, AiSettings::default());
+        assert!(!migrated.ai.onboarding_answered);
+        assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
+        assert_eq!(migrated.theme, ThemePreference::Dark);
+        assert_eq!(
+            migrated.save_folder,
+            Some(PathBuf::from("D:/Pictures/Cropa"))
+        );
+    }
+
+    #[test]
+    fn a_version_5_file_keeps_its_ai_choices() {
+        let v5 = serde_json::json!({
+            "version": 5,
+            "ai": { "provider": "claude", "allowImages": true, "onboardingAnswered": true }
+        });
+        let ai = migrate(v5).unwrap().ai;
+        assert_eq!(ai.provider, Some(AiProvider::Claude));
+        assert!(ai.allow_images);
+        assert!(ai.onboarding_answered);
+    }
+
+    #[test]
+    fn a_partial_ai_object_keeps_what_it_has_and_defaults_the_rest() {
+        let partial = serde_json::json!({ "version": 5, "ai": { "provider": "codex" } });
+        let ai = migrate(partial).unwrap().ai;
+        assert_eq!(ai.provider, Some(AiProvider::Codex));
+        assert!(!ai.allow_images);
+        assert!(!ai.onboarding_answered);
+    }
+
+    #[test]
+    fn an_unknown_provider_loads_as_none_and_keeps_the_rest() {
+        let file = serde_json::json!({
+            "version": 5, "captureShortcut": "Ctrl+Alt+P",
+            "ai": { "provider": "gemini", "allowImages": true, "onboardingAnswered": true }
+        });
+        let migrated = migrate(file).unwrap();
+        assert_eq!(migrated.ai.provider, None);
+        assert!(migrated.ai.allow_images);
+        assert!(migrated.ai.onboarding_answered);
+        assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
+    }
+
+    #[test]
+    fn a_null_ai_object_loads_as_the_defaults_and_keeps_the_rest() {
+        let file = serde_json::json!({ "version": 5, "theme": "dark", "ai": null });
+        let migrated = migrate(file).unwrap();
+        assert_eq!(migrated.ai, AiSettings::default());
+        assert_eq!(migrated.theme, ThemePreference::Dark);
+    }
+
+    #[cfg(not(debug_assertions))]
+    #[test]
+    fn a_release_build_drops_the_mock_provider_on_load() {
+        let dir = TempDir::new("mock");
+        let path = dir.0.join(FILE_NAME);
+        fs::write(&path, r#"{ "version": 5, "ai": { "provider": "mock" } }"#).unwrap();
+        assert_eq!(load(&path).ai.provider, None);
+    }
+
+    #[test]
     fn a_newer_version_is_rejected() {
         assert!(matches!(
-            migrate(serde_json::json!({ "version": 5 })),
-            Err(MigrateError::TooNew(5))
+            migrate(serde_json::json!({ "version": 6 })),
+            Err(MigrateError::TooNew(6))
         ));
     }
 

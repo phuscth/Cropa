@@ -188,6 +188,10 @@ pub trait Platform {
     fn reveal_file(&self, path: &Path) -> Result<()>;
     /// Open a web page in the default browser. Only fixed addresses.
     fn open_web_page(&self, url: &'static str) -> Result<()>;
+    /// Run `program` with `args` in a new console window that stays open after
+    /// the program ends, so the user can type into it and read its result.
+    /// Returns once the window is open; does not wait for it.
+    fn open_console(&self, program: &Path, args: &[&str]) -> Result<()>;
     /// Start an OS drag (copy only) of the file at `path`, also offering `png`
     /// as image data. Must be called on the UI thread while the left mouse
     /// button is held. Blocks, pumping messages, until the user drops or

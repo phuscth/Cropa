@@ -3,6 +3,7 @@
 //! that window needs.
 
 pub mod ai;
+pub mod ai_setup;
 pub mod background_images;
 pub mod editor;
 pub mod export;
@@ -88,6 +89,12 @@ pub enum CommandError {
     BackgroundImagesRead(String),
     #[error("could not save the background image: {0}")]
     BackgroundImagesSave(String),
+    #[error("the test provider is not available in this build")]
+    AiProviderUnavailable,
+    #[error("the AI command line tool was not found")]
+    AiCliNotFound,
+    #[error("could not open a terminal: {0}")]
+    OpenTerminal(String),
 }
 
 /// An image as a `data:` URL the WebView can show in an `<img>`.
