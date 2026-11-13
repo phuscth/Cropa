@@ -47,6 +47,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::export::choose_save_as_path,
             commands::export::write_save_as,
             commands::export::copy_rendered_image,
+            commands::export::start_drag,
             commands::export::reveal_saved_file,
             commands::settings::choose_save_folder,
             commands::settings::reset_save_folder,
@@ -129,6 +130,7 @@ pub fn run() {
             app.manage(editor::EditorImage::default());
             app.manage(export::SavedFiles::default());
             app.manage(history::History::new(local_data_dir.join("history")));
+            app.manage(export::DragFiles::new(local_data_dir.join("drag-out")));
             app.manage(presets::UserPresets::new(
                 config_dir.join(presets::FILE_NAME),
             ));
@@ -137,6 +139,15 @@ pub fn run() {
                 let app = app.handle().clone();
                 move || {
                     app.state::<history::History>()
+                        .prune(std::time::SystemTime::now());
+                }
+            });
+
+            // Dragged files past their lifetime go; a recent one may still be uploaded.
+            std::thread::spawn({
+                let app = app.handle().clone();
+                move || {
+                    app.state::<export::DragFiles>()
                         .prune(std::time::SystemTime::now());
                 }
             });

@@ -7,6 +7,7 @@ use std::fs;
 use std::io::{self, Write};
 use std::path::{Path, PathBuf};
 use std::sync::{Mutex, MutexGuard, PoisonError};
+use std::time::{Duration, SystemTime};
 
 use base64::Engine;
 use chrono::{DateTime, Local, NaiveDateTime};
@@ -185,6 +186,76 @@ pub fn overwrite_file(path: &Path, bytes: &[u8]) -> io::Result<()> {
         let _ = fs::remove_file(&tmp);
     }
     written
+}
+
+/// How long a file made for dragging stays. A browser upload box may read the
+/// file only when its form is submitted, so it outlives the drop by a while.
+const DRAG_FILE_LIFETIME: Duration = Duration::from_secs(60 * 60);
+
+/// Most folder names tried when claiming a fresh one for a dragged file.
+const MAX_DRAG_FOLDER_TRIES: u32 = 1000;
+
+/// Temp files made for dragging the image into other apps. Each file sits in
+/// its own folder, so it keeps the plain capture name.
+pub struct DragFiles {
+    root: PathBuf,
+}
+
+impl DragFiles {
+    pub fn new(root: PathBuf) -> Self {
+        Self { root }
+    }
+
+    /// Write `bytes` to `<root>/<fresh folder>/<stem>.png` and return the path.
+    /// Folders older than [`DRAG_FILE_LIFETIME`] at `now` are removed first.
+    pub fn write(&self, stem: &str, bytes: &[u8], now: SystemTime) -> io::Result<PathBuf> {
+        self.prune(now);
+        fs::create_dir_all(&self.root)?;
+        let millis = now
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .map_or(0, |since| since.as_millis());
+        for n in 0..MAX_DRAG_FOLDER_TRIES {
+            let dir = self.root.join(format!("{millis}-{n}"));
+            match fs::create_dir(&dir) {
+                Ok(()) => {
+                    // A throwaway file in a folder of its own: no fsync, no numbering.
+                    let path = dir.join(format!("{stem}.png"));
+                    return match fs::write(&path, bytes) {
+                        Ok(()) => Ok(path),
+                        Err(err) => {
+                            let _ = fs::remove_dir_all(&dir);
+                            Err(err)
+                        }
+                    };
+                }
+                Err(err) if err.kind() == io::ErrorKind::AlreadyExists => {}
+                Err(err) => return Err(err),
+            }
+        }
+        Err(io::Error::new(
+            io::ErrorKind::AlreadyExists,
+            "could not claim a folder for the dragged file",
+        ))
+    }
+
+    /// Remove the folders older than the lifetime at `now`.
+    pub fn prune(&self, now: SystemTime) {
+        let Some(cutoff) = now.checked_sub(DRAG_FILE_LIFETIME) else {
+            return;
+        };
+        let Ok(entries) = fs::read_dir(&self.root) else {
+            return;
+        };
+        for entry in entries.flatten() {
+            let old = entry
+                .metadata()
+                .and_then(|meta| meta.modified())
+                .is_ok_and(|modified| modified < cutoff);
+            if old && let Err(err) = fs::remove_dir_all(entry.path()) {
+                log::warn!("could not remove an old dragged file: {err}");
+            }
+        }
+    }
 }
 
 const RESERVED_NAMES: [&str; 22] = [
@@ -425,6 +496,45 @@ mod tests {
         assert_eq!(fs::read(&first).unwrap(), b"one");
         assert_eq!(fs::read(&second).unwrap(), b"two");
         assert_eq!(fs::read(&third).unwrap(), b"three");
+    }
+
+    #[test]
+    fn drag_files_keep_the_capture_name_in_a_fresh_folder() {
+        let dir = TempDir::new("drag-write");
+        let files = DragFiles::new(dir.0.join("drag-out"));
+        let now = SystemTime::now();
+        let first = files.write("shot", b"one", now).unwrap();
+        let second = files.write("shot", b"two", now).unwrap();
+        assert_eq!(first.file_name().unwrap(), "shot.png");
+        assert_eq!(second.file_name().unwrap(), "shot.png");
+        assert_ne!(first, second);
+        assert_eq!(fs::read(&first).unwrap(), b"one");
+        assert_eq!(fs::read(&second).unwrap(), b"two");
+    }
+
+    #[test]
+    fn drag_files_older_than_their_lifetime_are_pruned() {
+        let dir = TempDir::new("drag-prune");
+        let files = DragFiles::new(dir.0.join("drag-out"));
+        let now = SystemTime::now();
+        let old = files.write("old", b"old", now).unwrap();
+        let later = now + Duration::from_secs(2 * 60 * 60);
+        let fresh = files.write("fresh", b"fresh", later).unwrap();
+        assert!(!old.exists());
+        assert!(fresh.is_file());
+    }
+
+    #[test]
+    fn pruning_drag_files_keeps_fresh_ones_and_tolerates_a_missing_root() {
+        let dir = TempDir::new("drag-startup-prune");
+        let files = DragFiles::new(dir.0.join("drag-out"));
+        files.prune(SystemTime::now());
+        let now = SystemTime::now();
+        let path = files.write("shot", b"x", now).unwrap();
+        files.prune(now + Duration::from_secs(60));
+        assert!(path.is_file());
+        files.prune(now + Duration::from_secs(2 * 60 * 60));
+        assert!(!path.exists());
     }
 
     #[test]

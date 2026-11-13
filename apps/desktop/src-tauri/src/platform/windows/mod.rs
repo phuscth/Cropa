@@ -19,6 +19,7 @@ use xcap::{Monitor, Window, XCapError};
 mod clipboard;
 mod dialog;
 mod dpi;
+mod drag;
 mod overlay;
 mod preview;
 mod window_list;
@@ -26,8 +27,8 @@ mod window_list;
 use std::path::{Path, PathBuf};
 
 use super::{
-    MonitorInfo, OwnerWindow, Permission, PermissionStatus, Platform, PlatformError, PreviewHandle,
-    Result, RgbaImage, SaveFileType, Selection, WindowInfo,
+    DragOutcome, MonitorInfo, OwnerWindow, Permission, PermissionStatus, Platform, PlatformError,
+    PreviewHandle, Result, RgbaImage, SaveFileType, Selection, WindowInfo,
 };
 
 pub struct WindowsPlatform;
@@ -183,5 +184,14 @@ impl Platform for WindowsPlatform {
 
     fn open_web_page(&self, url: &'static str) -> Result<()> {
         shell_open(url)
+    }
+
+    fn drag_file(
+        &self,
+        owner: Option<OwnerWindow>,
+        path: &Path,
+        png: &[u8],
+    ) -> Result<DragOutcome> {
+        drag::drag_file(owner, path, png)
     }
 }

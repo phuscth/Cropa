@@ -103,22 +103,28 @@ impl Drop for Clipboard {
 
 /// Copy `bytes` into movable global memory and hand it to the clipboard.
 fn set_data(format: u32, bytes: &[u8]) -> Result<()> {
-    // SAFETY: plain allocation of `bytes.len()` bytes of movable memory.
-    let memory = unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes.len()) }.map_err(os_error)?;
-    if let Err(err) = fill(memory, bytes) {
-        free(memory);
-        return Err(err);
-    }
+    let memory = global_from_bytes(bytes)?;
     // SAFETY: the clipboard is open (the caller holds the guard) and `memory` is
     // a movable global block that is no longer locked.
     match unsafe { SetClipboardData(format, Some(HANDLE(memory.0))) } {
         // The system owns the memory now.
         Ok(_) => Ok(()),
         Err(err) => {
-            free(memory);
+            free_global(memory);
             Err(os_error(err))
         }
     }
+}
+
+/// A new block of movable global memory holding a copy of `bytes`.
+pub(super) fn global_from_bytes(bytes: &[u8]) -> Result<HGLOBAL> {
+    // SAFETY: plain allocation of `bytes.len()` bytes of movable memory.
+    let memory = unsafe { GlobalAlloc(GMEM_MOVEABLE, bytes.len()) }.map_err(os_error)?;
+    if let Err(err) = fill(memory, bytes) {
+        free_global(memory);
+        return Err(err);
+    }
+    Ok(memory)
 }
 
 fn fill(memory: HGLOBAL, bytes: &[u8]) -> Result<()> {
@@ -137,10 +143,11 @@ fn fill(memory: HGLOBAL, bytes: &[u8]) -> Result<()> {
     Ok(())
 }
 
-fn free(memory: HGLOBAL) {
-    // SAFETY: the clipboard did not take `memory`, so it is still ours to free.
+/// Free a block the receiver did not take.
+pub(super) fn free_global(memory: HGLOBAL) {
+    // SAFETY: the caller still owns `memory`, as nothing took it.
     if let Err(err) = unsafe { GlobalFree(Some(memory)) } {
-        log::warn!("could not free clipboard memory: {err}");
+        log::warn!("could not free global memory: {err}");
     }
 }
 

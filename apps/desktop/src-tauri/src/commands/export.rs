@@ -4,6 +4,8 @@
 
 use std::io;
 use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::time::SystemTime;
 
 use serde::Serialize;
 use specta::Type;
@@ -12,11 +14,11 @@ use tauri::{AppHandle, Manager, WebviewWindow};
 use super::{CommandError, settings::persist};
 use crate::editor::EditorImage;
 use crate::export::{
-    ExportError, ExportFormat, SavedFiles, capture_file_stem, decode_data_url, local_capture_time,
-    overwrite_file, sanitize_file_stem, write_new_file,
+    DragFiles, ExportError, ExportFormat, SavedFiles, capture_file_stem, decode_data_url,
+    local_capture_time, overwrite_file, sanitize_file_stem, write_new_file,
 };
 use crate::i18n::{self, Lang};
-use crate::platform::{self, OwnerWindow, Platform, SaveFileType};
+use crate::platform::{self, DragOutcome, OwnerWindow, Platform, SaveFileType};
 use crate::state::AppState;
 
 /// The widest or tallest image the clipboard copy decodes, and the memory it
@@ -321,6 +323,63 @@ pub async fn copy_rendered_image(app: AppHandle, image: String) -> Result<(), Co
     })
     .await
     .map_err(|err| CommandError::Clipboard(err.to_string()))?
+}
+
+/// How a drag out of the editor ended.
+#[derive(Debug, Clone, Copy, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum DragResult {
+    Dropped,
+    Cancelled,
+    /// The mouse button was already up, so no drag began.
+    NotStarted,
+}
+
+impl From<DragOutcome> for DragResult {
+    fn from(outcome: DragOutcome) -> Self {
+        match outcome {
+            DragOutcome::Dropped => Self::Dropped,
+            DragOutcome::Cancelled => Self::Cancelled,
+            DragOutcome::NotStarted => Self::NotStarted,
+        }
+    }
+}
+
+/// Start dragging the rendered image (a PNG `data:` URL) out of the editor
+/// as a PNG file named after the capture time. Resolves when the user drops
+/// or cancels; `NotStarted` when the mouse button is already up.
+#[tauri::command]
+#[specta::specta]
+pub async fn start_drag(
+    app: AppHandle,
+    window: WebviewWindow,
+    image: String,
+    captured_at: Option<f64>,
+) -> Result<DragResult, CommandError> {
+    let owner = OwnerWindow::of(&window);
+    tauri::async_runtime::spawn_blocking(move || {
+        let bytes = decode_data_url(&image, ExportFormat::Png)?;
+        let stem = capture_file_stem(local_capture_time(captured_at));
+        let path = app
+            .state::<DragFiles>()
+            .write(&stem, &bytes, SystemTime::now())
+            .map_err(|err| CommandError::Drag(err.to_string()))?;
+
+        // The drag is modal and pumps messages, so it runs on the UI thread.
+        let (tx, rx) = mpsc::channel();
+        app.run_on_main_thread(move || {
+            let _ = tx.send(platform::current().drag_file(owner, &path, &bytes));
+        })
+        .map_err(|err| CommandError::Drag(err.to_string()))?;
+        let outcome = rx
+            .recv()
+            .map_err(|err| CommandError::Drag(err.to_string()))?
+            .map_err(|err| CommandError::Drag(err.to_string()))?;
+        log::debug!("drag out ended: {outcome:?}");
+        Ok(outcome.into())
+    })
+    .await
+    .map_err(|err| CommandError::Drag(err.to_string()))?
 }
 
 /// Show a file saved in this run in its folder, selected.

@@ -23,6 +23,7 @@ fn main() {
         "choose_save_as_path",
         "write_save_as",
         "copy_rendered_image",
+        "start_drag",
         "reveal_saved_file",
         "choose_save_folder",
         "reset_save_folder",
