@@ -7,13 +7,18 @@ import {
   SegmentedControl,
   SegmentedControlItem,
 } from '@cropa/ui';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { AnnotationOverlay } from '../../features/editor/annotate/AnnotationOverlay.tsx';
+import { AnnotationProperties } from '../../features/editor/annotate/AnnotationProperties.tsx';
+import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
+import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
 import { exportPlan, type ExportScale } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
+import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
 import { dataUrlToBitmap } from '../../features/editor/load-image.ts';
 import { ScenePreview } from '../../features/editor/ScenePreview.tsx';
 import { useSceneHistory } from '../../features/editor/use-scene-history.ts';
@@ -53,14 +58,6 @@ function findEdgeColor(bitmap: ImageBitmap): string | null {
   }
 }
 
-/** True when the key press belongs to a text field, which has its own undo. */
-function isTextField(target: EventTarget | null): boolean {
-  if (!(target instanceof HTMLElement)) return false;
-  if (target.isContentEditable || target instanceof HTMLTextAreaElement) return true;
-  if (!(target instanceof HTMLInputElement)) return false;
-  return ['text', 'number', 'search', 'email', 'url', 'tel', 'password'].includes(target.type);
-}
-
 function UndoIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -98,7 +95,25 @@ export function EditorWindow() {
   const [format, setFormat] = useState<ExportFormat>('png');
   const [scale, setScale] = useState<ExportScale>(2);
   const history = useSceneHistory(placeholder);
-  const { load, undo, redo } = history;
+  const { load } = history;
+  const hasImage = loaded !== undefined;
+  const annotate = useAnnotate({ history, imageId: loaded?.imageId ?? 0, enabled: hasImage });
+  const { undo, redo } = annotate;
+  // While a text is being edited, its glyphs are the text field's; the renderer skips empty text.
+  const editingIndex = annotate.editing?.index ?? null;
+  const displayScene = useMemo(
+    () =>
+      editingIndex === null
+        ? history.scene
+        : {
+            ...history.scene,
+            annotations: history.scene.annotations.map((a, i) =>
+              i === editingIndex ? { ...a, text: '' } : a,
+            ),
+          },
+    [history.scene, editingIndex],
+  );
+  const showProperties = annotate.tool !== 'select' || annotate.selected !== null;
   const exporter = useExport({
     scene: history.scene,
     bitmap: loaded?.bitmap,
@@ -171,21 +186,19 @@ export function EditorWindow() {
   const bitmap = loaded?.bitmap;
   useEffect(() => () => { bitmap?.close(); }, [bitmap]);
 
-  const hasImage = loaded !== undefined;
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || isTextField(event.target)) return;
-      // The key code is the fallback for layouts where the letter is not the key's character.
-      const key = event.key.toLowerCase();
-      const is = (letter: string, code: string) => key === letter || event.code === code;
-      if (is('z', 'KeyZ') && !event.shiftKey) undo();
-      else if (is('y', 'KeyY') || (is('z', 'KeyZ') && event.shiftKey)) redo();
-      else if (is('s', 'KeyS')) {
+      const letter = keyLetter(event);
+      const is = (wanted: string) => letter === wanted;
+      if (is('z') && !event.shiftKey) undo();
+      else if (is('y') || (is('z') && event.shiftKey)) redo();
+      else if (is('s')) {
         if (hasImage) {
           if (event.shiftKey) setSaveAsOpen(true);
           else void quickSave();
         }
-      } else if (is('c', 'KeyC') && !event.shiftKey) {
+      } else if (is('c') && !event.shiftKey) {
         // Leave Ctrl+C alone while text is selected.
         if (window.getSelection()?.isCollapsed === false) return;
         if (hasImage) void copy();
@@ -301,16 +314,23 @@ export function EditorWindow() {
       </header>
       {loaded ? (
         <div className="flex min-h-0 flex-1">
-          {/* The first slot of this row is left free for the annotation toolbar. */}
+          <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
           <section className="relative flex min-w-0 flex-1 bg-canvas">
-            <ScenePreview scene={history.scene} bitmap={loaded.bitmap} />
+            <ScenePreview
+              scene={displayScene}
+              bitmap={loaded.bitmap}
+              overlay={(geometry) => (
+                <AnnotationOverlay annotate={annotate} scene={displayScene} geometry={geometry} />
+              )}
+            />
+            {showProperties && <AnnotationProperties annotate={annotate} />}
             {error ? (
-              <div className="absolute inset-x-4 top-4">
+              <div className={`absolute inset-x-4 ${showProperties ? 'top-16' : 'top-4'}`}>
                 <ErrorNotice error={error} />
               </div>
             ) : (
               exporter.error && (
-                <div className="absolute inset-x-4 top-4">
+                <div className={`absolute inset-x-4 ${showProperties ? 'top-16' : 'top-4'}`}>
                   <ErrorNotice error={exporter.error} onDismiss={exporter.dismissError} />
                 </div>
               )
