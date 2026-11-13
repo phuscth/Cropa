@@ -141,7 +141,12 @@ export const commands = {
 	 *  asked again; the error is returned so the window can tell the user.
 	 */
 	answerAutostartQuestion: (enabled: boolean) => typedError<boolean, CommandError>(__TAURI_INVOKE("answer_autostart_question", { enabled })),
-	/**  Show a window, creating it first if needed, and bring it to the front. */
+	/**
+	 *  Show a window, creating it first if needed, and bring it to the front.
+	 * 
+	 *  Async on purpose: on Windows, creating a webview window from a synchronous
+	 *  command deadlocks, because sync commands run on the main thread.
+	 */
 	openWindow: (window: AppWindow) => typedError<null, CommandError>(__TAURI_INVOKE("open_window", { window })),
 };
 

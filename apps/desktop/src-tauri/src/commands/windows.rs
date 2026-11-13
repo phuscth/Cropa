@@ -27,9 +27,12 @@ impl AppWindow {
 }
 
 /// Show a window, creating it first if needed, and bring it to the front.
+///
+/// Async on purpose: on Windows, creating a webview window from a synchronous
+/// command deadlocks, because sync commands run on the main thread.
 #[tauri::command]
 #[specta::specta]
-pub fn open_window(app: AppHandle, window: AppWindow) -> Result<(), CommandError> {
+pub async fn open_window(app: AppHandle, window: AppWindow) -> Result<(), CommandError> {
     if app_windows::show(&app, window.label()) {
         Ok(())
     } else {
