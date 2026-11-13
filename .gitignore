@@ -26,3 +26,6 @@ Thumbs.db
 *.key
 *.p12
 *.pfx
+
+# CLI probe output (holds account data, never commit)
+tools/probes/out/
