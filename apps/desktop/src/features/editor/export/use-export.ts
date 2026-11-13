@@ -1,5 +1,5 @@
 import type { Scene } from '@cropa/core';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { type PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commands, type CommandError, type ExportFormat, type SavedFile } from '../../../lib/bindings.ts';
@@ -14,7 +14,7 @@ import { renderImage } from './encode.ts';
 import { captureFileStem, type ExportScale } from './plan.ts';
 import { afterQuickSave, initialSessionFile, sessionFileFor } from './session-file.ts';
 
-export type ExportNotice = { kind: 'saved'; file: SavedFile } | { kind: 'copied' };
+export type ExportNotice = { kind: 'saved'; file: SavedFile } | { kind: 'copied' } | { kind: 'dragHint' };
 
 interface Args {
   scene: Scene;
@@ -26,6 +26,19 @@ interface Args {
 }
 
 const NOTICE_MS = 6000;
+
+/** How far the pointer moves, in CSS px, before a press on the handle becomes a drag. */
+const DRAG_THRESHOLD_PX = 4;
+
+interface DragStart {
+  x: number;
+  y: number;
+  /** The image and capture time at the press; the drag must still be of this image. */
+  imageId: number;
+  capturedAt: number | null;
+  /** The 1x PNG, rendering since the press so it is usually ready when the drag starts. */
+  pending: Promise<string | undefined>;
+}
 
 type Result<T> = { status: 'ok'; data: T } | { status: 'error'; error: CommandError };
 
@@ -41,6 +54,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
   const running = useRef(false);
   const sessionFile = useRef(initialSessionFile(imageId));
   const timer = useRef<number>(undefined);
+  const dragStart = useRef<DragStart>(undefined);
 
   const dismissNotice = useCallback(() => {
     window.clearTimeout(timer.current);
@@ -153,6 +167,54 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     [run, render, unwrap, show],
   );
 
+  const onDragPointerDown = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      const current = latest.current;
+      if (event.button !== 0 || running.current || !current.bitmap) return;
+      event.preventDefault();
+      event.currentTarget.setPointerCapture(event.pointerId);
+      dragStart.current = {
+        x: event.clientX,
+        y: event.clientY,
+        imageId: current.imageId,
+        capturedAt: current.capturedAt,
+        pending: render({ ...current, bitmap: current.bitmap }, 'png', 1),
+      };
+    },
+    [render],
+  );
+
+  const onDragPointerMove = useCallback(
+    (event: PointerEvent<HTMLElement>) => {
+      const start = dragStart.current;
+      if (!start) return;
+      if (Math.hypot(event.clientX - start.x, event.clientY - start.y) <= DRAG_THRESHOLD_PX) return;
+      // Fire once; the operating system's drag takes over the mouse from here.
+      dragStart.current = undefined;
+      if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+        event.currentTarget.releasePointerCapture(event.pointerId);
+      }
+      void run(async (current) => {
+        const dataUrl = await start.pending;
+        if (dataUrl === undefined) return;
+        // A new capture can replace the image during the press.
+        if (latest.current.imageId !== start.imageId) {
+          setError(describeExportImageChanged(current.t));
+          return;
+        }
+        const result = unwrap(await commands.startDrag(dataUrl, start.capturedAt));
+        // Released before the drag began: tell the user how it works.
+        if (result === 'notStarted') show({ kind: 'dragHint' });
+      });
+    },
+    [run, unwrap, show],
+  );
+
+  /** A press that ended before it moved far enough is not a drag. */
+  const onDragPointerEnd = useCallback(() => {
+    dragStart.current = undefined;
+  }, []);
+
   const reveal = useCallback(
     async (fileId: number) => {
       try {
@@ -164,5 +226,13 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     [unwrap],
   );
 
-  return { busy, notice, error, quickSave, saveAs, copy, reveal, dismissNotice, dismissError };
+  const dragHandlers = {
+    onPointerDown: onDragPointerDown,
+    onPointerMove: onDragPointerMove,
+    onPointerUp: onDragPointerEnd,
+    onPointerCancel: onDragPointerEnd,
+    onLostPointerCapture: onDragPointerEnd,
+  };
+
+  return { busy, notice, error, quickSave, saveAs, copy, reveal, dragHandlers, dismissNotice, dismissError };
 }

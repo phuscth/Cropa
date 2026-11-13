@@ -63,6 +63,12 @@ export const commands = {
 	writeSaveAs: (token: number, image: string) => typedError<SavedFile, CommandError>(__TAURI_INVOKE("write_save_as", { token, image })),
 	/**  Put the rendered image (a PNG `data:` URL) on the clipboard. */
 	copyRenderedImage: (image: string) => typedError<null, CommandError>(__TAURI_INVOKE("copy_rendered_image", { image })),
+	/**
+	 *  Start dragging the rendered image (a PNG `data:` URL) out of the editor
+	 *  as a PNG file named after the capture time. Resolves when the user drops
+	 *  or cancels; `NotStarted` when the mouse button is already up.
+	 */
+	startDrag: (image: string, capturedAt: number | null) => typedError<DragResult, CommandError>(__TAURI_INVOKE("start_drag", { image, capturedAt })),
 	/**  Show a file saved in this run in its folder, selected. */
 	revealSavedFile: (id: number) => typedError<null, CommandError>(__TAURI_INVOKE("reveal_saved_file", { id })),
 	/**  Pick the folder Ctrl+S saves into. `None` when the user cancels. */
@@ -137,7 +143,12 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string };
+
+/**  How a drag out of the editor ended. */
+export type DragResult = "dropped" | "cancelled" | 
+/**  The mouse button was already up, so no drag began. */
+"notStarted";
 
 /**  The editor has another image to show. */
 export type EditorImageChanged = null;

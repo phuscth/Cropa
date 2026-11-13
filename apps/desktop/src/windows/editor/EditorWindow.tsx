@@ -76,6 +76,19 @@ function CloseIcon() {
   );
 }
 
+function GripIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <circle cx="5.5" cy="3.5" r="1.25" />
+      <circle cx="10.5" cy="3.5" r="1.25" />
+      <circle cx="5.5" cy="8" r="1.25" />
+      <circle cx="10.5" cy="8" r="1.25" />
+      <circle cx="5.5" cy="12.5" r="1.25" />
+      <circle cx="10.5" cy="12.5" r="1.25" />
+    </svg>
+  );
+}
+
 function RedoIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -121,7 +134,7 @@ export function EditorWindow() {
     imageId: loaded?.imageId ?? 0,
     capturedAt: loaded?.capturedAt ?? null,
   });
-  const { busy, quickSave, saveAs, copy, reveal } = exporter;
+  const { busy, quickSave, saveAs, copy, reveal, dragHandlers } = exporter;
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
 
@@ -242,6 +255,17 @@ export function EditorWindow() {
         <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
         <Button
           variant="outline"
+          className="cursor-grab touch-none select-none"
+          title={t('editor.export.dragHint')}
+          draggable={false}
+          disabled={!loaded || busy}
+          {...dragHandlers}
+        >
+          <GripIcon />
+          {t('editor.export.drag')}
+        </Button>
+        <Button
+          variant="outline"
           title={`${t('editor.export.copy')} (Ctrl+C)`}
           disabled={!loaded || busy}
           onClick={() => { void copy(); }}
@@ -344,9 +368,9 @@ export function EditorWindow() {
                 className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-md border bg-background py-1 pr-1 pl-3 text-sm shadow-md"
               >
                 <span>
-                  {exporter.notice.kind === 'saved'
-                    ? t('editor.export.saved', { fileName: exporter.notice.file.fileName })
-                    : t('editor.export.copied')}
+                  {exporter.notice.kind === 'saved' && t('editor.export.saved', { fileName: exporter.notice.file.fileName })}
+                  {exporter.notice.kind === 'copied' && t('editor.export.copied')}
+                  {exporter.notice.kind === 'dragHint' && t('editor.export.dragHold')}
                 </span>
                 {exporter.notice.kind === 'saved' && (
                   <Button

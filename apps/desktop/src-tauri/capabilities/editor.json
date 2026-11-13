@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "editor",
-  "description": "Editor window: listens to app events, reads the shortcut status, manages the user's saved background presets and background images and exports a preset to a file, and saves, copies and reveals exported images.",
+  "description": "Editor window: listens to app events, reads the shortcut status, manages the user's saved background presets and background images and exports a preset to a file, saves, copies and reveals exported images, and lets the user drag the image into other apps.",
   "windows": ["editor"],
   "permissions": [
     "core:event:allow-listen",
@@ -12,6 +12,7 @@
     "allow-choose-save-as-path",
     "allow-write-save-as",
     "allow-copy-rendered-image",
+    "allow-start-drag",
     "allow-reveal-saved-file",
     "allow-list-user-presets",
     "allow-save-user-preset",

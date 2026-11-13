@@ -95,6 +95,9 @@
       "scale": "Scale",
       "scaleFixed": "Platform sizes always export at 1x ({{width}} × {{height}} px)",
       "saved": "Saved {{fileName}}",
+      "drag": "Drag",
+      "dragHold": "Hold the mouse button down while you drag the image out",
+      "dragHint": "Drag the image into another app, a folder or a chat",
       "copied": "Copied to the clipboard",
       "openFolder": "Open folder"
     },
@@ -253,6 +256,11 @@
       "what": "Couldn't copy the capture.",
       "why": "Another app may be holding the clipboard ({{detail}}).",
       "next": "Close that app or try again."
+    },
+    "Drag": {
+      "what": "Couldn't drag the image.",
+      "why": "Cropa couldn't hand the image to Windows ({{detail}}).",
+      "next": "Try again, or use Copy or Save instead."
     },
     "ExportInvalid": {
       "what": "Couldn't use the image.",
