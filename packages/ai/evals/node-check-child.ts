@@ -173,6 +173,7 @@ async function check(
   }
 
   try {
+    driverText(run(context, '__cropaDriver.arm(); "armed"'));
     run(context, code, loadTimeoutMs);
   } catch (error) {
     if (timedOut(error)) {
@@ -206,7 +207,10 @@ async function check(
   // The first frame after a load can compile shaders, so it gets the longer limit.
   let first = true;
   const sceneJson = JSON.stringify(scene);
-  const renderAt = (t: number): Frame => {
+  const renderAt = async (t: number): Promise<Frame> => {
+    // A turn of the host loop between frames lets work the context asked the host for (a refused
+    // import) settle, so it runs under the next frame's time limit.
+    await new Promise((done) => setImmediate(done));
     const id = nextId++;
     const limitMs = first ? Math.max(frameTimeoutMs, loadTimeoutMs) : frameTimeoutMs;
     first = false;
@@ -252,10 +256,10 @@ async function check(
 
   let firstFrame: Frame | null = null;
   for (let k = 0; k < samples; k++) {
-    const frame = renderAt(k / samples);
+    const frame = await renderAt(k / samples);
     if (k === 0) firstFrame = frame;
   }
-  const last = renderAt(1);
+  const last = await renderAt(1);
   const same = (a: Op[] | null, b: Op[] | null): boolean =>
     a === null || b === null ? a === b : JSON.stringify(a) === JSON.stringify(b);
   const loops = firstFrame !== null && same(firstFrame.back, last.back) && same(firstFrame.front, last.front);
@@ -290,5 +294,21 @@ try {
     maxFrameMs: progress.maxFrameMs,
   };
 }
-// The result goes out on the IPC channel with the nonce the parent chose; stdout is not read.
-send?.({ nonce: request.nonce, result }, () => { process.exit(0); });
+// Rebuilt from primitive fields on prototype-less objects: nothing the module could have touched
+// (a polluted Object.prototype, say) takes part when the result is serialised.
+const plain = (checked: NodeCheck): NodeCheck => {
+  const value: { ok?: unknown; loops?: unknown; maxFrameMs?: unknown; durationMs?: unknown; error?: { kind?: unknown; message?: unknown } } = checked;
+  const out = Object.create(null) as NodeCheck;
+  out.ok = value.ok === true;
+  if (value.error) {
+    const error = Object.create(null) as NonNullable<NodeCheck['error']>;
+    error.kind = String(value.error.kind) as CodeSandboxErrorKind;
+    error.message = String(value.error.message);
+    out.error = error;
+  }
+  out.loops = value.loops === true;
+  out.maxFrameMs = Number(value.maxFrameMs);
+  if (typeof value.durationMs === 'number') out.durationMs = value.durationMs;
+  return out;
+};
+send?.({ nonce: request.nonce, result: plain(result) }, () => { process.exit(0); });

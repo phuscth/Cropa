@@ -132,12 +132,30 @@ function back(ctx, t, scene) {
         server.close();
       });
 
-      // The rejection reason is made to climb out: through its constructors to a Function that
-      // reads process, and through the host Function to a plain compile. Reaching either flips
-      // `reached`, the next frame throws, and a socket would be opened on the local server.
+      // The handler receives the rejection reason and tries everything a host-realm object would
+      // allow: its constructors to a Function that reads process, and its prototype chain up to
+      // the Object.prototype it was made in, where a toJSON would reach the checker's own
+      // serialisation. A reason made inside the context passes every in-context identity check
+      // below; a host error fails them, with or without string compilation being blocked.
       const probe = `
         let reached = false;
+        let settled = false;
         const climb = (e) => {
+          settled = true;
+          try {
+            let root = e;
+            while (Object.getPrototypeOf(root) !== null) root = Object.getPrototypeOf(root);
+            if (root !== Object.prototype || !(e instanceof TypeError) || !(e instanceof Error)) reached = true;
+            Object.defineProperty(root, 'toJSON', {
+              configurable: true,
+              value() {
+                if (this.ok === undefined) return this;
+                const forged = Object.create(null);
+                Object.assign(forged, { ok: false, error: { kind: 'timeout', message: 'FORGED' }, loops: true, maxFrameMs: 0 });
+                return forged;
+              },
+            });
+          } catch {}
           try {
             const p = e.constructor.constructor('return process')();
             reached = true;
@@ -150,10 +168,12 @@ function back(ctx, t, scene) {
       const attempt = (specifier: string, where: 'top' | 'back'): string => {
         const call = `void import('${specifier}').catch(climb);`;
         return `${probe.replace('__PORT__', String(port))}
+          let frames = 0;
           const meta = { durationMs: 2000 };
           ${where === 'top' ? call : ''}
           function back(ctx, t, scene) {
             ${where === 'back' ? call : ''}
+            if (!settled && ++frames > 8) throw new Error('UNSETTLED');
             if (reached) throw new Error('LEAK');
             ctx.fillRect(0, 0, 1, 1);
           }`;
@@ -165,8 +185,8 @@ function back(ctx, t, scene) {
             const before = connections;
             const check = await checkModuleInNode(attempt(specifier, where), scene);
             await new Promise((done) => setTimeout(done, 200));
-            expect(check.error?.message ?? '').not.toContain('LEAK');
-            expect(check.ok).toBe(true);
+            expect(check.error?.message ?? '').not.toMatch(/LEAK|UNSETTLED|FORGED/);
+            expect(check).toMatchObject({ ok: true, loops: true });
             expect(connections).toBe(before);
           });
         }
@@ -193,6 +213,18 @@ function back(ctx, t, scene) {
         try { Object.defineProperty(driver, 'frame', { value: (id, t, sceneJson) => real(id, 0, sceneJson) }); } catch {}
         const meta = { durationMs: 2000 };
         function back(ctx, t, scene) { ctx.fillRect(t * 999, 0, 10, 10); }`;
+      const check = await checkModuleInNode(source, scene);
+      expect(!check.ok || !check.loops).toBe(true);
+    });
+
+    it('cannot answer a frame request from its own message listener', async () => {
+      const source = `
+        addEventListener('message', (event) => {
+          const { id, scene } = event.data;
+          postMessage({ type: 'frame', id, back: { width: scene.width, height: scene.height, ops: [] }, front: null });
+        });
+        const meta = { durationMs: 2000 };
+        function back(ctx, t) { ctx.fillRect(t * 999, 0, 1, 1); }`;
       const check = await checkModuleInNode(source, scene);
       expect(!check.ok || !check.loops).toBe(true);
     });

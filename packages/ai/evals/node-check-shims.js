@@ -263,12 +263,33 @@
   // A counter, not a clock: modules must not depend on time while drawing.
   let ticks = 0;
   const g = globalThis;
-  g.postMessage = (message) => {
-    inbox.push(message);
+  // Only the sandbox runtime may talk to the driver. It reads postMessage and addEventListener
+  // first, before the module body runs, and the host arms these one-shot getters just before
+  // running it: that first read gets the real functions, every later read (the module's) gets
+  // ones that drop what they are given, so a module cannot post a frame or answer one itself.
+  const trusted = {
+    postMessage: (message) => {
+      inbox.push(message);
+    },
+    addEventListener: (_type, listener) => {
+      listeners.push(listener);
+    },
   };
-  g.addEventListener = (_type, listener) => {
-    listeners.push(listener);
-  };
+  const ignored = () => undefined;
+  let armed = false;
+  const issued = { postMessage: false, addEventListener: false };
+  for (const name of ['postMessage', 'addEventListener']) {
+    Object.defineProperty(g, name, {
+      get() {
+        if (armed && !issued[name]) {
+          issued[name] = true;
+          return trusted[name];
+        }
+        return ignored;
+      },
+      set() {},
+    });
+  }
   g.OffscreenCanvas = StubCanvas;
   g.Path2D = RecordedPath;
   g.structuredClone = (value) => JSON.parse(JSON.stringify(value));
@@ -333,6 +354,10 @@
         return stringify({ threw: message(error) });
       }
       return json(find((m) => m.type === 'frame' && m.id === id));
+    },
+    // Called by the host right before it runs the runtime and the module.
+    arm() {
+      armed = true;
     },
     // The text of a value the module threw, for the host to report.
     describe(error) {

@@ -79,8 +79,20 @@ function failure(kind: CodeSandboxErrorKind, message: string): NodeCheck {
   return { ok: false, error: { kind, message }, loops: false, maxFrameMs: 0 };
 }
 
+/** The result as plain fields of known types, whatever else the message carried. */
 function parseResult(value: unknown): NodeCheck | null {
-  return typeof value === 'object' && value !== null && 'ok' in value ? (value as NodeCheck) : null;
+  if (typeof value !== 'object' || value === null || !('ok' in value)) return null;
+  const raw = value as Partial<NodeCheck>;
+  const out: NodeCheck = {
+    ok: raw.ok === true,
+    loops: raw.loops === true,
+    maxFrameMs: typeof raw.maxFrameMs === 'number' ? raw.maxFrameMs : 0,
+  };
+  if (raw.error && typeof raw.error.kind === 'string' && typeof raw.error.message === 'string') {
+    out.error = { kind: raw.error.kind, message: raw.error.message };
+  }
+  if (typeof raw.durationMs === 'number') out.durationMs = raw.durationMs;
+  return out;
 }
 
 /**
