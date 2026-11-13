@@ -65,6 +65,36 @@ while but normal builds never overwrite it. Only debug builds read the hook.
 A background preset is one JSON file in [`presets/`](presets/). The format, the
 rules and the steps to add one are in [`presets/README.md`](presets/README.md).
 
+## Background code sandbox
+
+AI-written background code runs only in `apps/desktop/src/features/code-sandbox/`:
+a hidden `srcdoc` iframe with `sandbox="allow-scripts"` (opaque origin, never
+`allow-same-origin`) and its own CSP `default-src 'none'`, with the code in a blob
+Worker inside it. The code gets only `t` and the scene, and draws on canvases
+(2D, or WebGL with the bundled three.js). The two app CSP exceptions in
+`tauri.conf.json` (`worker-src blob:` and the bootstrap's SHA-256 in `script-src`)
+exist only for it.
+
+Whenever `BOOTSTRAP_SCRIPT` changes, update `BOOTSTRAP_CSP_HASH` and the hash in
+`tauri.conf.json`; the test in `sandbox.test.ts` fails otherwise.
+
+Before a release, check the escape surface by hand: open the editor window's
+devtools with a test module loaded and try each of these. Every one must fail or
+be undefined, and nothing may reach the network.
+
+- From the worker: `fetch` (same origin, another origin, `http://ipc.localhost`),
+  `XMLHttpRequest`, `WebSocket`, `importScripts`, `eval` and `new Function`,
+  `indexedDB`, a `BroadcastChannel` shared with the app, `typeof __TAURI_INTERNALS__`,
+  `typeof document`.
+- From the iframe document: `parent.document`, `localStorage`,
+  `typeof __TAURI_INTERNALS__`.
+- A module with `for(;;){}` times out and the editor stays responsive.
+- A module that allocates memory until it fails, and one that floods `postMessage`
+  from a `setInterval`: the editor stays responsive. In Task Manager, check that
+  the sandboxed frame runs in its own WebView2 process. The runner closes every
+  bitmap it did not ask for and recreates the sandbox after 16 unexpected
+  messages in one request, so a flood ends as `sandbox-failed`.
+
 ## Rules that are easy to miss
 
 - **Commands are typed.** Add a Rust command with `#[tauri::command]` and
