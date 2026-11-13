@@ -72,14 +72,12 @@ try {
   sessionId = created.value?.sessionId ?? created.sessionId;
   assert.ok(sessionId, `no WebDriver session id in ${JSON.stringify(created)}`);
 
-  // The selector relies on the preview being the only `canvas[role="img"]`; a
-  // dedicated test id would be steadier.
   const colours = await waitFor('the editor to show the fixture image', 30_000, async () => {
     // The page may still be navigating, which fails the script; keep polling.
     let result;
     try {
       result = await executeScript(`
-      const canvas = document.querySelector('canvas[role="img"]');
+      const canvas = document.querySelector('[data-testid="editor-preview"]');
       if (!canvas || canvas.width === 0 || canvas.height === 0) return null;
       const { data, width, height } = canvas.getContext('2d').getImageData(0, 0, canvas.width, canvas.height);
       const count = (want) => {
