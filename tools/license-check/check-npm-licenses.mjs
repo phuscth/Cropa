@@ -18,6 +18,7 @@ const ALLOWED = new Set([
   'MPL-2.0',
   'Python-2.0',
   'CC-BY-4.0',
+  'OFL-1.1',
 ]);
 
 /** Workspace packages are ours (MIT); pnpm reports them as `private`. */

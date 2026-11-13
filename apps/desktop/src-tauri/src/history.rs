@@ -124,6 +124,15 @@ impl History {
         items
     }
 
+    /// When the capture was taken, in milliseconds since the Unix epoch: its id.
+    pub fn captured_at(id: &str) -> Result<f64, HistoryError> {
+        let id = valid_id(id)?;
+        #[allow(clippy::cast_precision_loss)]
+        id.parse::<u128>()
+            .map(|millis| millis as f64)
+            .map_err(|_| HistoryError::Missing)
+    }
+
     /// The PNG bytes of the original capture.
     pub fn original(&self, id: &str) -> Result<Vec<u8>, HistoryError> {
         let id = valid_id(id)?;
@@ -209,6 +218,12 @@ impl History {
     fn ids(&self) -> Vec<(u128, String)> {
         ids_in(&self.dir)
     }
+}
+
+/// Milliseconds since the Unix epoch, as the editor and the WebView count them.
+#[allow(clippy::cast_precision_loss)]
+pub fn epoch_millis(at: SystemTime) -> f64 {
+    unix_millis(at) as f64
 }
 
 fn unix_millis(at: SystemTime) -> u128 {
@@ -394,6 +409,16 @@ mod tests {
             assert!(!thumbnails.contains(&format!("{old}.png")));
             assert!(matches!(history.original(old), Err(HistoryError::Missing)));
         }
+    }
+
+    #[test]
+    fn an_entry_reports_when_it_was_captured() {
+        let dir = TempDir::new("captured-at");
+        let history = history(&dir);
+        let at = UNIX_EPOCH + millis(1_700_000_000_123);
+        let id = history.save(&tiny(), at).unwrap();
+        assert_eq!(History::captured_at(&id).unwrap(), 1_700_000_000_123.0);
+        assert!(History::captured_at("../x").is_err());
     }
 
     #[test]

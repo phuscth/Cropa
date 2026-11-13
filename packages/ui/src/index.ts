@@ -4,6 +4,12 @@ export { Button, buttonVariants } from './components/button.tsx';
 export { ColorInput } from './components/color-input.tsx';
 export { Input } from './components/input.tsx';
 export {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverTrigger,
+} from './components/popover.tsx';
+export {
   Select,
   SelectContent,
   SelectItem,
