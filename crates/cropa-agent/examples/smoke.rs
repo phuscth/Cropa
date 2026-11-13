@@ -42,6 +42,7 @@ fn main() {
         images,
         want_image: false,
         model: None,
+        effort: cropa_agent::Effort::default(),
         timeout: Duration::from_secs(120),
     };
     let started = Instant::now();

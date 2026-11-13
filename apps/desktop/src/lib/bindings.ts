@@ -127,6 +127,8 @@ export const commands = {
 	setAiProvider: (provider: AiProvider | null) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_provider", { provider })),
 	/**  Allow tasks to send screenshots to the provider, or not. */
 	setAiAllowImages: (enabled: boolean) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_allow_images", { enabled })),
+	/**  Remember how much effort AI tasks use. Low, medium or high only. */
+	setAiEffort: (effort: AiEffort) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_effort", { effort })),
 	/**  "Later" on the first-launch AI question: stop asking, keep the provider. */
 	dismissAiOnboarding: () => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("dismiss_ai_onboarding")),
 	/**  Open the official install page of a CLI in the default browser. */
@@ -202,6 +204,12 @@ export type AiDetection_Serialize = {
 };
 
 /**
+ *  How much thinking an AI task may spend. Higher is slower and uses more of the user's
+ *  quota. On disk: `"low"`, `"medium"` or `"high"`.
+ */
+export type AiEffort = "low" | "medium" | "high";
+
+/**
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message.
  */
@@ -272,6 +280,8 @@ export type AiRequest_Deserialize = {
 	images: string[],
 	wantImage: boolean,
 	model?: string | null,
+	/**  How much thinking the turn may spend; low when absent. */
+	effort?: AiEffort | null,
 	timeoutMs?: number | null,
 };
 
@@ -284,6 +294,8 @@ export type AiRequest_Serialize = {
 	images: string[],
 	wantImage: boolean,
 	model: string | null,
+	/**  How much thinking the turn may spend; low when absent. */
+	effort: AiEffort | null,
 	timeoutMs: number | null,
 };
 
@@ -308,6 +320,8 @@ export type AiSettings_Deserialize = {
 	 *  confirmed).
 	 */
 	allowImages?: boolean,
+	/**  The effort tasks run with; the last choice the user made. */
+	effort?: AiEffort,
 	/**  Whether the first-launch AI question has been answered or dismissed. */
 	onboardingAnswered?: boolean,
 };
@@ -327,6 +341,8 @@ export type AiSettings_Serialize = {
 	 *  confirmed).
 	 */
 	allowImages: boolean,
+	/**  The effort tasks run with; the last choice the user made. */
+	effort: AiEffort,
 	/**  Whether the first-launch AI question has been answered or dismissed. */
 	onboardingAnswered: boolean,
 };

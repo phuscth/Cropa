@@ -5,14 +5,14 @@ import { aiAccess } from './access.ts';
 
 function settings(ai: Partial<Settings['ai']>): Settings {
   return {
-    version: 5,
+    version: 6,
     captureShortcut: 'Alt+Shift+S',
     theme: 'system',
     autostartAsked: true,
     saveHistory: true,
     excludeFromClipboardHistory: false,
     saveFolder: null,
-    ai: { provider: null, allowImages: false, onboardingAnswered: false, ...ai },
+    ai: { provider: null, allowImages: false, effort: 'low', onboardingAnswered: false, ...ai },
   };
 }
 
@@ -30,6 +30,11 @@ describe('aiAccess', () => {
       state: 'ready',
       provider: 'claude',
       allowImages: true,
+      effort: 'low',
     });
+  });
+
+  it('carries the effort the user chose', () => {
+    expect(aiAccess(settings({ provider: 'codex', effort: 'high' })).effort).toBe('high');
   });
 });

@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "editor",
-  "description": "Editor window: listens to app events, reads the shortcut status, manages the user's saved background presets and background images and exports a preset to a file, saves, copies and reveals exported images, lets the user drag the image into other apps, and runs, cancels and detects AI turns.",
+  "description": "Editor window: listens to app events, reads the shortcut status, manages the user's saved background presets and background images and exports a preset to a file, saves, copies and reveals exported images, lets the user drag the image into other apps, reads the AI settings and remembers the AI effort, and runs, cancels and detects AI turns.",
   "windows": ["editor"],
   "permissions": [
     "core:event:allow-listen",
@@ -24,6 +24,8 @@
     "allow-delete-background-image",
     "allow-ai-run",
     "allow-ai-cancel",
-    "allow-ai-detect"
+    "allow-ai-detect",
+    "allow-get-settings",
+    "allow-set-ai-effort"
   ]
 }

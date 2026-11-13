@@ -13,6 +13,27 @@
       "px": "{{value}} px",
       "deg": "{{value}}°"
     },
+    "aiBackground": {
+      "title": "Nền AI",
+      "label": "Mô tả nền",
+      "placeholder": "Đồng cỏ đung đưa trong gió nhẹ, hoặc đom đóm trên mặt hồ tối",
+      "generate": "Tạo",
+      "cancel": "Hủy",
+      "writing": "Đang viết nền…",
+      "checking": "Đang kiểm tra nền có chạy được không…",
+      "effort": {
+        "label": "Mức nỗ lực",
+        "low": "Thấp",
+        "medium": "Vừa",
+        "high": "Cao",
+        "hint": "Mức cao hơn mất nhiều thời gian hơn và dùng nhiều hạn mức AI của bạn hơn."
+      },
+      "noWebgl": {
+        "what": "Nền này cần đồ họa 3D.",
+        "why": "WebGL không khả dụng trong cửa sổ này nên nền 3D không chạy được.",
+        "next": "Hãy thử một mô tả không có vật thể 3D. Preset gần nhất vẫn được giữ."
+      }
+    },
     "background": {
       "title": "Nền",
       "type": "Loại",
@@ -308,6 +329,11 @@
       "what": "Không mở được ảnh chụp trong trình chỉnh sửa.",
       "why": "Không giải mã được ảnh ({{detail}}).",
       "next": "Hãy chụp lại, hoặc mở một ảnh khác từ Lịch sử."
+    },
+    "CodeLayerSkipped": {
+      "what": "Ảnh đã được xuất mà không có nền động.",
+      "why": "Không thể vẽ lớp nền động khi xuất, nên tệp chỉ có các lớp bên dưới nó.",
+      "next": "Hãy chọn nền khác hoặc thử xuất lại."
     },
     "OutputTooLarge": {
       "what": "Thay đổi đó chưa được áp dụng.",

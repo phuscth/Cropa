@@ -1,4 +1,4 @@
-import { defaultScene, edgeColor } from '@cropa/core';
+import { defaultScene, edgeColor, type PaletteColour } from '@cropa/core';
 import {
   Button,
   Popover,
@@ -14,6 +14,7 @@ import { AnnotationOverlay } from '../../features/editor/annotate/AnnotationOver
 import { AnnotationProperties } from '../../features/editor/annotate/AnnotationProperties.tsx';
 import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
 import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
+import { screenshotPalette } from '../../features/editor/code-frames.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
 import { exportPlan, type ExportScale } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
@@ -36,6 +37,8 @@ interface Loaded {
   bitmap: ImageBitmap;
   /** The colour at the screenshot's edges, found once per image. */
   edge: string | null;
+  /** The dominant colours of the screenshot, found once per image. */
+  palette: PaletteColour[];
   /** Counts loaded images; bumped on every successful load. */
   imageId: number;
   /** When the image was captured, in ms since the epoch; null when Rust does not know. */
@@ -134,6 +137,8 @@ export function EditorWindow() {
     imageId: loaded?.imageId ?? 0,
     capturedAt: loaded?.capturedAt ?? null,
   });
+  // An export error wins over the warning that a layer was left out.
+  const exportProblem = exporter.error ?? exporter.warning;
   const { busy, quickSave, saveAs, copy, reveal, dragHandlers } = exporter;
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
@@ -179,9 +184,11 @@ export function EditorWindow() {
             return;
           }
           setError(undefined);
+          const palette = screenshotPalette(bitmap);
           setLoaded((previous) => ({
             bitmap,
             edge: findEdgeColor(bitmap),
+            palette,
             imageId: (previous?.imageId ?? 0) + 1,
             capturedAt: data.capturedAt,
           }));
@@ -356,9 +363,12 @@ export function EditorWindow() {
                 <ErrorNotice error={error} />
               </div>
             ) : (
-              exporter.error && (
+              exportProblem && (
                 <div className={`absolute inset-x-4 ${showProperties ? 'top-16' : 'top-4'}`}>
-                  <ErrorNotice error={exporter.error} onDismiss={exporter.dismissError} />
+                  <ErrorNotice
+                    error={exportProblem}
+                    onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
+                  />
                 </div>
               )
             )}
@@ -396,7 +406,7 @@ export function EditorWindow() {
             )}
           </section>
           <aside className="w-72 shrink-0 overflow-y-auto border-l bg-background">
-            <EditorSidebar history={history} edgeColor={loaded.edge} />
+            <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
           </aside>
         </div>
       ) : (

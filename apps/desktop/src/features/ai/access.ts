@@ -1,19 +1,21 @@
 import { useEffect, useState } from 'react';
 
-import { commands, type AiProvider, type Settings } from '../../lib/bindings.ts';
+import { commands, type AiEffort, type AiProvider, type Settings } from '../../lib/bindings.ts';
 
 /** Whether AI features may run: no provider chosen yet means locked. */
 export interface AiAccess {
   state: 'loading' | 'locked' | 'ready';
   provider: AiProvider | null;
   allowImages: boolean;
+  /** The effort the user last chose for AI tasks; low until they choose. */
+  effort: AiEffort;
 }
 
 export function aiAccess(settings: Settings | undefined): AiAccess {
-  if (!settings) return { state: 'loading', provider: null, allowImages: false };
+  if (!settings) return { state: 'loading', provider: null, allowImages: false, effort: 'low' };
   const provider = settings.ai.provider ?? null;
   const allowImages = settings.ai.allowImages ?? false;
-  return { state: provider ? 'ready' : 'locked', provider, allowImages };
+  return { state: provider ? 'ready' : 'locked', provider, allowImages, effort: settings.ai.effort ?? 'low' };
 }
 
 /**

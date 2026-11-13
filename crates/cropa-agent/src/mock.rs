@@ -87,6 +87,7 @@ mod tests {
             images: Vec::new(),
             want_image: false,
             model: None,
+            effort: crate::cli::Effort::default(),
             timeout,
         }
     }

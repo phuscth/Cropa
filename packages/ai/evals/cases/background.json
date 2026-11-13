@@ -1,0 +1,1085 @@
+{
+  "task": "background",
+  "cases": [
+    {
+      "id": "meadow-wind",
+      "input": {
+        "description": "A meadow in light wind: grass swaying along the bottom under a soft sky",
+        "palette": [
+          {
+            "hex": "#2f6f3e",
+            "weight": 0.4
+          },
+          {
+            "hex": "#a8d5ba",
+            "weight": 0.28
+          },
+          {
+            "hex": "#f4f1de",
+            "weight": 0.2
+          },
+          {
+            "hex": "#6b4f2a",
+            "weight": 0.12
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "rain-glass",
+      "input": {
+        "description": "Rain running down a window pane at night, blurred city lights behind it",
+        "palette": [
+          {
+            "hex": "#0b1026",
+            "weight": 0.45
+          },
+          {
+            "hex": "#1f2a5a",
+            "weight": 0.3
+          },
+          {
+            "hex": "#f2c94c",
+            "weight": 0.15
+          },
+          {
+            "hex": "#e8e8f0",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "butterflies",
+      "input": {
+        "description": "Butterflies circling the screenshot frame",
+        "palette": [
+          {
+            "hex": "#ffd1dc",
+            "weight": 0.35
+          },
+          {
+            "hex": "#f7a8b8",
+            "weight": 0.25
+          },
+          {
+            "hex": "#fff0f5",
+            "weight": 0.25
+          },
+          {
+            "hex": "#7a4b5b",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1080,
+          "height": 1350,
+          "frame": {
+            "x": 90,
+            "y": 300,
+            "width": 900,
+            "height": 750,
+            "radius": 24,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "bokeh",
+      "input": {
+        "description": "Soft bokeh lights drifting slowly",
+        "palette": [
+          {
+            "hex": "#ff7a45",
+            "weight": 0.3
+          },
+          {
+            "hex": "#ffb347",
+            "weight": 0.25
+          },
+          {
+            "hex": "#7a1f3d",
+            "weight": 0.25
+          },
+          {
+            "hex": "#fff1d6",
+            "weight": 0.2
+          }
+        ],
+        "frame": {
+          "width": 1200,
+          "height": 1200,
+          "frame": {
+            "x": 150,
+            "y": 190,
+            "width": 900,
+            "height": 820,
+            "radius": 12,
+            "border": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "aurora",
+      "input": {
+        "description": "Northern lights rippling across a night sky",
+        "palette": [
+          {
+            "hex": "#07142b",
+            "weight": 0.35
+          },
+          {
+            "hex": "#15a085",
+            "weight": 0.25
+          },
+          {
+            "hex": "#7b2ff7",
+            "weight": 0.25
+          },
+          {
+            "hex": "#c0fdfb",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "crystal-3d",
+      "input": {
+        "description": "A slowly spinning 3D crystal in the corner, using three.js",
+        "palette": [
+          {
+            "hex": "#0b3c5d",
+            "weight": 0.35
+          },
+          {
+            "hex": "#1d70a2",
+            "weight": 0.3
+          },
+          {
+            "hex": "#7fc8f8",
+            "weight": 0.2
+          },
+          {
+            "hex": "#f1faee",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "cube-3d",
+      "input": {
+        "description": "A 3D cube floating and rotating next to the frame",
+        "palette": [
+          {
+            "hex": "#ff6ec7",
+            "weight": 0.3
+          },
+          {
+            "hex": "#7b5cff",
+            "weight": 0.3
+          },
+          {
+            "hex": "#37e2d5",
+            "weight": 0.25
+          },
+          {
+            "hex": "#fff7fb",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1080,
+          "height": 1350,
+          "frame": {
+            "x": 90,
+            "y": 300,
+            "width": 900,
+            "height": 750,
+            "radius": 24,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "planet-3d",
+      "input": {
+        "description": "A low-poly 3D planet turning slowly with a few small stars",
+        "palette": [
+          {
+            "hex": "#0b1026",
+            "weight": 0.45
+          },
+          {
+            "hex": "#1f2a5a",
+            "weight": 0.3
+          },
+          {
+            "hex": "#f2c94c",
+            "weight": 0.15
+          },
+          {
+            "hex": "#e8e8f0",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1200,
+          "height": 1200,
+          "frame": {
+            "x": 150,
+            "y": 190,
+            "width": 900,
+            "height": 820,
+            "radius": 12,
+            "border": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "gradient-breath",
+      "input": {
+        "description": "A soft gradient that gently breathes, nothing else",
+        "palette": [
+          {
+            "hex": "#cfe8ff",
+            "weight": 0.4
+          },
+          {
+            "hex": "#8ec5fc",
+            "weight": 0.3
+          },
+          {
+            "hex": "#ffffff",
+            "weight": 0.2
+          },
+          {
+            "hex": "#3a6ea5",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "frame-glow",
+      "input": {
+        "description": "A single soft glow around the frame that slowly pulses",
+        "palette": [
+          {
+            "hex": "#1e293b",
+            "weight": 0.4
+          },
+          {
+            "hex": "#334155",
+            "weight": 0.3
+          },
+          {
+            "hex": "#94a3b8",
+            "weight": 0.2
+          },
+          {
+            "hex": "#f8fafc",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "fireworks",
+      "input": {
+        "description": "Fireworks bursting in the night sky",
+        "palette": [
+          {
+            "hex": "#0b1026",
+            "weight": 0.45
+          },
+          {
+            "hex": "#1f2a5a",
+            "weight": 0.3
+          },
+          {
+            "hex": "#f2c94c",
+            "weight": 0.15
+          },
+          {
+            "hex": "#e8e8f0",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "city-night",
+      "input": {
+        "description": "A city skyline at night with twinkling windows",
+        "palette": [
+          {
+            "hex": "#2d1b4e",
+            "weight": 0.3
+          },
+          {
+            "hex": "#d1495b",
+            "weight": 0.3
+          },
+          {
+            "hex": "#edae49",
+            "weight": 0.25
+          },
+          {
+            "hex": "#00798c",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "underwater",
+      "input": {
+        "description": "Underwater: rising bubbles and a few fish swimming past",
+        "palette": [
+          {
+            "hex": "#0b3c5d",
+            "weight": 0.35
+          },
+          {
+            "hex": "#1d70a2",
+            "weight": 0.3
+          },
+          {
+            "hex": "#7fc8f8",
+            "weight": 0.2
+          },
+          {
+            "hex": "#f1faee",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1080,
+          "height": 1350,
+          "frame": {
+            "x": 90,
+            "y": 300,
+            "width": 900,
+            "height": 750,
+            "radius": 24,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "snow",
+      "input": {
+        "description": "Gentle snowfall",
+        "palette": [
+          {
+            "hex": "#1e293b",
+            "weight": 0.4
+          },
+          {
+            "hex": "#334155",
+            "weight": 0.3
+          },
+          {
+            "hex": "#94a3b8",
+            "weight": 0.2
+          },
+          {
+            "hex": "#f8fafc",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1200,
+          "height": 1200,
+          "frame": {
+            "x": 150,
+            "y": 190,
+            "width": 900,
+            "height": 820,
+            "radius": 12,
+            "border": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "fireflies",
+      "input": {
+        "description": "Fireflies drifting over a dark meadow",
+        "palette": [
+          {
+            "hex": "#2f6f3e",
+            "weight": 0.4
+          },
+          {
+            "hex": "#a8d5ba",
+            "weight": 0.28
+          },
+          {
+            "hex": "#f4f1de",
+            "weight": 0.2
+          },
+          {
+            "hex": "#6b4f2a",
+            "weight": 0.12
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "waves",
+      "input": {
+        "description": "Layered ocean waves rolling",
+        "palette": [
+          {
+            "hex": "#0b3c5d",
+            "weight": 0.35
+          },
+          {
+            "hex": "#1d70a2",
+            "weight": 0.3
+          },
+          {
+            "hex": "#7fc8f8",
+            "weight": 0.2
+          },
+          {
+            "hex": "#f1faee",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "starfield",
+      "input": {
+        "description": "A starfield with stars slowly passing by",
+        "palette": [
+          {
+            "hex": "#111111",
+            "weight": 0.5
+          },
+          {
+            "hex": "#444444",
+            "weight": 0.25
+          },
+          {
+            "hex": "#bbbbbb",
+            "weight": 0.15
+          },
+          {
+            "hex": "#ffffff",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1080,
+          "height": 1350,
+          "frame": {
+            "x": 90,
+            "y": 300,
+            "width": 900,
+            "height": 750,
+            "radius": 24,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "confetti",
+      "input": {
+        "description": "Confetti falling in many colours",
+        "palette": [
+          {
+            "hex": "#ff6ec7",
+            "weight": 0.3
+          },
+          {
+            "hex": "#7b5cff",
+            "weight": 0.3
+          },
+          {
+            "hex": "#37e2d5",
+            "weight": 0.25
+          },
+          {
+            "hex": "#fff7fb",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1200,
+          "height": 1200,
+          "frame": {
+            "x": 150,
+            "y": 190,
+            "width": 900,
+            "height": 820,
+            "radius": 12,
+            "border": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "falling-leaves",
+      "input": {
+        "description": "Autumn leaves falling and turning",
+        "palette": [
+          {
+            "hex": "#ff7a45",
+            "weight": 0.3
+          },
+          {
+            "hex": "#ffb347",
+            "weight": 0.25
+          },
+          {
+            "hex": "#7a1f3d",
+            "weight": 0.25
+          },
+          {
+            "hex": "#fff1d6",
+            "weight": 0.2
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "neon-grid",
+      "input": {
+        "description": "A retro neon grid scrolling toward the horizon",
+        "palette": [
+          {
+            "hex": "#0d0221",
+            "weight": 0.4
+          },
+          {
+            "hex": "#ff2a6d",
+            "weight": 0.25
+          },
+          {
+            "hex": "#05d9e8",
+            "weight": 0.25
+          },
+          {
+            "hex": "#d1f7ff",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "lava-lamp",
+      "input": {
+        "description": "A lava lamp with slow blobs",
+        "palette": [
+          {
+            "hex": "#2d1b4e",
+            "weight": 0.3
+          },
+          {
+            "hex": "#d1495b",
+            "weight": 0.3
+          },
+          {
+            "hex": "#edae49",
+            "weight": 0.25
+          },
+          {
+            "hex": "#00798c",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1080,
+          "height": 1350,
+          "frame": {
+            "x": 90,
+            "y": 300,
+            "width": 900,
+            "height": 750,
+            "radius": 24,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "clouds",
+      "input": {
+        "description": "Slow clouds drifting across a bright sky",
+        "palette": [
+          {
+            "hex": "#cfe8ff",
+            "weight": 0.4
+          },
+          {
+            "hex": "#8ec5fc",
+            "weight": 0.3
+          },
+          {
+            "hex": "#ffffff",
+            "weight": 0.2
+          },
+          {
+            "hex": "#3a6ea5",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1200,
+          "height": 1200,
+          "frame": {
+            "x": 150,
+            "y": 190,
+            "width": 900,
+            "height": 820,
+            "radius": 12,
+            "border": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "sakura",
+      "input": {
+        "description": "Sakura petals blowing across the canvas",
+        "palette": [
+          {
+            "hex": "#ffd1dc",
+            "weight": 0.35
+          },
+          {
+            "hex": "#f7a8b8",
+            "weight": 0.25
+          },
+          {
+            "hex": "#fff0f5",
+            "weight": 0.25
+          },
+          {
+            "hex": "#7a4b5b",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "matrix-rain",
+      "input": {
+        "description": "Matrix-like falling green characters",
+        "palette": [
+          {
+            "hex": "#111111",
+            "weight": 0.5
+          },
+          {
+            "hex": "#444444",
+            "weight": 0.25
+          },
+          {
+            "hex": "#bbbbbb",
+            "weight": 0.15
+          },
+          {
+            "hex": "#ffffff",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "geometric",
+      "input": {
+        "description": "Slowly rotating geometric shapes in soft tones",
+        "palette": [
+          {
+            "hex": "#f5efe6",
+            "weight": 0.5
+          },
+          {
+            "hex": "#d9c8b0",
+            "weight": 0.25
+          },
+          {
+            "hex": "#8c6a4a",
+            "weight": 0.15
+          },
+          {
+            "hex": "#3b2f2a",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1080,
+          "height": 1350,
+          "frame": {
+            "x": 90,
+            "y": 300,
+            "width": 900,
+            "height": 750,
+            "radius": 24,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "sunset-hills",
+      "input": {
+        "description": "A sunset over layered hills with a slowly moving sun glow",
+        "palette": [
+          {
+            "hex": "#2d1b4e",
+            "weight": 0.3
+          },
+          {
+            "hex": "#d1495b",
+            "weight": 0.3
+          },
+          {
+            "hex": "#edae49",
+            "weight": 0.25
+          },
+          {
+            "hex": "#00798c",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1200,
+          "height": 1200,
+          "frame": {
+            "x": 150,
+            "y": 190,
+            "width": 900,
+            "height": 820,
+            "radius": 12,
+            "border": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "frame-runner",
+      "input": {
+        "description": "A glow running around the frame edge",
+        "palette": [
+          {
+            "hex": "#0d0221",
+            "weight": 0.4
+          },
+          {
+            "hex": "#ff2a6d",
+            "weight": 0.25
+          },
+          {
+            "hex": "#05d9e8",
+            "weight": 0.25
+          },
+          {
+            "hex": "#d1f7ff",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1920,
+          "height": 1080,
+          "frame": {
+            "x": 240,
+            "y": 135,
+            "width": 1440,
+            "height": 810,
+            "radius": 16,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "mist",
+      "input": {
+        "description": "Drifting mist over still water",
+        "palette": [
+          {
+            "hex": "#07142b",
+            "weight": 0.35
+          },
+          {
+            "hex": "#15a085",
+            "weight": 0.25
+          },
+          {
+            "hex": "#7b2ff7",
+            "weight": 0.25
+          },
+          {
+            "hex": "#c0fdfb",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1600,
+          "height": 1000,
+          "frame": {
+            "x": 200,
+            "y": 140,
+            "width": 1200,
+            "height": 720,
+            "radius": 20,
+            "border": 2
+          }
+        }
+      }
+    },
+    {
+      "id": "paper-dust",
+      "input": {
+        "description": "Dust motes floating in warm light",
+        "palette": [
+          {
+            "hex": "#f5efe6",
+            "weight": 0.5
+          },
+          {
+            "hex": "#d9c8b0",
+            "weight": 0.25
+          },
+          {
+            "hex": "#8c6a4a",
+            "weight": 0.15
+          },
+          {
+            "hex": "#3b2f2a",
+            "weight": 0.1
+          }
+        ],
+        "frame": {
+          "width": 1080,
+          "height": 1350,
+          "frame": {
+            "x": 90,
+            "y": 300,
+            "width": 900,
+            "height": 750,
+            "radius": 24,
+            "border": 0
+          }
+        }
+      }
+    },
+    {
+      "id": "ribbons",
+      "input": {
+        "description": "Flowing ribbons of colour sweeping past",
+        "palette": [
+          {
+            "hex": "#ff6ec7",
+            "weight": 0.3
+          },
+          {
+            "hex": "#7b5cff",
+            "weight": 0.3
+          },
+          {
+            "hex": "#37e2d5",
+            "weight": 0.25
+          },
+          {
+            "hex": "#fff7fb",
+            "weight": 0.15
+          }
+        ],
+        "frame": {
+          "width": 1200,
+          "height": 1200,
+          "frame": {
+            "x": 150,
+            "y": 190,
+            "width": 900,
+            "height": 820,
+            "radius": 12,
+            "border": 4
+          }
+        }
+      }
+    }
+  ]
+}

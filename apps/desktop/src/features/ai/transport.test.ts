@@ -63,11 +63,20 @@ describe('the desktop transport', () => {
           images: ['AAAA', 'BBBB'],
           wantImage: true,
           model: null,
+          effort: 'low',
           timeoutMs: 45_000,
         },
         mock,
       },
     ]);
+  });
+
+  it('sends the effort the task asked for, and low when it asked for none', async () => {
+    const { deps, calls } = harness(() => ok({}));
+    const transport = createDesktopTransport('codex', deps);
+    for (const effort of ['medium', 'high'] as const) await transport.run({ ...REQUEST, effort }, {});
+    await transport.run(REQUEST, {});
+    expect(calls.map((c) => (c.request as { effort: string }).effort)).toEqual(['medium', 'high', 'low']);
   });
 
   it('passes progress events on and drops kinds it does not know', async () => {

@@ -16,7 +16,7 @@ use crate::adapter::{
     read_png, scratch_dir,
 };
 use crate::cancel::CancelToken;
-use crate::cli::{AgentCli, AgentError, Detection, Event, RunOutput, RunRequest};
+use crate::cli::{AgentCli, AgentError, Detection, Effort, Event, RunOutput, RunRequest};
 use crate::path_search::find_executable;
 use crate::runner::{Finished, LineFlow, ProcessError, ProcessSpec, run_process};
 
@@ -86,6 +86,7 @@ fn build_args(
     system_file: &Path,
     schema: Option<&Value>,
     model: Option<&str>,
+    effort: Effort,
 ) -> Result<Vec<OsString>, AgentError> {
     let mut args: Vec<OsString> = [
         "-p",
@@ -103,7 +104,8 @@ fn build_args(
         "--no-session-persistence",
         "--safe-mode",
         "--effort",
-        "low",
+        // From the enum, so it is one of three fixed words.
+        effort.as_arg(),
         "--system-prompt-file",
     ]
     .into_iter()
@@ -268,7 +270,12 @@ impl AgentCli for ClaudeCode {
 
         let spec = ProcessSpec {
             program: executable,
-            args: build_args(&system_file, req.schema.as_ref(), req.model.as_deref())?,
+            args: build_args(
+                &system_file,
+                req.schema.as_ref(),
+                req.model.as_deref(),
+                req.effort,
+            )?,
             env: adapter_env(&[LOGIN_ENV]),
             stdin: Some(user_message(&req.prompt, &images)),
             timeout: req.timeout,
@@ -419,7 +426,13 @@ mod tests {
     #[test]
     fn the_arguments_are_fixed_and_request_values_never_stand_alone() {
         let schema = json!({"type": "object"});
-        let args = build_args(Path::new("/t/system.txt"), Some(&schema), Some("opus")).unwrap();
+        let args = build_args(
+            Path::new("/t/system.txt"),
+            Some(&schema),
+            Some("opus"),
+            Effort::Low,
+        )
+        .unwrap();
         let expected: Vec<OsString> = [
             "-p",
             "--input-format",
@@ -447,7 +460,7 @@ mod tests {
         .collect();
         assert_eq!(args, expected);
         assert_eq!(
-            build_args(Path::new("/t/system.txt"), None, None)
+            build_args(Path::new("/t/system.txt"), None, None, Effort::Low)
                 .unwrap()
                 .len(),
             18
@@ -462,7 +475,7 @@ mod tests {
             "properties": {"a": {"type": "string"}},
             "required": ["a"]
         });
-        let args = build_args(Path::new("/t/s.txt"), Some(&schema), None).unwrap();
+        let args = build_args(Path::new("/t/s.txt"), Some(&schema), None, Effort::Low).unwrap();
         let arg = args.last().unwrap().to_str().unwrap();
         let value: Value =
             serde_json::from_str(arg.strip_prefix("--json-schema=").unwrap()).unwrap();
@@ -499,6 +512,20 @@ mod tests {
     }
 
     #[test]
+    fn each_effort_becomes_its_own_fixed_level() {
+        for (effort, word) in [
+            (Effort::Low, "low"),
+            (Effort::Medium, "medium"),
+            (Effort::High, "high"),
+        ] {
+            let args = build_args(Path::new("/t/system.txt"), None, None, effort).unwrap();
+            let at = args.iter().position(|a| a == "--effort").unwrap();
+            assert_eq!(args[at + 1], OsString::from(word));
+            assert_eq!(args.iter().filter(|a| *a == "--effort").count(), 1);
+        }
+    }
+
+    #[test]
     fn a_flag_like_model_is_refused_before_anything_starts() {
         let adapter = ClaudeCode::with_executable(PathBuf::from("/does/not/matter"));
         let req = RunRequest {
@@ -508,6 +535,7 @@ mod tests {
             images: Vec::new(),
             want_image: false,
             model: Some("--dangerously-skip-permissions".to_owned()),
+            effort: Effort::default(),
             timeout: std::time::Duration::from_secs(5),
         };
         assert_eq!(

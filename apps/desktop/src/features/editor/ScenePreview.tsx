@@ -7,6 +7,7 @@ import {
   closeCodeFrames,
   codeEnv,
   codeLayerOf,
+  codePalette,
   createCodeFrameSource,
   type CodeFrames,
   type CodeFrameSource,
@@ -53,6 +54,9 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
   const codeLayer = codeLayerOf(scene);
   const codeText = codeLayer?.source;
   const durationMs = codeLayer?.durationMs ?? 0;
+  // Read from the screenshot once per image, and only when there is a code layer to give it to.
+  const hasCode = codeText !== undefined;
+  const palette = useMemo(() => (hasCode ? codePalette(bitmap) : []), [hasCode, bitmap]);
   const [loaded, setLoaded] = useState<{ source: CodeFrameSource; text: string } | null>(null);
   // A source loaded for an earlier text counts as absent until the new one is ready.
   const live = loaded && loaded.text === codeText ? loaded.source : null;
@@ -66,7 +70,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
     const cancelled = () => !held.alive;
     void (async () => {
       try {
-        const source = await createCodeFrameSource();
+        const source = await createCodeFrameSource(codeText);
         if (!source) return;
         if (cancelled()) {
           source.dispose();
@@ -193,7 +197,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
       const elapsed = (now - clock.current) % durationMs;
       const t = elapsed >= 0 && elapsed < durationMs ? elapsed / durationMs : 0;
       inFlight = true;
-      const geometry = { ...frameGeometry(scene, backingW, backingH), palette: [] };
+      const geometry = { ...frameGeometry(scene, backingW, backingH), palette };
       live.renderFrame(t, geometry).then(
         (frames) => {
           inFlight = false;
@@ -237,7 +241,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [scene, env, backingW, backingH, area.width, live, durationMs]);
+  }, [scene, env, backingW, backingH, area.width, live, durationMs, palette]);
 
   return (
     <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">

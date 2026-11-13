@@ -16,6 +16,8 @@ export interface CheckModuleOptions {
   sandbox?: CodeSandboxOptions;
   readPixels?: (bitmap: ImageBitmap) => Uint8ClampedArray;
   now?: () => number;
+  /** Aborting disposes the sandbox at once; the check then ends with a `disposed` error. */
+  signal?: AbortSignal;
 }
 
 /** True when at most `maxMismatchRatio` of the pixels differ by more than `channelTolerance` in any channel. */
@@ -65,6 +67,10 @@ export async function checkModule(
 
   const sandbox = createCodeSandbox(options.sandbox);
   let maxFrameMs = 0;
+  const { signal } = options;
+  const onAbort = (): void => { sandbox.dispose(); };
+  if (signal?.aborted) onAbort();
+  else signal?.addEventListener('abort', onAbort, { once: true });
 
   function take(frame: CodeFrame): Pixels {
     try {
@@ -106,6 +112,7 @@ export async function checkModule(
     }
     throw error;
   } finally {
+    signal?.removeEventListener('abort', onAbort);
     sandbox.dispose();
   }
 }

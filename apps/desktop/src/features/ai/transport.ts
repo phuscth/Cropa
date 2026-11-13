@@ -54,6 +54,7 @@ function toRequest(req: TransportRequest): AiRequest_Deserialize {
     images: req.images.map((image) => image.replace(PNG_DATA_URL_PREFIX, '')),
     wantImage: req.wantImage,
     model: null,
+    effort: req.effort ?? 'low',
     timeoutMs: req.timeoutMs,
   };
 }

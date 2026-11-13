@@ -48,3 +48,15 @@ export function toAgentErrorKind(err: unknown, signal?: AbortSignal): AgentError
   }
   return 'Protocol';
 }
+
+/**
+ * What a task's `postprocess` throws when the model's answer is wrong in a way another answer
+ * could fix (for example a source that is empty or too long). The run sends the message back once.
+ * Any other error from `postprocess` ends the run without a retry.
+ */
+export class TaskOutputError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = 'TaskOutputError';
+  }
+}

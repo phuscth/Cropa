@@ -41,6 +41,7 @@ fn main() {
         "ai_detect",
         "set_ai_provider",
         "set_ai_allow_images",
+        "set_ai_effort",
         "dismiss_ai_onboarding",
         "open_ai_install_guide",
         "open_login_terminal",

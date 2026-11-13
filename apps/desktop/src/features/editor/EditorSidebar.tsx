@@ -1,4 +1,10 @@
-import { PLATFORM_IDS, PLATFORM_SIZES, outputSize, type PlatformId } from '@cropa/core';
+import {
+  PLATFORM_IDS,
+  PLATFORM_SIZES,
+  outputSize,
+  type PaletteColour,
+  type PlatformId,
+} from '@cropa/core';
 import {
   ColorInput,
   Button,
@@ -48,6 +54,7 @@ import {
   type BackgroundKind,
   type ShadowLevel,
 } from './scene-edits.ts';
+import { AiBackground } from './AiBackground.tsx';
 import { BackgroundImages } from './BackgroundImages.tsx';
 import { beginBackgroundChange } from './background-images.ts';
 import { PresetsSection } from './presets/PresetsSection.tsx';
@@ -58,6 +65,8 @@ interface Props {
   history: Pick<SceneHistory, 'scene' | 'blocked' | 'edit' | 'preview' | 'commit'>;
   /** The colour found at the screenshot's edges, or null when it has none. */
   edgeColor: string | null;
+  /** The screenshot's dominant colours, heaviest first; empty when they could not be read. */
+  palette: readonly PaletteColour[];
 }
 
 interface SliderRowProps {
@@ -128,7 +137,7 @@ function RatioField({
   );
 }
 
-export function EditorSidebar({ history, edgeColor }: Props) {
+export function EditorSidebar({ history, edgeColor, palette }: Props) {
   const { t } = useTranslation();
   const { scene, blocked, edit, preview, commit } = history;
   const { background, frame } = scene;
@@ -240,6 +249,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
         >
           {t('editor.background.matchImage')}
         </Button>
+        <AiBackground history={history} palette={palette} />
       </Section>
 
       <Section title={t('editor.frame.title')}>

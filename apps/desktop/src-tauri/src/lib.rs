@@ -66,6 +66,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::ai::ai_detect,
             commands::ai_setup::set_ai_provider,
             commands::ai_setup::set_ai_allow_images,
+            commands::ai_setup::set_ai_effort,
             commands::ai_setup::dismiss_ai_onboarding,
             commands::ai_setup::open_ai_install_guide,
             commands::ai_setup::open_login_terminal,
