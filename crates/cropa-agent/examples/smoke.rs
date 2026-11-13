@@ -29,7 +29,7 @@ fn main() {
 
     let request = RunRequest {
         system: "You choose colours.".to_owned(),
-        prompt: "Pick one colour for a calm background.".to_owned(),
+        prompt: "Pick one colour.".to_owned(),
         schema: Some(json!({
             "$schema": "https://json-schema.org/draft/2020-12/schema",
             "type": "object",
