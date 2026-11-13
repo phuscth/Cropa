@@ -1,4 +1,4 @@
-//! The image the editor window shows. It lives in memory as PNG bytes, with the
+//! The image the editor view shows. It lives in memory as PNG bytes, with the
 //! time it was captured: the editor asks for them when it opens and again
 //! whenever the image changes.
 
@@ -10,7 +10,7 @@ use specta::Type;
 use tauri::{AppHandle, Manager, Runtime};
 use tauri_specta::Event;
 
-use crate::app_windows;
+use crate::main_window::{self, MainView};
 
 /// The editor's image and when it was captured.
 #[derive(Clone)]
@@ -63,7 +63,7 @@ pub fn open<R: Runtime>(app: &AppHandle<R>, png: Vec<u8>, captured_at: Option<f6
     if let Err(err) = EditorImageChanged.emit(app) {
         log::warn!("could not emit the editor image change: {err}");
     }
-    app_windows::show(app, app_windows::EDITOR);
+    main_window::show_main(app, MainView::Editor);
 }
 
 #[cfg(test)]

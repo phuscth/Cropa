@@ -3,9 +3,8 @@
     "name": "Cropa"
   },
   "editor": {
-    "title": "Editor",
     "empty": "No screenshot yet.",
-    "hint": "Press {{shortcut}} or choose “Capture region” in the tray.",
+    "hint": "Press {{shortcut}}, choose File > Capture region, or use “Capture region” in the tray.",
     "undo": "Undo",
     "redo": "Redo",
     "previewAlt": "Preview of the framed screenshot",
@@ -80,11 +79,11 @@
         "more": "Delete {{name}}",
         "deleteConfirm": "Delete this image? Presets that use it will show a plain background.",
         "delete": "Delete",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "title": "Images"
       }
     },
     "frame": {
-      "title": "Frame",
       "padding": "Padding",
       "radius": "Corner radius",
       "shadow": "Shadow",
@@ -103,7 +102,8 @@
       "insetAuto": "Auto",
       "insetCustom": "Custom",
       "insetColorPicker": "Pick the inset colour",
-      "insetColorHex": "Inset colour as hex"
+      "insetColorHex": "Inset colour as hex",
+      "corners": "Corners"
     },
     "aspect": {
       "title": "Aspect ratio",
@@ -125,7 +125,6 @@
       "copy": "Copy",
       "save": "Save",
       "saveAs": "Save as…",
-      "saveAsConfirm": "Save as…",
       "format": "Format",
       "scale": "Scale",
       "scaleFixed": "Platform sizes always export at 1x ({{width}} × {{height}} px)",
@@ -134,7 +133,12 @@
       "dragHold": "Hold the mouse button down while you drag the image out",
       "dragHint": "Drag the image into another app, a folder or a chat",
       "copied": "Copied to the clipboard",
-      "openFolder": "Open folder"
+      "openFolder": "Open folder",
+      "title": "Export",
+      "saveAsOptions": "These apply to Save as",
+      "saveQuick": "Save PNG at 2×",
+      "saveAsFormat": "Save as format",
+      "saveAsScale": "Save as scale"
     },
     "presets": {
       "title": "Presets",
@@ -157,7 +161,8 @@
       "exportedWithoutCodeWithImage": "Exported {{fileName}} without the AI animation: preset files can't carry code. This preset also uses one of your own images, which is not inside the file; on another computer it shows a plain background.",
       "exportedWithImage": "Exported {{fileName}}. This preset uses one of your own images, which is not inside the file; on another computer it shows a plain background.",
       "aiName": "{{name}} (AI)",
-      "aiBadge": "AI"
+      "aiBadge": "AI",
+      "currentName": "Current background"
     },
     "annotate": {
       "toolbar": "Annotation tools",
@@ -180,7 +185,31 @@
       "delete": "Delete",
       "textPlaceholder": "Type text",
       "step": "Step {{n}}"
+    },
+    "panel": {
+      "label": "Editor settings",
+      "tabs": "Settings group",
+      "background": "Background",
+      "frame": "Frame",
+      "preset": "Preset",
+      "presetOpen": "Show presets, current: {{name}}"
+    },
+    "details": {
+      "image": "Image",
+      "saveAs": "Save as",
+      "size": "{{width}} × {{height}} px"
+    },
+    "layout": {
+      "title": "Layout",
+      "label": "Layout and export",
+      "spacing": "Spacing"
     }
+  },
+  "rail": {
+    "label": "Cropa",
+    "editor": "Editor",
+    "history": "History",
+    "settings": "Settings"
   },
   "history": {
     "title": "History",
@@ -201,6 +230,11 @@
   },
   "settings": {
     "title": "Settings",
+    "sections": {
+      "capture": "Capture",
+      "appearance": "Appearance",
+      "general": "General"
+    },
     "shortcut": {
       "label": "Capture shortcut",
       "description": "Click the box, then press the new key combination.",
@@ -378,7 +412,7 @@
     },
     "UserPresetMissing": {
       "what": "That preset is no longer there.",
-      "why": "It was deleted, possibly from another window.",
+      "why": "It was deleted after the list was loaded.",
       "next": "Save the background as a new preset instead."
     },
     "UserPresetsTooNew": {
@@ -463,7 +497,7 @@
     },
     "BackgroundImageMissing": {
       "what": "That image is no longer there.",
-      "why": "Its file was deleted, possibly from another window or by another app.",
+      "why": "Its file was deleted, possibly by another app.",
       "next": "Add the image again."
     },
     "BackgroundImagesTooNew": {
@@ -633,5 +667,35 @@
     "ai": {
       "heading": "Optional: AI features"
     }
+  },
+  "menu": {
+    "label": "Application menu",
+    "copyImage": "Copy image",
+    "file": {
+      "title": "File",
+      "captureRegion": "Capture region",
+      "save": "Save",
+      "saveAs": "Save as…",
+      "exportPreset": "Export preset…",
+      "closeWindow": "Close window"
+    },
+    "edit": {
+      "title": "Edit"
+    },
+    "view": {
+      "title": "View",
+      "theme": "Theme"
+    },
+    "help": {
+      "title": "Help",
+      "about": "About Cropa",
+      "support": "Support Cropa"
+    }
+  },
+  "window": {
+    "minimize": "Minimize",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "close": "Close"
   }
 }

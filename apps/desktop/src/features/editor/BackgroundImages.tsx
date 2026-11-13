@@ -1,6 +1,6 @@
 import { BUILTIN_IMAGES } from '@cropa/core';
-import { Button } from '@cropa/ui';
-import { useCallback, useEffect, useRef, useState, type ReactNode, type SyntheticEvent } from 'react';
+import { Button, Tile, TileGroup } from '@cropa/ui';
+import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commands, type BackgroundImage } from '../../lib/bindings.ts';
@@ -77,37 +77,9 @@ function UserThumb({ imageRef }: { imageRef: string }) {
     return () => { alive = false; };
   }, [imageRef]);
   return url ? (
-    <img src={url} alt="" draggable={false} className="h-12 w-16 rounded-md object-cover" />
+    <img src={url} alt="" draggable={false} className="size-full object-cover" />
   ) : (
-    <div className="h-12 w-16 rounded-md bg-secondary" />
-  );
-}
-
-interface TileProps {
-  name: string;
-  selected: boolean;
-  onSelect: () => void;
-  children: ReactNode;
-  action?: ReactNode;
-}
-
-function Tile({ name, selected, onSelect, children, action }: TileProps) {
-  return (
-    <div className="group relative">
-      <button
-        type="button"
-        aria-label={name}
-        title={name}
-        aria-pressed={selected}
-        onClick={onSelect}
-        className={`block rounded-md outline-none focus-visible:ring-2 focus-visible:ring-ring ${
-          selected ? 'ring-2 ring-primary' : 'hover:ring-2 hover:ring-border'
-        }`}
-      >
-        {children}
-      </button>
-      {action}
-    </div>
+    <div className="size-full bg-secondary" />
   );
 }
 
@@ -214,51 +186,44 @@ export function BackgroundImages({ history }: Props) {
   return (
     <div className="flex flex-col gap-2" role="group" aria-label={t('editor.background.images.label')}>
       {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
-      <div className="grid grid-cols-4 gap-2">
-        <Tile
-          name={t('editor.background.images.capture')}
-          selected={current === CAPTURE_REF}
-          onSelect={() => { void choose(CAPTURE_REF); }}
-        >
-          <div className="flex h-12 w-16 items-center justify-center rounded-md bg-secondary text-muted-foreground">
+      <TileGroup
+        aria-label={t('editor.background.images.label')}
+        value={current ?? undefined}
+        onValueChange={(ref) => { void choose(ref); }}
+      >
+        <Tile value={CAPTURE_REF} label={t('editor.background.images.capture')}>
+          <span className="text-muted-foreground">
             <ScreenshotIcon />
-          </div>
+          </span>
         </Tile>
         {BUILTIN_IMAGES.map((name) => {
           const ref = `builtin:${name}`;
           return (
-            <Tile
-              key={name}
-              name={t(`editor.background.images.names.${name}`)}
-              selected={current === ref}
-              onSelect={() => { void choose(ref); }}
-            >
-              <img
-                src={builtinUrl(name)}
-                alt=""
-                draggable={false}
-                className="h-12 w-16 rounded-md bg-secondary object-cover"
-              />
+            <Tile key={name} value={ref} label={t(`editor.background.images.names.${name}`)}>
+              <img src={builtinUrl(name)} alt="" draggable={false} className="size-full object-cover" />
             </Tile>
           );
         })}
-      </div>
+      </TileGroup>
 
       {images.length > 0 && (
         <>
-          <h4 className="text-xs text-muted-foreground">{t('editor.background.images.yours')}</h4>
-          <div className="grid grid-cols-4 gap-2">
+          <h4 className="text-caption mt-1">{t('editor.background.images.yours')}</h4>
+          <TileGroup
+            aria-label={t('editor.background.images.yours')}
+            value={current ?? undefined}
+            onValueChange={(ref) => { void choose(ref); }}
+          >
             {images.map((image) => (
               <Tile
                 key={image.id}
-                name={image.name}
-                selected={current === userRef(image.id)}
-                onSelect={() => { void choose(userRef(image.id)); }}
-                action={
+                value={userRef(image.id)}
+                label={image.name}
+                overlay={
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="absolute top-0.5 right-0.5 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+                    className="absolute top-2.5 right-2.5 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
                     aria-label={t('editor.background.images.more', { name: image.name })}
                     onClick={() => { setDeleting(image); }}
                   >
@@ -269,11 +234,11 @@ export function BackgroundImages({ history }: Props) {
                 <UserThumb imageRef={userRef(image.id)} />
               </Tile>
             ))}
-          </div>
+          </TileGroup>
         </>
       )}
 
-      <Button variant="outline" disabled={busy} onClick={() => { fileInput.current?.click(); }}>
+      <Button variant="secondary" className="w-full" disabled={busy} onClick={() => { fileInput.current?.click(); }}>
         <PlusIcon />
         {t('editor.background.images.add')}
       </Button>

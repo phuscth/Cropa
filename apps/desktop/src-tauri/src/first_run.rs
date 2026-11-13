@@ -15,7 +15,7 @@ use crate::settings::Settings;
 use crate::state::AppState;
 
 /// What Windows reports for start-at-sign-in after the first-launch answer,
-/// so an open Settings window can update its checkbox.
+/// so an open Settings view can update its checkbox.
 #[derive(Debug, Clone, Serialize, Type, Event)]
 #[serde(rename_all = "camelCase")]
 pub struct AutostartChanged {

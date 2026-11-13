@@ -11,6 +11,7 @@ mod export;
 mod first_run;
 mod history;
 mod i18n;
+mod main_window;
 mod platform;
 mod presets;
 mod settings;
@@ -71,13 +72,16 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::ai_setup::open_ai_install_guide,
             commands::ai_setup::open_login_terminal,
             commands::settings::answer_autostart_question,
+            commands::main_window::get_main_view,
+            commands::main_window::request_capture,
         ])
         .events(collect_events![
             capture::CaptureRequested,
             shortcut::ShortcutStatus,
             first_run::AutostartChanged,
             history::HistoryChanged,
-            editor::EditorImageChanged
+            editor::EditorImageChanged,
+            main_window::MainViewRequested
         ])
         .error_handling(ErrorHandlingMode::Result)
 }
@@ -97,6 +101,7 @@ fn export_bindings(builder: &tauri_specta::Builder<tauri::Wry>, path: &std::path
 /// on background threads.
 fn manage_stores(app: &tauri::App, config_dir: &std::path::Path, local_data_dir: &std::path::Path) {
     app.manage(app_windows::CloseTimers::default());
+    app.manage(main_window::MainViewState::default());
     app.manage(editor::EditorImage::default());
     app.manage(commands::ai::AiRuns::default());
     app.manage(export::SavedFiles::default());
@@ -152,7 +157,7 @@ pub fn run() {
     let app = tauri::Builder::default()
         // Must be first: a second launch hands over to the running instance.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            app_windows::show(app, app_windows::EDITOR);
+            main_window::show_main(app, main_window::MainView::Editor);
         }))
         .plugin(e2e::log_plugin(e2e.as_ref()))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
@@ -188,7 +193,7 @@ pub fn run() {
             let status = shortcut::register_from_settings(app.handle());
             if !status.registered {
                 // Tell the user right away instead of failing silently.
-                app_windows::show(app.handle(), app_windows::SETTINGS);
+                main_window::show_main(app.handle(), main_window::MainView::Settings);
             }
             if is_e2e {
                 e2e::open_editor_image(app.handle());

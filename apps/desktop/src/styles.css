@@ -1,4 +1,5 @@
 @import 'tailwindcss';
+@import '@fontsource-variable/inter';
 @import '@cropa/config/tailwind.css';
 
 /* Tailwind only scans this app by default; include the shared components. */

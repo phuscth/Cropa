@@ -8,6 +8,7 @@ pub mod background_images;
 pub mod editor;
 pub mod export;
 pub mod history;
+pub mod main_window;
 pub mod presets;
 pub mod settings;
 

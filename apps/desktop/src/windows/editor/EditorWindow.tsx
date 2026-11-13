@@ -1,13 +1,6 @@
 import { defaultScene, edgeColor, type PaletteColour } from '@cropa/core';
-import {
-  Button,
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-  SegmentedControl,
-  SegmentedControlItem,
-} from '@cropa/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@cropa/ui';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AnnotationOverlay } from '../../features/editor/annotate/AnnotationOverlay.tsx';
@@ -15,10 +8,14 @@ import { AnnotationProperties } from '../../features/editor/annotate/AnnotationP
 import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
 import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
 import { screenshotPalette } from '../../features/editor/code-frames.ts';
+import { requestCaptureAfterPaint } from '../../features/shell/capture.ts';
+import { publishEditorActions } from '../../features/shell/editor-actions.ts';
+import { useViewActive } from '../../features/shell/view-active.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
-import { exportPlan, type ExportScale } from '../../features/editor/export/plan.ts';
+import { type ExportScale } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
+import { LayoutPanel } from '../../features/editor/LayoutPanel.tsx';
 import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
 import { beginBackgroundChange } from '../../features/editor/background-images.ts';
 import { dataUrlToBitmap } from '../../features/editor/load-image.ts';
@@ -45,9 +42,6 @@ interface Loaded {
   capturedAt: number | null;
 }
 
-const FORMATS: readonly ExportFormat[] = ['png', 'jpeg', 'webp'];
-const SCALES: readonly ExportScale[] = [1, 2];
-
 const placeholder = defaultScene({ width: 1, height: 1 });
 
 function findEdgeColor(bitmap: ImageBitmap): string | null {
@@ -62,15 +56,6 @@ function findEdgeColor(bitmap: ImageBitmap): string | null {
   }
 }
 
-function UndoIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 3.5 3 6.5l3 3" />
-      <path d="M3 6.5h6.5a3.5 3.5 0 0 1 0 7H7" />
-    </svg>
-  );
-}
-
 function CloseIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
@@ -79,42 +64,37 @@ function CloseIcon() {
   );
 }
 
-function GripIcon() {
+/** Two crop corners around a square: the mark of an empty canvas. */
+function EmptyMark() {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <circle cx="5.5" cy="3.5" r="1.25" />
-      <circle cx="10.5" cy="3.5" r="1.25" />
-      <circle cx="5.5" cy="8" r="1.25" />
-      <circle cx="10.5" cy="8" r="1.25" />
-      <circle cx="5.5" cy="12.5" r="1.25" />
-      <circle cx="10.5" cy="12.5" r="1.25" />
+    <svg viewBox="0 0 48 48" className="size-14 text-tertiary-foreground" fill="none" aria-hidden="true">
+      <path
+        d="M13 5v24a6 6 0 0 0 6 6h24M5 13h24a6 6 0 0 1 6 6v24"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x="19" y="19" width="10" height="10" rx="2" fill="currentColor" opacity="0.5" />
     </svg>
   );
 }
 
-function RedoIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m10 3.5 3 3-3 3" />
-      <path d="M13 6.5H6.5a3.5 3.5 0 0 0 0 7H9" />
-    </svg>
-  );
-}
-
-export function EditorWindow() {
+export function EditorView() {
   const { t } = useTranslation();
+  // Hidden while another view is open: the keyboard shortcuts then belong to that view.
+  const active = useViewActive();
   const [shortcut, setShortcut] = useState<string>();
   const [loaded, setLoaded] = useState<Loaded>();
   const [error, setError] = useState<UserError>();
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; });
-  const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>('png');
   const [scale, setScale] = useState<ExportScale>(2);
   const history = useSceneHistory(placeholder);
   const { load } = history;
   const hasImage = loaded !== undefined;
-  const annotate = useAnnotate({ history, imageId: loaded?.imageId ?? 0, enabled: hasImage });
+  const annotate = useAnnotate({ history, imageId: loaded?.imageId ?? 0, enabled: hasImage && active });
   const { undo, redo } = annotate;
   // While a text is being edited, its glyphs are the text field's; the renderer skips empty text.
   const editingIndex = annotate.editing?.index ?? null;
@@ -140,6 +120,7 @@ export function EditorWindow() {
   // An export error wins over the warning that a layer was left out.
   const exportProblem = exporter.error ?? exporter.warning;
   const { busy, quickSave, saveAs, copy, reveal, dragHandlers } = exporter;
+  const saveAsChosen = useCallback(() => saveAs(format, scale), [saveAs, format, scale]);
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
 
@@ -210,6 +191,7 @@ export function EditorWindow() {
   useEffect(() => () => { bitmap?.close(); }, [bitmap]);
 
   useEffect(() => {
+    if (!active) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || isTextField(event.target)) return;
       const letter = keyLetter(event);
@@ -218,7 +200,7 @@ export function EditorWindow() {
       else if (is('y') || (is('z') && event.shiftKey)) redo();
       else if (is('s')) {
         if (hasImage) {
-          if (event.shiftKey) setSaveAsOpen(true);
+          if (event.shiftKey) void saveAsChosen();
           else void quickSave();
         }
       } else if (is('c') && !event.shiftKey) {
@@ -230,190 +212,124 @@ export function EditorWindow() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => { window.removeEventListener('keydown', onKeyDown); };
-  }, [undo, redo, quickSave, copy, hasImage]);
+  }, [active, undo, redo, quickSave, saveAsChosen, copy, hasImage]);
 
-  const scaleFixed = history.scene.output.width !== null;
-  const fixedSize = exportPlan(history.scene, format, scale);
+  useEffect(() => {
+    publishEditorActions({
+      hasImage,
+      busy,
+      canUndo: history.canUndo,
+      canRedo: history.canRedo,
+      undo,
+      redo,
+      copy: () => { void copy(); },
+      quickSave: () => { void quickSave(); },
+      saveAs: () => { void saveAsChosen(); },
+    });
+  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSave, saveAsChosen]);
+  useEffect(() => () => { publishEditorActions(null); }, []);
 
-  return (
-    <main className="flex h-screen flex-col">
-      <header className="flex h-11 shrink-0 items-center gap-2 border-b bg-background px-3">
-        <h1 className="mr-auto text-sm font-medium">{t('editor.title')}</h1>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('editor.undo')}
-          title={`${t('editor.undo')} (Ctrl+Z)`}
-          disabled={!loaded || !history.canUndo}
-          onClick={undo}
+  const [captureError, setCaptureError] = useState<UserError>();
+  const captureRegion = () => {
+    requestCaptureAfterPaint().catch((cause: unknown) => {
+      setCaptureError(describeUnexpected(t, cause));
+    });
+  };
+
+  // Notices stack at the top centre of the canvas and slide in.
+  const notices = (
+    <div className="pointer-events-none absolute top-3 left-1/2 z-10 flex w-[min(28rem,calc(100%-1.5rem))] -translate-x-1/2 flex-col items-stretch gap-2">
+      {error ? (
+        <div className="pointer-events-auto">
+          <ErrorNotice error={error} />
+        </div>
+      ) : (
+        exportProblem && (
+          <div className="pointer-events-auto">
+            <ErrorNotice
+              error={exportProblem}
+              onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
+            />
+          </div>
+        )
+      )}
+      {exporter.notice && (
+        <div
+          role="status"
+          className="pointer-events-auto flex animate-notice-in items-center gap-2 self-center rounded-full bg-card py-1 pr-1 pl-4 text-control-sm shadow-soft"
         >
-          <UndoIcon />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label={t('editor.redo')}
-          title={`${t('editor.redo')} (Ctrl+Y)`}
-          disabled={!loaded || !history.canRedo}
-          onClick={redo}
-        >
-          <RedoIcon />
-        </Button>
-        <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
-        <Button
-          variant="outline"
-          className="cursor-grab touch-none select-none"
-          title={t('editor.export.dragHint')}
-          draggable={false}
-          disabled={!loaded || busy}
-          {...dragHandlers}
-        >
-          <GripIcon />
-          {t('editor.export.drag')}
-        </Button>
-        <Button
-          variant="outline"
-          title={`${t('editor.export.copy')} (Ctrl+C)`}
-          disabled={!loaded || busy}
-          onClick={() => { void copy(); }}
-        >
-          {t('editor.export.copy')}
-        </Button>
-        <Popover open={saveAsOpen} onOpenChange={setSaveAsOpen}>
-          <PopoverAnchor asChild>
+          <span>
+            {exporter.notice.kind === 'saved' && t('editor.export.saved', { fileName: exporter.notice.file.fileName })}
+            {exporter.notice.kind === 'copied' && t('editor.export.copied')}
+            {exporter.notice.kind === 'dragHint' && t('editor.export.dragHold')}
+          </span>
+          {exporter.notice.kind === 'saved' && (
             <Button
-              variant="outline"
-              title={`${t('editor.export.saveAs')} (Ctrl+Shift+S)`}
-              disabled={!loaded || busy}
-              onClick={() => { setSaveAsOpen((open) => !open); }}
-            >
-              {t('editor.export.saveAs')}
-            </Button>
-          </PopoverAnchor>
-          <PopoverContent className="flex flex-col gap-3">
-            <div className="flex flex-col gap-1">
-              <span className="text-sm">{t('editor.export.format')}</span>
-              <SegmentedControl
-                aria-label={t('editor.export.format')}
-                value={format}
-                onValueChange={(next) => { setFormat(next as ExportFormat); }}
-              >
-                {FORMATS.map((f) => (
-                  <SegmentedControlItem key={f} value={f}>
-                    {f.toUpperCase()}
-                  </SegmentedControlItem>
-                ))}
-              </SegmentedControl>
-            </div>
-            <div className="flex flex-col gap-1">
-              <span className="text-sm">{t('editor.export.scale')}</span>
-              <SegmentedControl
-                aria-label={t('editor.export.scale')}
-                value={String(scaleFixed ? 1 : scale)}
-                disabled={scaleFixed}
-                onValueChange={(next) => { setScale(Number(next) as ExportScale); }}
-              >
-                {SCALES.map((s) => (
-                  <SegmentedControlItem key={s} value={String(s)}>
-                    {`${String(s)}x`}
-                  </SegmentedControlItem>
-                ))}
-              </SegmentedControl>
-              {scaleFixed && (
-                <p className="text-sm text-muted-foreground tabular-nums">
-                  {t('editor.export.scaleFixed', {
-                    width: fixedSize.width,
-                    height: fixedSize.height,
-                  })}
-                </p>
-              )}
-            </div>
-            <Button
+              variant="ghost"
+              size="sm"
               onClick={() => {
-                setSaveAsOpen(false);
-                void saveAs(format, scale);
+                if (exporter.notice?.kind === 'saved') void reveal(exporter.notice.file.id);
               }}
             >
-              {t('editor.export.saveAsConfirm')}
+              {t('editor.export.openFolder')}
             </Button>
-          </PopoverContent>
-        </Popover>
-        <Button
-          title={`${t('editor.export.save')} (Ctrl+S)`}
-          disabled={!loaded || busy}
-          onClick={() => { void quickSave(); }}
-        >
-          {t('editor.export.save')}
-        </Button>
-      </header>
+          )}
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('editor.dismiss')}
+            onClick={exporter.dismissNotice}
+          >
+            <CloseIcon />
+          </Button>
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <main className="flex min-w-0 flex-1 gap-1.5 p-1.5 pl-0">
       {loaded ? (
-        <div className="flex min-h-0 flex-1">
-          <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
+        <>
+          <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
           <section className="relative flex min-w-0 flex-1 bg-canvas">
             <ScenePreview
               scene={displayScene}
               bitmap={loaded.bitmap}
+              bottomInset={showProperties ? 112 : 56}
               overlay={(geometry) => (
                 <AnnotationOverlay annotate={annotate} scene={displayScene} geometry={geometry} />
               )}
             />
-            {showProperties && <AnnotationProperties annotate={annotate} />}
-            {error ? (
-              <div className={`absolute inset-x-4 ${showProperties ? 'top-16' : 'top-4'}`}>
-                <ErrorNotice error={error} />
-              </div>
-            ) : (
-              exportProblem && (
-                <div className={`absolute inset-x-4 ${showProperties ? 'top-16' : 'top-4'}`}>
-                  <ErrorNotice
-                    error={exportProblem}
-                    onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
-                  />
-                </div>
-              )
-            )}
-            {exporter.notice && (
-              <div
-                role="status"
-                className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-md border bg-background py-1 pr-1 pl-3 text-sm shadow-md"
-              >
-                <span>
-                  {exporter.notice.kind === 'saved' && t('editor.export.saved', { fileName: exporter.notice.file.fileName })}
-                  {exporter.notice.kind === 'copied' && t('editor.export.copied')}
-                  {exporter.notice.kind === 'dragHint' && t('editor.export.dragHold')}
-                </span>
-                {exporter.notice.kind === 'saved' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (exporter.notice?.kind === 'saved') void reveal(exporter.notice.file.id);
-                    }}
-                  >
-                    {t('editor.export.openFolder')}
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className="size-6"
-                  aria-label={t('editor.dismiss')}
-                  onClick={exporter.dismissNotice}
-                >
-                  <CloseIcon />
-                </Button>
-              </div>
-            )}
+            {notices}
+            {/* The properties float just above the toolbar, so the two read as one group. */}
+            <div className="pointer-events-none absolute inset-x-3 bottom-[60px] z-10 flex justify-center">
+              {showProperties && <AnnotationProperties annotate={annotate} />}
+            </div>
+            <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
           </section>
-          <aside className="w-72 shrink-0 overflow-y-auto border-l bg-background">
-            <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
-          </aside>
-        </div>
+          <LayoutPanel
+            history={history}
+            imageSize={{ width: loaded.bitmap.width, height: loaded.bitmap.height }}
+            format={format}
+            onFormat={setFormat}
+            scale={scale}
+            onScale={setScale}
+            busy={busy}
+            onSaveAs={() => { void saveAsChosen(); }}
+            dragHandlers={dragHandlers}
+          />
+        </>
       ) : (
-        <section className="flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
-          {error && <ErrorNotice error={error} />}
-          <p className="text-lg text-foreground">{t('editor.empty')}</p>
-          {shortcut && <p>{t('editor.hint', { shortcut })}</p>}
+        <section className="relative flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
+          {notices}
+          <EmptyMark />
+          <p className="text-heading text-foreground">{t('editor.empty')}</p>
+          {shortcut && <p className="max-w-sm text-control-sm font-normal">{t('editor.hint', { shortcut })}</p>}
+          {captureError && <ErrorNotice error={captureError} onDismiss={() => { setCaptureError(undefined); }} />}
+          <Button className="mt-1" onClick={captureRegion}>
+            {t('menu.file.captureRegion')}
+          </Button>
         </section>
       )}
     </main>

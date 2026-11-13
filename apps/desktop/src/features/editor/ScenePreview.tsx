@@ -12,6 +12,7 @@ import {
   type CodeFrames,
   type CodeFrameSource,
 } from './code-frames.ts';
+import { onAiBackgroundReveal, revealSharp, settleIn } from './preview-motion.ts';
 import { createRedactionCache } from './redaction-cache.ts';
 import { renderEnv } from './render-env.ts';
 
@@ -20,6 +21,8 @@ interface Props {
   bitmap: ImageBitmap;
   /** Drawn over the canvas, in a layer with exactly its CSS box. */
   overlay?: (geometry: PreviewGeometry) => ReactNode;
+  /** Space kept free under the image, in CSS px, for toolbars floating over the bottom of the canvas. */
+  bottomInset?: number;
 }
 
 interface Box {
@@ -37,16 +40,19 @@ function fit(output: Box, available: Box): Box {
 }
 
 /** Draws the scene with the shared renderer, at most once per animation frame. */
-export function ScenePreview({ scene, bitmap, overlay }: Props) {
+export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props) {
   const { t } = useTranslation();
   const areaRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const frameRef = useRef<HTMLDivElement>(null);
   const [area, setArea] = useState<Box>({ width: 0, height: 0 });
   const [device, setDevice] = useState<Box>();
   const env = useMemo(() => renderEnv(bitmap), [bitmap]);
   // Blur and pixelate are costly to recompute, so the preview keeps their result
   // between frames; export renders the full scene without it.
   const redactions = useRef(createRedactionCache());
+  // See the reveal effects below.
+  const revealPending = useRef<{ from: string | undefined; at: number; target?: string | undefined } | null>(null);
 
   // A code layer animates: its source runs in the sandbox and the preview draws one
   // bitmap pair per animation frame. Without a sandbox in this build, or after a
@@ -63,6 +69,8 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
   const lastFrames = useRef<CodeFrames | null>(null);
   // Animation time survives a redraw of the scene, so editing does not restart it.
   const clock = useRef<number>(undefined);
+  // When the animation loop last stopped, so a pause (the view hidden) does not skip time.
+  const stoppedAt = useRef<number>(undefined);
 
   useEffect(() => {
     if (codeText === undefined) return;
@@ -86,6 +94,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
         setLoaded({ source, text: codeText });
       } catch {
         console.error('The code layer could not be loaded');
+        revealPending.current = null;
         held.source?.dispose();
         held.source = null;
       }
@@ -98,6 +107,38 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
       lastFrames.current = null;
     };
   }, [codeText]);
+
+  // A new screenshot settles in; the first one does too, when the preview mounts.
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!frame) return;
+    // The box is scaled while it settles, so the pointer would map a little off: it waits.
+    frame.style.pointerEvents = 'none';
+    const release = () => { frame.style.pointerEvents = ''; };
+    settleIn(frame).finished.then(release, release);
+  }, [bitmap]);
+
+  // An applied AI background is revealed from a blur, on the canvas element only. Its code loads
+  // asynchronously and the closest preset is drawn meanwhile, so the reveal waits for the first
+  // frame drawn from that code: `target` is the code text the scene moves to after the request, and
+  // only its first frame may play the reveal. Moving to other code, a source that fails to load, or
+  // 15 s without a frame drops the request.
+  const codeTextNow = useRef(codeText);
+  useEffect(() => { codeTextNow.current = codeText; });
+  useEffect(() => {
+    const pending = revealPending.current;
+    if (!pending || codeText === pending.from) return;
+    if (performance.now() - pending.at > 15_000) revealPending.current = null;
+    else if (pending.target === undefined) revealPending.current = { ...pending, target: codeText };
+    else if (pending.target !== codeText) revealPending.current = null;
+  }, [codeText]);
+  useEffect(
+    () =>
+      onAiBackgroundReveal(() => {
+        revealPending.current = { from: codeTextNow.current, at: performance.now() };
+      }),
+    [],
+  );
 
   useLayoutEffect(() => {
     const element = areaRef.current;
@@ -167,6 +208,10 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
     let inFlight = false;
     let raf = 0;
     let hiddenAt: number | undefined;
+    if (stoppedAt.current !== undefined && clock.current !== undefined) {
+      clock.current += performance.now() - stoppedAt.current;
+    }
+    stoppedAt.current = undefined;
 
     const draw = (frames: CodeFrames | null, t: number) => {
       const canvas = canvasRef.current;
@@ -179,12 +224,18 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
       render(cached.scene, t, ctx, codeEnv(cached.env, frames));
       performance.clearMeasures('cropa:preview-render');
       performance.measure('cropa:preview-render', { start: began, end: performance.now() });
+      const pending = revealPending.current;
+      if (pending && frames && codeText === pending.target) {
+        revealPending.current = null;
+        if (performance.now() - pending.at < 15_000) revealSharp(canvas);
+      }
     };
 
     const fail = () => {
       if (stopped) return;
       stopped = true;
       console.error('The code layer stopped: a frame could not be rendered');
+      revealPending.current = null;
       setLoaded(null);
     };
 
@@ -238,14 +289,19 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
     else raf = requestAnimationFrame(tick);
     return () => {
       stopped = true;
+      stoppedAt.current = hiddenAt ?? performance.now();
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [scene, env, backingW, backingH, area.width, live, durationMs, palette]);
+  }, [scene, env, backingW, backingH, area.width, live, durationMs, palette, codeText]);
 
   return (
-    <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">
-      <div className="relative" style={{ width: css.width, height: css.height }}>
+    <div
+      ref={areaRef}
+      className="flex min-h-0 min-w-0 flex-1 items-center justify-center px-3 pt-3"
+      style={{ paddingBottom: bottomInset }}
+    >
+      <div ref={frameRef} className="relative" style={{ width: css.width, height: css.height }}>
         <canvas
           ref={canvasRef}
           role="img"

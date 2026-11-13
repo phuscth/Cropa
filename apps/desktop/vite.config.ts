@@ -53,9 +53,7 @@ export default defineConfig({
     target: 'chrome120',
     rolldownOptions: {
       input: {
-        editor: resolve(import.meta.dirname, 'src/windows/editor/index.html'),
-        history: resolve(import.meta.dirname, 'src/windows/history/index.html'),
-        settings: resolve(import.meta.dirname, 'src/windows/settings/index.html'),
+        main: resolve(import.meta.dirname, 'src/windows/main/index.html'),
         onboarding: resolve(import.meta.dirname, 'src/windows/onboarding/index.html'),
       },
     },

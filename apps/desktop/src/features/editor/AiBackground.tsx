@@ -21,6 +21,7 @@ import { AiGate } from '../ai/AiGate.tsx';
 import { describeAiError } from '../ai/errors.ts';
 import { providerName } from '../ai/providers.ts';
 import { createDesktopTransport } from '../ai/transport.ts';
+import { Section } from './Section.tsx';
 import { createAiBackgroundSession, isRefining, type AiHistoryAccess } from './ai-background-session.ts';
 import {
   backgroundMockScript,
@@ -30,6 +31,7 @@ import {
   presetNameFrom,
 } from './ai-background.ts';
 import { beginBackgroundChange } from './background-images.ts';
+import { announceAiBackgroundReveal } from './preview-motion.ts';
 import type { SceneHistory } from './use-scene-history.ts';
 
 interface Props {
@@ -42,7 +44,7 @@ const EFFORTS: readonly AiEffort[] = ['low', 'medium', 'high'];
 const STATUS_MS = 6000;
 
 const textareaClass =
-  'w-full resize-none rounded-md border bg-background px-3 py-2 text-sm shadow-xs outline-none placeholder:text-muted-foreground focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50';
+  'focus-ring w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-control-sm transition-[color,border-color,box-shadow] duration-150 ease-enter placeholder:text-tertiary-foreground hover:border-foreground/25 focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50';
 
 function historyAccess({ scene, preview, commit }: Props['history']): AiHistoryAccess {
   return { scene: () => scene, preview, commit };
@@ -112,6 +114,7 @@ export function AiBackground({ history, palette }: Props) {
       },
       history: historyAccess(history),
       beginBackgroundChange,
+      onApplied: announceAiBackgroundReveal,
       now: () => Date.now(),
     }),
   );
@@ -189,8 +192,7 @@ export function AiBackground({ history, palette }: Props) {
   };
 
   return (
-    <div className="flex flex-col gap-2 border-t pt-3">
-      <h4 className="text-xs font-medium text-muted-foreground">{t('editor.aiBackground.title')}</h4>
+    <Section title={t('editor.aiBackground.title')}>
       <AiGate access={access}>
         {(enabled) => (
           <div className="flex w-full flex-col items-start gap-2">
@@ -252,22 +254,22 @@ export function AiBackground({ history, palette }: Props) {
               <p className="text-xs text-muted-foreground">{t('editor.aiBackground.effort.hint')}</p>
             </div>
             {state.run ? (
-              <div className="flex items-center gap-2">
+              <div className="flex w-full items-center gap-2">
                 <span role="status" className="text-sm text-muted-foreground">
                   {state.run.phase === 'checking'
                     ? t('editor.aiBackground.checking')
                     : t('editor.aiBackground.writing')}
                 </span>
                 <Elapsed key={state.run.startedAt} startedAt={state.run.startedAt} />
-                <Button variant="outline" size="sm" onClick={() => { session.cancel(); }}>
+                <Button variant="secondary" size="sm" onClick={() => { session.cancel(); }}>
                   {t('editor.aiBackground.cancel')}
                 </Button>
               </div>
             ) : refining ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex w-full flex-col gap-2">
                 <Button
                   variant="secondary"
-                  size="sm"
+                  className="w-full"
                   disabled={!enabled || !provider || changeText.trim() === ''}
                   onClick={() => {
                     if (provider) session.refine(changeText, palette, provider, effort);
@@ -277,8 +279,8 @@ export function AiBackground({ history, palette }: Props) {
                 </Button>
                 {info && (
                   <Button
-                    variant="outline"
-                    size="sm"
+                    variant="secondary"
+                    className="w-full"
                     disabled={!enabled || !provider}
                     title={t('editor.aiBackground.regenerateHint')}
                     aria-label={`${t('editor.aiBackground.regenerate')}. ${t('editor.aiBackground.regenerateHint')}`}
@@ -289,17 +291,17 @@ export function AiBackground({ history, palette }: Props) {
                     {t('editor.aiBackground.regenerate')}
                   </Button>
                 )}
-                <Button variant="outline" size="sm" onClick={() => { session.startOver(); }}>
+                <Button variant="secondary" className="w-full" onClick={() => { session.startOver(); }}>
                   {t('editor.aiBackground.startOver')}
                 </Button>
-                <Button variant="outline" size="sm" disabled={naming !== null} onClick={openNaming}>
+                <Button variant="secondary" className="w-full" disabled={naming !== null} onClick={openNaming}>
                   {t('editor.aiBackground.saveAsPreset')}
                 </Button>
               </div>
             ) : (
               <Button
                 variant="secondary"
-                size="sm"
+                className="w-full"
                 disabled={!enabled || !provider || description.trim() === ''}
                 onClick={() => {
                   if (provider) session.generate(description, palette, provider, effort);
@@ -343,6 +345,6 @@ export function AiBackground({ history, palette }: Props) {
       </AiGate>
       {runNotice && <ErrorNotice error={runNotice} onDismiss={() => { session.dismissNotice(); }} />}
       {notice && <ErrorNotice error={notice} onDismiss={() => { setNotice(undefined); }} />}
-    </div>
+    </Section>
   );
 }

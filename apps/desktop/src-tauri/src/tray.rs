@@ -1,17 +1,16 @@
-//! System tray: Capture region, History, Open editor, Settings, Quit.
+//! System tray: Capture region, History, Open editor, Quit.
 
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Runtime};
 
-use crate::app_windows;
 use crate::capture::{self, CaptureSource};
 use crate::i18n::{Lang, tray_text};
+use crate::main_window::{MainView, show_main};
 
 const CAPTURE: &str = "capture";
 const HISTORY: &str = "history";
 const EDITOR: &str = "editor";
-const SETTINGS: &str = "settings";
 const QUIT: &str = "quit";
 
 pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
@@ -23,7 +22,6 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
             &MenuItem::with_id(app, HISTORY, text.history, true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, EDITOR, text.editor, true, None::<&str>)?,
-            &MenuItem::with_id(app, SETTINGS, text.settings, true, None::<&str>)?,
             &PredefinedMenuItem::separator(app)?,
             &MenuItem::with_id(app, QUIT, text.quit, true, None::<&str>)?,
         ],
@@ -35,9 +33,8 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
         .show_menu_on_left_click(false)
         .on_menu_event(|app, event| match event.id().as_ref() {
             CAPTURE => capture::request(app, CaptureSource::Tray),
-            HISTORY => drop(app_windows::show(app, app_windows::HISTORY)),
-            EDITOR => drop(app_windows::show(app, app_windows::EDITOR)),
-            SETTINGS => drop(app_windows::show(app, app_windows::SETTINGS)),
+            HISTORY => drop(show_main(app, MainView::History)),
+            EDITOR => drop(show_main(app, MainView::Editor)),
             QUIT => app.exit(0),
             _ => {}
         })
@@ -49,7 +46,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
                 ..
             } = event
             {
-                app_windows::show(tray.app_handle(), app_windows::EDITOR);
+                show_main(tray.app_handle(), MainView::Editor);
             }
         });
     if let Some(icon) = app.default_window_icon() {

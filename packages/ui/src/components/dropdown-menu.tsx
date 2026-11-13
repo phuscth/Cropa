@@ -24,7 +24,7 @@ function DropdownMenuContent({
         align={align}
         sideOffset={sideOffset}
         className={cn(
-          'z-50 min-w-32 rounded-md border bg-popover p-1 text-popover-foreground shadow-md',
+          'z-50 min-w-40 origin-(--radix-dropdown-menu-content-transform-origin) animate-menu-in rounded-xl bg-popover p-1 text-popover-foreground shadow-menu',
           className,
         )}
         {...props}
@@ -43,7 +43,7 @@ function DropdownMenuItem({
       data-slot="dropdown-menu-item"
       data-variant={variant}
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground data-[variant=destructive]:text-destructive",
+        "relative flex h-8 cursor-default items-center gap-2 rounded-md px-2.5 text-control-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-foreground data-[variant=destructive]:text-destructive",
         className,
       )}
       {...props}

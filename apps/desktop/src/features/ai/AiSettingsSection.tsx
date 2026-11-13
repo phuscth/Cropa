@@ -1,5 +1,13 @@
 import { paletteNameTask, runTask, type AgentErrorKind, type Capability } from '@cropa/ai';
-import { Button } from '@cropa/ui';
+import {
+  Button,
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+  Switch,
+} from '@cropa/ui';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -12,6 +20,7 @@ import {
 } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+import { SettingRow, SettingsSection } from '../settings/SettingsLayout.tsx';
 import { aiAccess } from './access.ts';
 import { AiGate } from './AiGate.tsx';
 import { AiOnboarding } from './AiOnboarding.tsx';
@@ -151,20 +160,19 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
     }
   };
 
-
   return (
-    <section className="flex flex-col gap-3 border-t pt-4" aria-labelledby="ai-settings">
-      <h2 id="ai-settings" className="text-sm font-medium">
-        {t('ai.settings.title')}
-      </h2>
+    <SettingsSection title={t('ai.settings.title')}>
+      {error && (
+        <div className="px-5 py-4">
+          <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />
+        </div>
+      )}
 
-      {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
-
-      <div className="flex flex-col gap-2">
-        <p className="text-sm">
-          <span className="text-muted-foreground">{t('ai.settings.provider')} </span>
-          {provider ? name : t('ai.settings.notSetUp')}
-        </p>
+      <SettingRow
+        label={t('ai.settings.provider')}
+        description={provider ? name : t('ai.settings.notSetUp')}
+        stacked={choosing}
+      >
         {choosing ? (
           <AiOnboarding
             mode="change"
@@ -175,7 +183,7 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
             onCancel={() => { setChoosing(false); }}
           />
         ) : (
-          <div className="flex gap-2">
+          <>
             <Button
               variant="secondary"
               size="sm"
@@ -194,79 +202,86 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
                 {t('ai.settings.turnOff')}
               </Button>
             )}
-          </div>
+          </>
         )}
-      </div>
+      </SettingRow>
 
-      <div className="flex flex-col gap-1">
-        <label className="flex items-center gap-3 text-sm">
-          <input
-            type="checkbox"
-            className="size-4"
+      <SettingRow
+        label={t('ai.settings.allowImages')}
+        description={t('ai.settings.allowImagesHint')}
+      >
+        {({ labelId, descriptionId }) => (
+          <Switch
+            aria-labelledby={labelId}
+            aria-describedby={descriptionId}
             checked={access.allowImages}
             disabled={busy || !settings}
-            onChange={(event) => { void save(() => commands.setAiAllowImages(event.target.checked)); }}
+            onCheckedChange={(enabled) => { void save(() => commands.setAiAllowImages(enabled)); }}
           />
-          {t('ai.settings.allowImages')}
-        </label>
-        <p className="pl-7 text-xs text-muted-foreground">{t('ai.settings.allowImagesHint')}</p>
+        )}
+      </SettingRow>
+
+      <div className="px-5 py-4">
+        <AiGate
+          access={access}
+          onSetUp={() => { setChoosing(true); }}
+        >
+          {(enabled) => (
+            <div className="flex flex-col items-start gap-3">
+              {import.meta.env.DEV && provider === 'mock' && (
+                <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                  <span id="ai-mock-result">{t('ai.test.mockResult')}</span>
+                  <Select
+                    value={mockChoice}
+                    disabled={test.kind === 'running'}
+                    onValueChange={setMockChoice}
+                  >
+                    <SelectTrigger aria-labelledby="ai-mock-result" className="w-64">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="success">{t('ai.test.mockSuccess')}</SelectItem>
+                      <SelectItem value="malformed">{t('ai.test.mockMalformed')}</SelectItem>
+                      {MOCK_FAILURES.map(([kind]) => (
+                        <SelectItem key={kind} value={kind}>
+                          {t(`aiErrors.${kind}.what`, { provider: name })}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
+              {test.kind === 'running' ? (
+                <div className="flex items-center gap-3">
+                  <span role="status" className="text-sm text-muted-foreground">
+                    {t('ai.test.running')}
+                  </span>
+                  <Button variant="outline" size="sm" onClick={() => { controller.current?.abort(); }}>
+                    {t('ai.test.cancel')}
+                  </Button>
+                </div>
+              ) : (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={!enabled || busy}
+                  onClick={() => { void runTest(); }}
+                >
+                  {t('ai.test.button')}
+                </Button>
+              )}
+              {test.kind === 'passed' && (
+                <p role="status" className="text-sm">
+                  {t('ai.test.passed', test)}
+                </p>
+              )}
+              {test.kind === 'failed' && <ErrorNotice error={test.error} />}
+            </div>
+          )}
+        </AiGate>
       </div>
 
-      <AiGate
-        access={access}
-        onSetUp={() => { setChoosing(true); }}
-      >
-        {(enabled) => (
-          <div className="flex flex-col items-start gap-2">
-            {import.meta.env.DEV && provider === 'mock' && (
-              <label className="flex items-center gap-2 text-xs text-muted-foreground">
-                {t('ai.test.mockResult')}
-                <select
-                  className="rounded-md border bg-background px-2 py-1 text-xs text-foreground"
-                  value={mockChoice}
-                  disabled={test.kind === 'running'}
-                  onChange={(event) => { setMockChoice(event.target.value); }}
-                >
-                  <option value="success">{t('ai.test.mockSuccess')}</option>
-                  <option value="malformed">{t('ai.test.mockMalformed')}</option>
-                  {MOCK_FAILURES.map(([kind]) => (
-                    <option key={kind} value={kind}>
-                      {t(`aiErrors.${kind}.what`, { provider: name })}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            )}
-            {test.kind === 'running' ? (
-              <div className="flex items-center gap-2">
-                <span role="status" className="text-sm text-muted-foreground">
-                  {t('ai.test.running')}
-                </span>
-                <Button variant="outline" size="sm" onClick={() => { controller.current?.abort(); }}>
-                  {t('ai.test.cancel')}
-                </Button>
-              </div>
-            ) : (
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={!enabled || busy}
-                onClick={() => { void runTest(); }}
-              >
-                {t('ai.test.button')}
-              </Button>
-            )}
-            {test.kind === 'passed' && (
-              <p role="status" className="text-sm">
-                {t('ai.test.passed', test)}
-              </p>
-            )}
-            {test.kind === 'failed' && <ErrorNotice error={test.error} />}
-          </div>
-        )}
-      </AiGate>
-
-      <p className="text-xs text-muted-foreground">{t('ai.settings.privacy')}</p>
-    </section>
+      <p className="px-5 py-4 text-sm text-muted-foreground">{t('ai.settings.privacy')}</p>
+    </SettingsSection>
   );
 }

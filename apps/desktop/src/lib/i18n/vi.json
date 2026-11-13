@@ -3,9 +3,8 @@
     "name": "Cropa"
   },
   "editor": {
-    "title": "Editor",
     "empty": "Chưa có ảnh chụp.",
-    "hint": "Bấm {{shortcut}} hoặc chọn “Chụp vùng” ở khay hệ thống.",
+    "hint": "Bấm {{shortcut}}, chọn Tệp > Chụp vùng, hoặc chọn “Chụp vùng” ở khay hệ thống.",
     "undo": "Hoàn tác",
     "redo": "Làm lại",
     "previewAlt": "Xem trước ảnh chụp đã đóng khung",
@@ -80,11 +79,11 @@
         "more": "Xóa {{name}}",
         "deleteConfirm": "Xóa ảnh này? Các preset dùng ảnh này sẽ hiện nền trơn.",
         "delete": "Xóa",
-        "cancel": "Hủy"
+        "cancel": "Hủy",
+        "title": "Hình ảnh"
       }
     },
     "frame": {
-      "title": "Khung",
       "padding": "Đệm",
       "radius": "Bo góc",
       "shadow": "Đổ bóng",
@@ -103,7 +102,8 @@
       "insetAuto": "Tự động",
       "insetCustom": "Tùy chọn",
       "insetColorPicker": "Chọn màu lề trong",
-      "insetColorHex": "Mã hex của màu lề trong"
+      "insetColorHex": "Mã hex của màu lề trong",
+      "corners": "Góc"
     },
     "aspect": {
       "title": "Tỉ lệ khung hình",
@@ -125,7 +125,6 @@
       "copy": "Sao chép",
       "save": "Lưu",
       "saveAs": "Lưu thành…",
-      "saveAsConfirm": "Lưu thành…",
       "format": "Định dạng",
       "scale": "Tỉ lệ",
       "scaleFixed": "Kích thước theo nền tảng luôn xuất ở 1x ({{width}} × {{height}} px)",
@@ -134,7 +133,12 @@
       "dragHold": "Giữ chuột trong khi kéo ảnh ra ngoài",
       "dragHint": "Kéo ảnh vào ứng dụng khác, thư mục hoặc khung chat",
       "copied": "Đã sao chép vào bộ nhớ tạm",
-      "openFolder": "Mở thư mục"
+      "openFolder": "Mở thư mục",
+      "title": "Xuất ảnh",
+      "saveAsOptions": "Áp dụng cho Lưu thành",
+      "saveQuick": "Lưu PNG ở 2×",
+      "saveAsFormat": "Định dạng khi lưu thành",
+      "saveAsScale": "Tỉ lệ khi lưu thành"
     },
     "presets": {
       "title": "Preset",
@@ -157,7 +161,8 @@
       "exportedWithoutCodeWithImage": "Đã xuất {{fileName}} nhưng không kèm hiệu ứng AI: tệp preset không thể chứa mã. Preset này còn dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn.",
       "exportedWithImage": "Đã xuất {{fileName}}. Preset này dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn.",
       "aiName": "{{name}} (AI)",
-      "aiBadge": "AI"
+      "aiBadge": "AI",
+      "currentName": "Nền hiện tại"
     },
     "annotate": {
       "toolbar": "Công cụ chú thích",
@@ -180,7 +185,31 @@
       "delete": "Xóa",
       "textPlaceholder": "Nhập văn bản",
       "step": "Bước {{n}}"
+    },
+    "panel": {
+      "label": "Cài đặt trình chỉnh sửa",
+      "tabs": "Nhóm cài đặt",
+      "background": "Nền",
+      "frame": "Khung",
+      "preset": "Preset",
+      "presetOpen": "Hiện các preset, đang dùng: {{name}}"
+    },
+    "details": {
+      "image": "Ảnh",
+      "saveAs": "Lưu thành",
+      "size": "{{width}} × {{height}} px"
+    },
+    "layout": {
+      "title": "Bố cục",
+      "label": "Bố cục và xuất ảnh",
+      "spacing": "Khoảng cách"
     }
+  },
+  "rail": {
+    "label": "Cropa",
+    "editor": "Trình chỉnh sửa",
+    "history": "Lịch sử",
+    "settings": "Cài đặt"
   },
   "history": {
     "title": "Lịch sử",
@@ -201,6 +230,11 @@
   },
   "settings": {
     "title": "Cài đặt",
+    "sections": {
+      "capture": "Chụp màn hình",
+      "appearance": "Giao diện",
+      "general": "Chung"
+    },
     "shortcut": {
       "label": "Phím tắt chụp",
       "description": "Bấm vào ô, rồi nhấn tổ hợp phím mới.",
@@ -378,7 +412,7 @@
     },
     "UserPresetMissing": {
       "what": "Preset này không còn nữa.",
-      "why": "Preset đã bị xóa, có thể từ một cửa sổ khác.",
+      "why": "Preset đã bị xóa sau khi danh sách được tải.",
       "next": "Hãy lưu nền này thành một preset mới."
     },
     "UserPresetsTooNew": {
@@ -463,7 +497,7 @@
     },
     "BackgroundImageMissing": {
       "what": "Ảnh này không còn nữa.",
-      "why": "File của ảnh đã bị xóa, có thể từ cửa sổ khác hoặc bởi ứng dụng khác.",
+      "why": "File của ảnh đã bị xóa, có thể bởi ứng dụng khác.",
       "next": "Hãy thêm lại ảnh."
     },
     "BackgroundImagesTooNew": {
@@ -633,5 +667,35 @@
     "ai": {
       "heading": "Tùy chọn: tính năng AI"
     }
+  },
+  "menu": {
+    "label": "Menu ứng dụng",
+    "copyImage": "Sao chép ảnh",
+    "file": {
+      "title": "Tệp",
+      "captureRegion": "Chụp vùng",
+      "save": "Lưu",
+      "saveAs": "Lưu thành…",
+      "exportPreset": "Xuất preset…",
+      "closeWindow": "Đóng cửa sổ"
+    },
+    "edit": {
+      "title": "Chỉnh sửa"
+    },
+    "view": {
+      "title": "Xem",
+      "theme": "Giao diện"
+    },
+    "help": {
+      "title": "Trợ giúp",
+      "about": "Giới thiệu Cropa",
+      "support": "Ủng hộ Cropa"
+    }
+  },
+  "window": {
+    "minimize": "Thu nhỏ",
+    "maximize": "Phóng to",
+    "restore": "Khôi phục",
+    "close": "Đóng"
   }
 }

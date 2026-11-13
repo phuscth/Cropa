@@ -20,7 +20,7 @@ export function AiGate({ access, onSetUp, children }: Props) {
     <div className="flex flex-col items-start gap-1">
       {children(enabled)}
       {access.state === 'locked' && (
-        <p className="flex items-center gap-2 text-xs text-muted-foreground">
+        <p className="flex items-center gap-2 text-sm text-muted-foreground">
           {t('ai.locked.hint')}
           {onSetUp && (
             <Button variant="ghost" size="sm" onClick={onSetUp}>

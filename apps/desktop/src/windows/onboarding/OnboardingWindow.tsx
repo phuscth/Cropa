@@ -60,23 +60,28 @@ export function OnboardingWindow() {
   };
 
   return (
-    <main className="mx-auto flex max-w-lg flex-col gap-5 p-6">
-      <header className="flex flex-col gap-1">
-        <h1 className="text-xl font-semibold">{t('onboarding.title')}</h1>
-        <p className="text-sm text-muted-foreground">{t('onboarding.welcome')}</p>
+    <main className="mx-auto flex max-w-[640px] flex-col gap-6 px-8 py-10">
+      <header className="flex flex-col gap-2">
+        <h1 className="text-title">{t('onboarding.title')}</h1>
+        <p className="text-muted-foreground">{t('onboarding.welcome')}</p>
       </header>
 
       {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
 
       {step === 'autostart' && (
-        <fieldset className="flex flex-col gap-3">
-          <legend className="text-sm font-medium">{t('onboarding.autostart.question')}</legend>
+        <fieldset className="flex flex-col gap-3 rounded-xl bg-card p-5 shadow-soft">
+          <legend className="float-left mb-3 w-full text-heading">
+            {t('onboarding.autostart.question')}
+          </legend>
           {([true, false] as const).map((value) => (
-            <label key={String(value)} className="flex items-center gap-3 text-sm">
+            <label
+              key={String(value)}
+              className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-control-sm transition-colors duration-150 ease-enter hover:border-foreground/25 has-[:checked]:border-foreground has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring"
+            >
               <input
                 type="radio"
                 name="autostart"
-                className="size-4"
+                className="size-4 shrink-0 accent-ring"
                 checked={startWithWindows === value}
                 disabled={busy || answeredWithError}
                 onChange={() => { setStartWithWindows(value); }}
@@ -84,8 +89,8 @@ export function OnboardingWindow() {
               {value ? t('onboarding.autostart.yes') : t('onboarding.autostart.no')}
             </label>
           ))}
-          <div>
-            <Button size="sm" disabled={busy} onClick={() => { void answer(); }}>
+          <div className="flex justify-end pt-2">
+            <Button disabled={busy} onClick={() => { void answer(); }}>
               {t('onboarding.autostart.continue')}
             </Button>
           </div>
@@ -93,8 +98,8 @@ export function OnboardingWindow() {
       )}
 
       {step === 'ai' && (
-        <section className="flex flex-col gap-2">
-          <h2 className="text-sm font-medium">{t('onboarding.ai.heading')}</h2>
+        <section className="flex flex-col gap-3">
+          <h2 className="text-heading">{t('onboarding.ai.heading')}</h2>
           <AiOnboarding mode="first" onSaved={finish} />
         </section>
       )}

@@ -141,6 +141,16 @@ export const commands = {
 	 *  asked again; the error is returned so the window can tell the user.
 	 */
 	answerAutostartQuestion: (enabled: boolean) => typedError<boolean, CommandError>(__TAURI_INVOKE("answer_autostart_question", { enabled })),
+	/**
+	 *  The view the main window should show when its page loads. It only reads
+	 *  state and creates no window, so it may be a synchronous command.
+	 */
+	getMainView: () => __TAURI_INVOKE<MainView>("get_main_view"),
+	/**
+	 *  Start a region capture, as the capture shortcut and the tray do. It returns
+	 *  at once: the capture runs on its own thread.
+	 */
+	requestCapture: () => __TAURI_INVOKE<void>("request_capture"),
 };
 
 /** Events */
@@ -149,6 +159,7 @@ export const events = {
 	captureRequested: makeEvent<CaptureRequested, CaptureRequested>("capture-requested"),
 	editorImageChanged: makeEvent<EditorImageChanged, EditorImageChanged>("editor-image-changed"),
 	historyChanged: makeEvent<HistoryChanged, HistoryChanged>("history-changed"),
+	mainViewRequested: makeEvent<MainViewRequested, MainViewRequested>("main-view-requested"),
 	shortcutStatus: makeEvent<ShortcutStatus_Serialize, ShortcutStatus_Deserialize>("shortcut-status"),
 };
 
@@ -349,7 +360,7 @@ export type AiSettings_Serialize = {
 
 /**
  *  What Windows reports for start-at-sign-in after the first-launch answer,
- *  so an open Settings window can update its checkbox.
+ *  so an open Settings view can update its checkbox.
  */
 export type AutostartChanged = {
 	enabled: boolean,
@@ -368,7 +379,9 @@ export type CaptureRequested = {
 	source: CaptureSource,
 };
 
-export type CaptureSource = "Hotkey" | "Tray";
+export type CaptureSource = "Hotkey" | "Tray" | 
+/**  The File menu of the main window. */
+"Menu";
 
 /**
  *  Error returned to the WebView. The UI turns `kind` into a translated
@@ -419,6 +432,14 @@ export type HistoryItem = {
 
 /**  Any JSON value, typed `unknown` in the bindings (the WebView holds the schema). */
 export type Json = unknown;
+
+/**  A view of the main window. */
+export type MainView = "Editor" | "History" | "Settings";
+
+/**  Another view of the main window was requested while its page is open. */
+export type MainViewRequested = {
+	view: MainView,
+};
 
 export type SaveAsChoice = { kind: "chosen"; token: number; format: ExportFormat; fileName: string } | { kind: "cancelled" };
 

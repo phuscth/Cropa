@@ -11,20 +11,11 @@ recorded.
 | Component | Used for | Licence (code) | Licence (weights) | Shipped how |
 |---|---|---|---|---|
 | Microsoft Edge WebView2 Runtime | App UI | Microsoft software licence | n/a | Installed by the NSIS bootstrapper if missing |
-| [n8n-io/nod](https://github.com/n8n-io/nod) theme | Colour tokens, radii, shadows and easing curves in `packages/config/tailwind.css` | Apache-2.0 | n/a | Values adapted from its `src/web/theme.css` and changed for Cropa; compiled into the app's CSS |
-| Inter typeface (via @fontsource/inter 5.3.0) | Text and step numbers drawn on images by the renderer | OFL-1.1 | n/a | WOFF2 files (Latin, Latin Extended, Vietnamese; weights 600 and 700) bundled into the app by Vite |
+| Inter typeface (via @fontsource/inter 5.3.0 and @fontsource-variable/inter 5.3.0) | App UI text (the variable font, weights 100 to 900) and the text and step numbers the renderer draws on images (the static files) | OFL-1.1 | n/a | WOFF2 files (Latin, Latin Extended, Vietnamese and further subsets; static weights 600 and 700, and the variable-weight font) bundled into the app by Vite |
 | [three.js](https://threejs.org) 0.187.0 | 3D in AI-written backgrounds | MIT | n/a | Bundled into the app as a classic script and loaded only into the background sandbox worker |
 
 Planned entries (added when the feature that uses them lands): an ffmpeg LGPL
 build, and the `gif` and `quantette` crates.
-
-## n8n-io/nod
-
-Copyright 2026 n8n GmbH. Licensed under the
-[Apache License, Version 2.0](https://www.apache.org/licenses/LICENSE-2.0).
-Its NOTICE file reads: "This product includes software developed at n8n GmbH
-(https://n8n.io/)." Cropa adapts only the theme values listed above, not nod's
-components or any other file.
 
 ## Inter
 
