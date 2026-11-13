@@ -7,8 +7,11 @@
 //! build on these. Everything here is synchronous; callers run it on a
 //! blocking thread.
 
+mod adapter;
 mod cancel;
+mod claude;
 mod cli;
+mod codex;
 mod env;
 mod mock;
 mod path_search;
@@ -16,11 +19,15 @@ mod runner;
 mod turn_dir;
 
 pub use cancel::CancelToken;
+pub use claude::{ClaudeCode, ENABLED as CLAUDE_ENABLED};
 pub use cli::{AgentCli, AgentError, Detection, Event, RunOutput, RunRequest};
+pub use codex::{CodexExec, ENABLED as CODEX_ENABLED};
 pub use env::{BASE_ENV_ALLOWLIST, base_env, filter_env};
 pub use mock::{Mock, MockScript};
 pub use path_search::{find_executable, find_in};
-pub use runner::{Finished, ProcessError, ProcessSpec, run_process};
+pub use runner::{
+    Captured, Finished, LineFlow, ProcessError, ProcessSpec, run_capture, run_process,
+};
 pub use turn_dir::{TurnDir, remove_stale};
 
 /// Which CLI a run goes to.
