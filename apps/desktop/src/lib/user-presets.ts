@@ -1,4 +1,4 @@
-import { exportPreset, migrateBackground, presetId } from '@cropa/core';
+import { exportPreset, migrateBackground, presetId, withoutCodeLayers } from '@cropa/core';
 import type { BackgroundSpec } from '@cropa/core';
 
 import { commands } from './bindings.ts';
@@ -48,9 +48,15 @@ export async function saveUserPreset(preset: {
         : `version ${checked.error.version} is newer than the supported ${checked.error.supported}`;
     return { status: 'error', error: { kind: 'UserPresetInvalid', detail } };
   }
-  // A saved preset must also be exportable as a file, which has its own size limit.
+  // A saved preset must also be exportable as a file, which has its own size limit. A
+  // file cannot carry a code layer, so the check runs on the spec without them; a
+  // preset of nothing but code is checked for its name only, with a placeholder layer.
   const name = preset.name.trim();
-  const exported = exportPreset(checked.value, { id: presetId(name), name: { en: name } });
+  const fileSpec = withoutCodeLayers(checked.value);
+  const exported = exportPreset(
+    fileSpec ?? { ...checked.value, layers: [{ type: 'solid', color: '#000000' }] },
+    { id: presetId(name), name: { en: name } },
+  );
   if (!exported.ok) {
     const { error } = exported;
     if (error.kind === 'too-large') return { status: 'error', error: { kind: 'UserPresetTooLarge' } };

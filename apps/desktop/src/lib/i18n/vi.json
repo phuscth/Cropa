@@ -118,6 +118,8 @@
       "unreadable": "Không đọc được “{{name}}”",
       "exported": "Đã xuất {{fileName}}",
       "imageMissing": "Preset này dùng một ảnh không có trên máy này. Ảnh có thể đã bị xóa, hoặc preset được tạo trên máy khác. Nền trơn được hiển thị thay thế; hãy chọn một ảnh để thay.",
+      "exportedWithoutCode": "Đã xuất {{fileName}} nhưng không kèm hiệu ứng AI: tệp preset không thể chứa mã.",
+      "exportedWithoutCodeWithImage": "Đã xuất {{fileName}} nhưng không kèm hiệu ứng AI: tệp preset không thể chứa mã. Preset này còn dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn.",
       "exportedWithImage": "Đã xuất {{fileName}}. Preset này dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn."
     },
     "annotate": {
@@ -386,6 +388,16 @@
       "what": "Không nhập được preset.",
       "why": "Tệp được tạo bởi phiên bản Cropa mới hơn.",
       "next": "Hãy cập nhật Cropa rồi nhập lại."
+    },
+    "PresetFileHasCode": {
+      "what": "Không nhập được preset.",
+      "why": "Tệp chứa mã do AI viết, và preset từ tệp không được chứa mã vì mã đó sẽ chạy trên máy này.",
+      "next": "Hãy nhờ người gửi bản preset không có nền AI, hoặc tự tạo một preset bằng AI trong Cropa."
+    },
+    "PresetExportOnlyCode": {
+      "what": "Không xuất được preset.",
+      "why": "Preset này chỉ có nền do AI viết, và tệp preset không thể chứa mã.",
+      "next": "Hãy giữ nó làm preset đã lưu trong Cropa, hoặc xuất thành ảnh."
     },
     "ExportImageChanged": {
       "what": "Không lưu được ảnh.",

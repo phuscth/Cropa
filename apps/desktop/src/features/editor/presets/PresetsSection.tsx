@@ -5,6 +5,7 @@ import {
   PRESET_MAX_BYTES,
   presetId,
   presetName,
+  withoutCodeLayers,
   type BackgroundSpec,
   type Preset,
 } from '@cropa/core';
@@ -231,7 +232,14 @@ export function PresetsSection({ history }: Props) {
   };
 
   const exportFile = async (preset: SavedPreset) => {
-    const text = exportPreset(preset.background, {
+    // A file cannot carry a code layer, so it gets the layers under it.
+    const fileSpec = withoutCodeLayers(preset.background);
+    if (!fileSpec) {
+      setError(describePresetFile(t, { kind: 'PresetExportOnlyCode' }));
+      return;
+    }
+    const droppedCode = fileSpec.layers.length < preset.background.layers.length;
+    const text = exportPreset(fileSpec, {
       id: presetId(preset.name),
       name: { en: preset.name },
     });
@@ -242,8 +250,15 @@ export function PresetsSection({ history }: Props) {
     const fileName = await run(() => commands.savePresetFile(preset.name, text.value));
     if (typeof fileName === 'string') {
       // A user image stays on this computer, so the file alone can't bring it along.
-      const ownImage = backgroundImageRefs(preset.background).some((ref) => ref.startsWith('user:'));
-      showStatus(t(ownImage ? 'editor.presets.exportedWithImage' : 'editor.presets.exported', { fileName }));
+      const ownImage = backgroundImageRefs(fileSpec).some((ref) => ref.startsWith('user:'));
+      const key = droppedCode
+        ? ownImage
+          ? 'editor.presets.exportedWithoutCodeWithImage'
+          : 'editor.presets.exportedWithoutCode'
+        : ownImage
+          ? 'editor.presets.exportedWithImage'
+          : 'editor.presets.exported';
+      showStatus(t(key, { fileName }));
     }
   };
 

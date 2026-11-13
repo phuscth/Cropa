@@ -6,7 +6,14 @@ import { describe, expect, it } from 'vitest';
 import { BACKGROUND_VERSION } from '../schema/background.ts';
 import type { BackgroundSpec } from '../schema/background.ts';
 import { builtinPresets } from './builtin.ts';
-import { PRESET_MAX_BYTES, exportPreset, importPreset, presetId, presetName } from './file.ts';
+import {
+  PRESET_MAX_BYTES,
+  exportPreset,
+  importPreset,
+  presetId,
+  presetName,
+  withoutCodeLayers,
+} from './file.ts';
 import { BUILTIN_IMAGES, communityPresetProblems } from './images.ts';
 
 const PRESETS_DIR = join(import.meta.dirname, '../../../../presets');
@@ -146,6 +153,31 @@ describe('preset files', () => {
     const result = exportPreset(big, meta);
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.kind).toBe('too-large');
+  });
+});
+
+describe('code layers in preset files', () => {
+  const code = { type: 'code' as const, source: 'export default {}', durationMs: 4000 };
+  const blur = { type: 'blur' as const, radius: 4 };
+  const withCode: BackgroundSpec = { ...spec, layers: [...spec.layers, code] };
+
+  it('refuses to import a file with a code layer', () => {
+    const doc = JSON.parse(exported()) as Record<string, unknown>;
+    const text = JSON.stringify({ ...doc, background: withCode });
+    expect(importPreset(text)).toEqual({ ok: false, error: { kind: 'has-code' } });
+  });
+
+  it('refuses to export a spec with a code layer', () => {
+    expect(exportPreset(withCode, meta)).toEqual({ ok: false, error: { kind: 'has-code' } });
+  });
+
+  it('removes code layers and keeps the others in order', () => {
+    const mixed: BackgroundSpec = { ...spec, layers: [code, ...spec.layers, code, blur] };
+    expect(withoutCodeLayers(mixed)?.layers).toEqual([...spec.layers, blur]);
+  });
+
+  it('returns null when only code layers are left', () => {
+    expect(withoutCodeLayers({ ...spec, layers: [code] })).toBeNull();
   });
 });
 
