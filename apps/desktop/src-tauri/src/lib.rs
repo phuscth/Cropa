@@ -4,6 +4,7 @@
 mod app_windows;
 mod capture;
 mod commands;
+mod e2e;
 mod editor;
 mod export;
 mod first_run;
@@ -89,16 +90,16 @@ pub fn run() {
     #[cfg(debug_assertions)]
     export_bindings(&builder, &bindings_path());
 
+    let e2e = e2e::from_env();
+    let mut context = tauri::generate_context!();
+    e2e::apply_to_context(e2e.as_ref(), &mut context);
+
     let app = tauri::Builder::default()
         // Must be first: a second launch hands over to the running instance.
         .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
             app_windows::show(app, app_windows::EDITOR);
         }))
-        .plugin(
-            tauri_plugin_log::Builder::new()
-                .level(log::LevelFilter::Info)
-                .build(),
-        )
+        .plugin(e2e::log_plugin(e2e.as_ref()))
         .plugin(tauri_plugin_global_shortcut::Builder::new().build())
         .plugin(tauri_plugin_autostart::init(
             MacosLauncher::LaunchAgent,
@@ -108,7 +109,18 @@ pub fn run() {
         .setup(move |app| {
             builder.mount_events(app);
 
-            let settings_path = app.path().app_config_dir()?.join(settings::FILE_NAME);
+            let is_e2e = e2e.is_some();
+            let (config_dir, local_data_dir) = match &e2e {
+                Some(e2e) => (e2e.config_dir(), e2e.local_data_dir()),
+                None => (
+                    app.path().app_config_dir()?,
+                    app.path().app_local_data_dir()?,
+                ),
+            };
+            if let Some(e2e) = e2e {
+                app.manage(e2e);
+            }
+            let settings_path = config_dir.join(settings::FILE_NAME);
             let loaded = settings::load(&settings_path);
             // Windows created later inherit this theme.
             app.set_theme(loaded.theme.to_tauri());
@@ -116,11 +128,9 @@ pub fn run() {
             app.manage(app_windows::CloseTimers::default());
             app.manage(editor::EditorImage::default());
             app.manage(export::SavedFiles::default());
-            app.manage(history::History::new(
-                app.path().app_local_data_dir()?.join("history"),
-            ));
+            app.manage(history::History::new(local_data_dir.join("history")));
             app.manage(presets::UserPresets::new(
-                app.path().app_config_dir()?.join(presets::FILE_NAME),
+                config_dir.join(presets::FILE_NAME),
             ));
             // Captures past their 30 days go even when nothing new is captured.
             std::thread::spawn({
@@ -139,7 +149,20 @@ pub fn run() {
                 // Tell the user right away instead of failing silently.
                 app_windows::show(app.handle(), app_windows::SETTINGS);
             }
-            first_run::ask_autostart_once(app.handle(), lang);
+            if is_e2e {
+                e2e::open_editor_image(app.handle());
+            } else {
+                first_run::ask_autostart_once(app.handle(), lang);
+            }
+            log::info!(
+                "ready, capture key {} {}",
+                status.accelerator,
+                if status.registered {
+                    "registered"
+                } else {
+                    "not registered"
+                }
+            );
             Ok(())
         })
         .on_window_event(|window, event| match event {
@@ -157,7 +180,7 @@ pub fn run() {
             }
             _ => {}
         })
-        .build(tauri::generate_context!())
+        .build(context)
         .expect("error while building Cropa");
 
     app.run(|_app, event| {

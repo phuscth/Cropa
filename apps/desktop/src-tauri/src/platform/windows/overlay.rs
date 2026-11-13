@@ -1161,13 +1161,19 @@ fn on_button_up(hwnd: HWND, lparam: LPARAM) {
     let step = with(|s| {
         if s.mode == CaptureMode::Region {
             let drag = s.drag.take()?;
+            // The release carries where the button went up; the last move the
+            // overlay handled can be older when the pointer moved just before.
+            // `crop_rect` clamps it to the drag's monitor, as it does a move.
+            let end = s
+                .index_of(hwnd)
+                .map_or(drag.current, |index| s.desktop_point(index, lparam));
             let win = &s.wins[drag.monitor];
             let rect = crop_rect(
                 &win.monitor,
                 win.capture_width,
                 win.capture_height,
                 drag.start,
-                drag.current,
+                end,
             );
             Some((
                 rect.map(|rect| Selection {
