@@ -1,7 +1,8 @@
 // Turns a raw event stream from `out/` into a fixture that is safe to commit:
-// account emails, ids, session and message ids, signatures, temp folders and
-// paths under the user's home are replaced with fixed placeholders. Refuses to
-// write if anything that looks like a leftover remains.
+// account emails, ids, session and message ids, signatures, temp folders,
+// paths under the user's home or on other drives, login expiry, plan and quota
+// state are replaced with fixed placeholders. Refuses to write if anything
+// that looks like a leftover remains.
 //
 //   node tools/probes/scrub.mjs <raw file> <fixture file>
 //
@@ -20,6 +21,10 @@ if (!input || !output) {
 const home = os.homedir();
 const user = path.basename(home);
 const ZERO_UUID = '00000000-0000-0000-0000-000000000000';
+const PLACEHOLDER_TIME = '2030-01-01T00:00:00.000Z';
+const PLACEHOLDER_RESETS_AT = 1893456000; // the same instant, in epoch seconds
+const PLACEHOLDER_PLAN = 'pro';
+const PLACEHOLDER_UTILIZATION = 0.5;
 
 // Paths appear JSON-escaped (`C:\\Users\\x`) inside event strings.
 const jsonEscaped = (p) => p.replaceAll('\\', '\\\\');
@@ -43,6 +48,14 @@ const rules = [
   [/\beyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/g, 'TOKEN_PLACEHOLDER'],
   // Named pipes and other per-machine ids.
   [/\b[0-9a-f]{24,}\b/gi, 'HEX_PLACEHOLDER'],
+  // Any other drive (a temp folder, a data drive) is machine data.
+  [/\b[A-BD-Z]:(\\+|\/)(?:[^"\s()\\/]+(?:\\+|\/)?)*/g, (_, sep) => `C:${sep}Temp${sep}`],
+  // Account state: login expiry, plan, quota use and reset times.
+  [/"(loginExpiresAt|credential_expires_at)":(\s*)"[^"]*"/g, `"$1":$2"${PLACEHOLDER_TIME}"`],
+  [/"(subscriptionType|planTier)":(\s*)"[^"]*"/g, `"$1":$2"${PLACEHOLDER_PLAN}"`],
+  [/"utilization":(\s*)[\d.eE+-]+/g, `"utilization":$1${PLACEHOLDER_UTILIZATION}`],
+  [/"resetsAt":(\s*)\d+/g, `"resetsAt":$1${PLACEHOLDER_RESETS_AT}`],
+  [/"overageDisabledReason":(\s*)"[^"]*"/g, '"overageDisabledReason":$1"REASON_PLACEHOLDER"'],
 ];
 
 let text = fs.readFileSync(input, 'utf8');
@@ -64,7 +77,17 @@ for (const [i, part] of mustParse.entries()) {
 }
 
 const leftovers = [
-  /\beyJ[A-Za-z0-9_-]{10,}/,new RegExp(`\\b${escapeRe(user)}\\b`, 'i'), /@(?!example\.com)[\w-]+\.[a-z]{2,}/i, /cropa-probe-/];
+  /\beyJ[A-Za-z0-9_-]{10,}/,
+  new RegExp(`\\b${escapeRe(user)}\\b`, 'i'),
+  /@(?!example\.com)[\w-]+\.[a-z]{2,}/i,
+  /cropa-probe-/,
+  /\b[A-BD-Z]:(\\|\/)/,
+  new RegExp(`"(loginExpiresAt|credential_expires_at)":\\s*"(?!${escapeRe(PLACEHOLDER_TIME)}")`),
+  new RegExp(`"(subscriptionType|planTier)":\\s*"(?!${PLACEHOLDER_PLAN}")`),
+  new RegExp(`"utilization":\\s*(?!${escapeRe(String(PLACEHOLDER_UTILIZATION))}\\b)[\\d.]`),
+  new RegExp(`"resetsAt":\\s*(?!${PLACEHOLDER_RESETS_AT}\\b)\\d`),
+  /"overageDisabledReason":\s*"(?!REASON_PLACEHOLDER")/,
+];
 for (const re of leftovers) {
   const m = text.match(re);
   if (m) {

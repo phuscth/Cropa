@@ -2,8 +2,10 @@
 
 Real output of `codex-cli 0.167.0` and Claude Code `2.1.323` on Windows,
 recorded with `tools/probes/` and scrubbed with `tools/probes/scrub.mjs`:
-emails, org, session, thread and message ids, signatures, temp folders and
-home paths are fixed placeholders. Used by the transport contract tests.
+emails, org, session, thread and message ids, signatures, temp folders, home
+and other-drive paths, login expiry (`2030-01-01T00:00:00.000Z`), plan (`pro`)
+and quota state (`utilization` 0.5, `resetsAt` 1893456000) are fixed
+placeholders. Used by the transport contract tests.
 
 | File | Recorded by | What it shows |
 |---|---|---|
