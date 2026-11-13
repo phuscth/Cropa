@@ -34,6 +34,21 @@ describe('checkModuleInNode', { timeout: 30_000 }, () => {
     expect(check).toMatchObject({ ok: true, loops: false });
   });
 
+  it('compares angles modulo a full turn, as the pixels do, but still sees a partial turn', async () => {
+    const spin = (turns: string) =>
+      module2d(
+        `ctx.save(); ctx.translate(50, 50); ctx.rotate(2 * Math.PI * (${turns} * t + 0.3)); ctx.fillRect(-10, -2, 20, 4); ctx.restore();` +
+          ` ctx.beginPath(); ctx.arc(80, 80, 10, 2 * Math.PI * ${turns} * t, 2 * Math.PI * ${turns} * t + 1); ctx.stroke();` +
+          ` ctx.beginPath(); ctx.ellipse(120, 80, 10, 5, 2 * Math.PI * ${turns} * t, 0, Math.PI); ctx.fill();`,
+      );
+    for (const turns of ['1', '3', '-2']) {
+      expect((await checkModuleInNode(spin(turns), scene)).loops, turns).toBe(true);
+    }
+    for (const turns of ['0.5', '1.25']) {
+      expect((await checkModuleInNode(spin(turns), scene)).loops, turns).toBe(false);
+    }
+  });
+
   it('reports a non-seeded random draw as not looping', async () => {
     const check = await checkModuleInNode(module2d('ctx.fillRect(Math.random() * 100, 0, 5, 5);'), scene);
     expect(check.loops).toBe(false);
