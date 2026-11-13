@@ -31,6 +31,10 @@ fn main() {
         "save_user_preset",
         "delete_user_preset",
         "save_preset_file",
+        "list_background_images",
+        "add_background_image",
+        "read_background_image",
+        "delete_background_image",
     ]);
 
     // tauri-build embeds its Windows manifest (Common Controls v6) only into

@@ -87,6 +87,17 @@ export const commands = {
 	 *  built.
 	 */
 	savePresetFile: (suggestedName: string, text: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("save_preset_file", { suggestedName, text })),
+	/**  The images the user added, in the order they were added. */
+	listBackgroundImages: () => typedError<BackgroundImage[], CommandError>(__TAURI_INVOKE("list_background_images")),
+	/**
+	 *  Keeps a copy of a picture the user chose. `data` is the base64 of the file's
+	 *  bytes, with no `data:` prefix; only PNG, JPEG and WebP up to 20 MB are kept.
+	 */
+	addBackgroundImage: (name: string, data: string) => typedError<BackgroundImage, CommandError>(__TAURI_INVOKE("add_background_image", { name, data })),
+	/**  A stored image as a `data:` URL. */
+	readBackgroundImage: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("read_background_image", { id })),
+	/**  Deletes a stored image. One that is already gone is not an error. */
+	deleteBackgroundImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_background_image", { id })),
 };
 
 /** Events */
@@ -107,6 +118,15 @@ export type AutostartChanged = {
 	enabled: boolean,
 };
 
+/**
+ *  What the WebView sees of a stored image: the id to ask for it by, and the name
+ *  of the file the user picked.
+ */
+export type BackgroundImage = {
+	id: string,
+	name: string,
+};
+
 export type CaptureRequested = {
 	source: CaptureSource,
 };
@@ -117,7 +137,7 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string };
 
 /**  The editor has another image to show. */
 export type EditorImageChanged = null;

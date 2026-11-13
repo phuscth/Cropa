@@ -94,7 +94,7 @@ pub enum PresetsError {
 
 /// `<name>.bak`, else `<name>.bak.1`, `.2`, ...: the first that does not exist, so
 /// a backup never replaces an earlier one.
-fn backup_path(path: &Path) -> PathBuf {
+pub(crate) fn backup_path(path: &Path) -> PathBuf {
     let name = path.file_name().unwrap_or_default().to_os_string();
     let with_suffix = |suffix: &str| {
         let mut name = name.clone();

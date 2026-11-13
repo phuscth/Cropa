@@ -2,6 +2,7 @@
 //! the pure crates.
 
 mod app_windows;
+mod background_images;
 mod capture;
 mod commands;
 mod e2e;
@@ -55,6 +56,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::presets::save_user_preset,
             commands::presets::delete_user_preset,
             commands::presets::save_preset_file,
+            commands::background_images::list_background_images,
+            commands::background_images::add_background_image,
+            commands::background_images::read_background_image,
+            commands::background_images::delete_background_image,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -129,6 +134,9 @@ pub fn run() {
             app.manage(editor::EditorImage::default());
             app.manage(export::SavedFiles::default());
             app.manage(history::History::new(local_data_dir.join("history")));
+            app.manage(background_images::BackgroundImages::new(
+                local_data_dir.join("backgrounds"),
+            ));
             app.manage(presets::UserPresets::new(
                 config_dir.join(presets::FILE_NAME),
             ));

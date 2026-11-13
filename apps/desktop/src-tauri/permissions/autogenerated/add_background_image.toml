@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-add-background-image"
+description = "Enables the add_background_image command without any pre-configured scope."
+commands.allow = ["add_background_image"]
+
+[[permission]]
+identifier = "deny-add-background-image"
+description = "Denies the add_background_image command without any pre-configured scope."
+commands.deny = ["add_background_image"]
