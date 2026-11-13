@@ -166,6 +166,7 @@ describe('AI background session', () => {
     const requests: AiRunRequest[] = [];
     const resolvers: ((out: TaskResult<BackgroundSpec>) => void)[] = [];
     let latest = 0;
+    const applied = vi.fn();
     const session = createAiBackgroundSession({
       start: (request) => {
         requests.push(request);
@@ -184,10 +185,12 @@ describe('AI background session', () => {
         const mine = ++latest;
         return () => mine === latest;
       },
+      onApplied: applied,
       now: () => 1000,
     });
     return {
       session,
+      applied,
       requests,
       history: () => h,
       dispatch,
@@ -221,6 +224,22 @@ describe('AI background session', () => {
     expect(codeSourceOf(s.history().present.background)).toBe(srcA);
     expect(s.session.infoFor(s.history().present)).toEqual({ description: 'rain', provider: 'mock', effort: 'medium' });
     expect(s.session.infoFor({ ...s.history().present, background: preset.background })).toBeUndefined();
+  });
+
+  it('announces an applied result once, and nothing for a fallback or a result dropped after an edit', async () => {
+    const s = setup();
+    generate(s);
+    await s.answer(done(withCode(srcA)));
+    expect(s.applied).toHaveBeenCalledTimes(1);
+
+    s.session.regenerate([], 'mock', 'low');
+    await s.answer(failed('Timeout'));
+    expect(s.applied).toHaveBeenCalledTimes(1);
+
+    s.session.regenerate([], 'mock', 'low');
+    s.dispatch({ type: 'preview', scene: (scene) => ({ ...scene, background: plain }) });
+    await s.answer(done(withCode(srcB)));
+    expect(s.applied).toHaveBeenCalledTimes(1);
   });
 
   it('keeps the result on screen while regenerating, and after a failure or a cancel', async () => {

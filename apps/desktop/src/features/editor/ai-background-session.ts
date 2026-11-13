@@ -67,6 +67,8 @@ export interface AiBackgroundDeps {
   history: AiHistoryAccess;
   /** `beginBackgroundChange` of the editor: false once another change to the background began. */
   beginBackgroundChange: () => () => boolean;
+  /** Called once a generated background has been applied to the scene. */
+  onApplied?: () => void;
   now: () => number;
 }
 
@@ -179,6 +181,7 @@ export function createAiBackgroundSession(deps: AiBackgroundDeps): AiBackgroundS
         history.preview((s) => (sameBackground(s.background, shown) ? applyBackground(s, applied) : s));
         history.commit();
         set({ startedOverFrom: null, notice: null });
+        deps.onApplied?.();
         return;
       }
 

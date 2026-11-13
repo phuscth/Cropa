@@ -49,7 +49,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
     <div
       role="toolbar"
       aria-label={t('editor.annotate.properties')}
-      className="pointer-events-auto flex min-h-10 max-w-full flex-wrap items-center gap-3 rounded-xl border bg-popover px-3 py-1 shadow-md"
+      className="pointer-events-auto flex min-h-11 max-w-full animate-notice-in flex-wrap items-center gap-3 rounded-xl bg-card px-3 py-1 shadow-soft"
     >
       {colored && (
         <div role="group" aria-label={t('editor.annotate.color')} className="flex items-center gap-1">
@@ -62,8 +62,8 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
               onClick={() => { annotate.setColor(hex); }}
               style={{ backgroundColor: hex }}
               className={cn(
-                'size-5 rounded-full border outline-none focus-visible:ring-4 focus-visible:ring-primary/16',
-                color.toLowerCase() === hex && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
+                'focus-ring size-5 rounded-full border',
+                color.toLowerCase() === hex && 'ring-2 ring-foreground ring-offset-1 ring-offset-card',
               )}
             />
           ))}
@@ -76,9 +76,9 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
                 aria-pressed={custom}
                 style={custom ? { backgroundColor: color } : undefined}
                 className={cn(
-                  'size-5 rounded-full border outline-none focus-visible:ring-4 focus-visible:ring-primary/16',
+                  'focus-ring size-5 rounded-full border',
                   !custom && 'bg-[conic-gradient(red,yellow,lime,aqua,blue,magenta,red)]',
-                  custom && 'ring-2 ring-primary ring-offset-1 ring-offset-background',
+                  custom && 'ring-2 ring-foreground ring-offset-1 ring-offset-card',
                 )}
               />
             </PopoverTrigger>
@@ -94,7 +94,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
         </div>
       )}
       {slider && (
-        <div className="flex w-44 items-center gap-2 text-sm">
+        <div className="flex w-44 items-center gap-2 text-control-sm">
           <span className="shrink-0">{label}</span>
           <Slider
             aria-label={label}

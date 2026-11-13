@@ -79,11 +79,11 @@
         "more": "Xóa {{name}}",
         "deleteConfirm": "Xóa ảnh này? Các preset dùng ảnh này sẽ hiện nền trơn.",
         "delete": "Xóa",
-        "cancel": "Hủy"
+        "cancel": "Hủy",
+        "title": "Hình ảnh"
       }
     },
     "frame": {
-      "title": "Khung",
       "padding": "Đệm",
       "radius": "Bo góc",
       "shadow": "Đổ bóng",
@@ -102,7 +102,8 @@
       "insetAuto": "Tự động",
       "insetCustom": "Tùy chọn",
       "insetColorPicker": "Chọn màu lề trong",
-      "insetColorHex": "Mã hex của màu lề trong"
+      "insetColorHex": "Mã hex của màu lề trong",
+      "corners": "Góc"
     },
     "aspect": {
       "title": "Tỉ lệ khung hình",
@@ -124,7 +125,6 @@
       "copy": "Sao chép",
       "save": "Lưu",
       "saveAs": "Lưu thành…",
-      "saveAsConfirm": "Lưu thành…",
       "format": "Định dạng",
       "scale": "Tỉ lệ",
       "scaleFixed": "Kích thước theo nền tảng luôn xuất ở 1x ({{width}} × {{height}} px)",
@@ -133,7 +133,12 @@
       "dragHold": "Giữ chuột trong khi kéo ảnh ra ngoài",
       "dragHint": "Kéo ảnh vào ứng dụng khác, thư mục hoặc khung chat",
       "copied": "Đã sao chép vào bộ nhớ tạm",
-      "openFolder": "Mở thư mục"
+      "openFolder": "Mở thư mục",
+      "title": "Xuất ảnh",
+      "saveAsOptions": "Áp dụng cho Lưu thành",
+      "saveQuick": "Lưu PNG ở 2×",
+      "saveAsFormat": "Định dạng khi lưu thành",
+      "saveAsScale": "Tỉ lệ khi lưu thành"
     },
     "presets": {
       "title": "Preset",
@@ -185,14 +190,19 @@
       "label": "Cài đặt trình chỉnh sửa",
       "tabs": "Nhóm cài đặt",
       "background": "Nền",
-      "frame": "Khung"
+      "frame": "Khung",
+      "preset": "Preset",
+      "presetOpen": "Hiện các preset, đang dùng: {{name}}"
     },
     "details": {
-      "title": "Chi tiết",
       "image": "Ảnh",
-      "output": "Ảnh xuất ở 1x",
-      "format": "Định dạng gốc",
+      "saveAs": "Lưu thành",
       "size": "{{width}} × {{height}} px"
+    },
+    "layout": {
+      "title": "Bố cục",
+      "label": "Bố cục và xuất ảnh",
+      "spacing": "Khoảng cách"
     }
   },
   "rail": {

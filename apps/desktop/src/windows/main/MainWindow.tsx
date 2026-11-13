@@ -1,3 +1,4 @@
+import { cn } from '@cropa/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 import { ABOUT_SECTION_ID } from '../../features/settings/SettingsLayout.tsx';
@@ -66,9 +67,16 @@ export function MainWindow() {
     requestAnimationFrame(scroll);
   }, [show]);
 
-  const pane = (which: MainView, children: ReactNode) => (
+  // A pane that comes to the front fades in; History and Settings sit in a panel of their own.
+  const pane = (which: MainView, children: ReactNode, panel = true) => (
     <ViewActiveContext.Provider value={view === which}>
-      <div hidden={view !== which} className="flex min-w-0 flex-1">
+      <div
+        hidden={view !== which}
+        className={cn(
+          'flex min-w-0 flex-1 animate-fade-in',
+          panel && 'm-1.5 ml-0 overflow-hidden rounded-2xl bg-panel',
+        )}
+      >
         {children}
       </div>
     </ViewActiveContext.Provider>
@@ -84,13 +92,13 @@ export function MainWindow() {
         onThemeChanged={() => { setSettingsVersion((version) => version + 1); }}
       />
       {error && (
-        <div className="fixed bottom-4 left-28 z-50 w-96">
+        <div className="fixed bottom-4 left-24 z-50 w-96">
           <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />
         </div>
       )}
       <div className="flex min-h-0 flex-1">
         <AppRail current={view} onSelect={show} />
-        {pane('Editor', <EditorView />)}
+        {pane('Editor', <EditorView />, false)}
         {visited.has('History') && pane('History', <HistoryView />)}
         {visited.has('Settings') && pane('Settings', <SettingsView settingsVersion={settingsVersion} />)}
       </div>

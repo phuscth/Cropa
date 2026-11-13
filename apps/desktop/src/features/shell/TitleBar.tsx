@@ -1,4 +1,5 @@
 import {
+  Button,
   Menubar,
   MenubarContent,
   MenubarItem,
@@ -19,6 +20,7 @@ import { useTranslation } from 'react-i18next';
 
 import { commands, events, type MainView, type ThemePreference } from '../../lib/bindings.ts';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+import { requestCaptureAfterPaint } from './capture.ts';
 import { useEditorActions } from './editor-actions.ts';
 
 interface Props {
@@ -40,7 +42,7 @@ const VIEW_LABELS: Record<MainView, string> = {
 };
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 
-/** The Cropa mark: two crop corners around a pink square. */
+/** The Cropa mark: two crop corners around an accent square. */
 function Logo() {
   return (
     <svg viewBox="0 0 32 32" className="pointer-events-none size-5" fill="none" aria-hidden="true">
@@ -52,7 +54,7 @@ function Logo() {
         strokeLinejoin="round"
         className="text-foreground"
       />
-      <rect x="13" y="13" width="6" height="6" rx="1.5" className="fill-primary" />
+      <rect x="13" y="13" width="6" height="6" rx="1.5" className="fill-ring" />
     </svg>
   );
 }
@@ -111,7 +113,7 @@ function WindowButton({ label, onClick, danger = false, children }: WindowButton
       title={label}
       onClick={onClick}
       className={cn(
-        'flex h-10 w-[46px] items-center justify-center text-foreground outline-none transition-colors duration-150 ease-enter focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-inset',
+        'flex h-11 w-[46px] items-center justify-center text-foreground transition-colors duration-150 ease-enter focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
         danger ? 'hover:bg-[#c42b1c] hover:text-white' : 'hover:bg-accent',
       )}
     >
@@ -120,7 +122,23 @@ function WindowButton({ label, onClick, danger = false, children }: WindowButton
   );
 }
 
-const nextFrame = () => new Promise<void>((resolve) => { requestAnimationFrame(() => { resolve(); }); });
+function UndoIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M6 3.5 3 6.5l3 3" />
+      <path d="M3 6.5h6.5a3.5 3.5 0 0 1 0 7H7" />
+    </svg>
+  );
+}
+
+function RedoIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="m10 3.5 3 3-3 3" />
+      <path d="M13 6.5H6.5a3.5 3.5 0 0 0 0 7H9" />
+    </svg>
+  );
+}
 
 
 /** The custom title bar of the main window: logo, menus, a drag area and the window buttons. */
@@ -186,14 +204,7 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
   };
 
   const captureRegion = () => {
-    // The menu must be off screen first: the capture photographs every monitor.
-    // It unmounts as soon as an item is chosen: two frames let the WebView paint
-    // without it, and a short wait lets the compositor put that frame on screen.
-    nextFrame()
-      .then(nextFrame)
-      .then(() => new Promise((resolve) => { setTimeout(resolve, 100); }))
-      .then(() => commands.requestCapture())
-      .catch(fail);
+    requestCaptureAfterPaint().catch(fail);
   };
 
   const inEditor = view === 'Editor';
@@ -216,9 +227,9 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
   return (
     <header
       data-tauri-drag-region
-      className="flex h-10 shrink-0 items-center bg-sidebar select-none"
+      className="flex h-11 shrink-0 items-center bg-sidebar select-none"
     >
-      <div data-tauri-drag-region className="flex h-10 w-12 items-center justify-center pl-1">
+      <div data-tauri-drag-region className="flex h-11 w-[68px] items-center justify-center">
         <Logo />
       </div>
       <Menubar aria-label={t('menu.label')} onValueChange={(open) => { if (open) loadTheme(); }}>
@@ -312,9 +323,51 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
         </MenubarMenu>
       </Menubar>
 
-      <div data-tauri-drag-region className="h-full min-w-0 flex-1" />
+      {/* The free area drags; the buttons in its middle are not part of it. */}
+      <div data-tauri-drag-region className="flex h-full min-w-0 flex-1 items-center justify-center">
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('editor.undo')}
+            title={`${t('editor.undo')} (Ctrl+Z)`}
+            disabled={!canUndo}
+            onClick={() => { actions?.undo(); }}
+          >
+            <UndoIcon />
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('editor.redo')}
+            title={`${t('editor.redo')} (Ctrl+Y)`}
+            disabled={!canRedo}
+            onClick={() => { actions?.redo(); }}
+          >
+            <RedoIcon />
+          </Button>
+        </div>
+      </div>
 
-      <div className="flex h-10">
+      <div className="mr-2 flex items-center gap-1">
+        <Button
+          variant="ghost"
+          title={`${t('editor.export.copy')} (Ctrl+C)`}
+          disabled={!canExport}
+          onClick={() => { actions?.copy(); }}
+        >
+          {t('editor.export.copy')}
+        </Button>
+        <Button
+          title={`${t('editor.export.saveQuick')} (Ctrl+S)`}
+          disabled={!canExport}
+          onClick={() => { actions?.quickSave(); }}
+        >
+          {t('editor.export.save')}
+        </Button>
+      </div>
+
+      <div className="flex h-11">
         <WindowButton label={t('window.minimize')} onClick={() => { run(win.minimize()); }}>
           {MINIMIZE_GLYPH}
         </WindowButton>

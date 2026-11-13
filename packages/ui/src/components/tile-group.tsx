@@ -25,7 +25,7 @@ function TileGroup({ className, value, onValueChange, ...props }: TileGroupProps
       onValueChange={(next) => {
         if (next !== '') onValueChange(next);
       }}
-      className={cn('grid grid-cols-3 gap-x-2 gap-y-3', className)}
+      className={cn('grid grid-cols-3 gap-x-1 gap-y-2.5', className)}
       {...props}
     />
   );
@@ -36,31 +36,38 @@ type TileProps = Omit<ComponentProps<typeof ToggleGroup.Item>, 'children' | 'tit
   label: string;
   /** The thumbnail's content. */
   children: ReactNode;
-  /** Sizing of the thumbnail, for example `aspect-square` (the default) or `h-12`. */
+  /** Sizing of the thumbnail, for example `h-14` (the default) or `aspect-square`. */
   thumbClassName?: string;
   /** Positioned over the tile, for example a menu button. */
   overlay?: ReactNode;
 };
 
-/** A rounded thumbnail on a soft surface with its name under it; a ring marks the selected one. */
+/**
+ * A rounded thumbnail on a soft surface with its name under it. The selected
+ * tile grows a 2px ring in the text colour with a 2px gap; hover lifts the
+ * tile 1px and press scales it to .97.
+ */
 function Tile({ className, label, children, thumbClassName, overlay, ...props }: TileProps) {
   return (
-    <div data-slot="tile" className="group relative min-w-0">
+    <div data-slot="tile" className="group relative min-w-0 p-0.5">
       <ToggleGroup.Item
         aria-label={label}
         title={label}
-        className={cn('group/tile flex w-full min-w-0 flex-col gap-1.5 rounded-xl outline-none', className)}
+        className={cn(
+          'group/tile focus-ring flex w-full min-w-0 flex-col gap-1.5 rounded-[11px] transition-[transform,scale] duration-150 ease-enter active:scale-[var(--press-scale,0.97)]',
+          className,
+        )}
         {...props}
       >
         <span
           className={cn(
-            'relative flex aspect-square items-center justify-center overflow-hidden rounded-xl bg-secondary ring-offset-2 ring-offset-panel transition-[box-shadow] duration-150 ease-enter group-data-[state=on]/tile:ring-2 group-data-[state=on]/tile:ring-foreground group-focus-visible/tile:outline-2 group-focus-visible/tile:outline-offset-4 group-focus-visible/tile:outline-primary group-disabled/tile:opacity-50',
+            'relative flex h-14 items-center justify-center overflow-hidden rounded-[9px] bg-secondary outline-2 outline-offset-0 outline-transparent transition-[outline-color,outline-offset,box-shadow,transform,translate] duration-200 ease-enter group-hover/tile:-translate-y-px group-hover/tile:shadow-soft-hover group-data-[state=on]/tile:outline-foreground group-data-[state=on]/tile:outline-offset-2 group-disabled/tile:opacity-50',
             thumbClassName,
           )}
         >
           {children}
         </span>
-        <span className="block w-full truncate text-center text-xs text-muted-foreground group-hover/tile:text-foreground group-data-[state=on]/tile:text-foreground">
+        <span className="text-caption block w-full truncate text-center group-hover/tile:text-foreground group-data-[state=on]/tile:text-foreground">
           {label}
         </span>
       </ToggleGroup.Item>

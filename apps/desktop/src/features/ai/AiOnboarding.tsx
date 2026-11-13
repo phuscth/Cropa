@@ -89,7 +89,7 @@ export function AiOnboarding({ mode, onSaved, onCancel }: Props) {
     <section
       className={
         mode === 'first'
-          ? 'flex flex-col gap-4 rounded-xl border bg-card p-5'
+          ? 'flex flex-col gap-4 rounded-xl bg-card p-5 shadow-soft'
           : 'flex flex-col gap-4'
       }
       aria-labelledby="ai-onboarding"

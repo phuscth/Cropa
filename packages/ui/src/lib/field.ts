@@ -1,6 +1,6 @@
 /**
- * Shared look of text fields and select triggers: 40px high, 12px radius, a
- * darker border on hover and a 4px primary halo on focus.
+ * Shared look of text fields and select triggers: 36px high, 10px radius, the
+ * raised colour with a 1px border and the accent focus ring.
  */
 export const fieldClasses =
-  'h-10 w-full min-w-0 rounded-lg border border-input bg-card px-3.5 text-sm outline-none transition-[color,border-color,box-shadow] duration-150 ease-enter placeholder:text-muted-foreground hover:border-foreground/30 focus-visible:border-[color-mix(in_srgb,var(--input),var(--primary)_60%)] focus-visible:ring-4 focus-visible:ring-primary/16 disabled:pointer-events-none disabled:opacity-50 dark:bg-background';
+  'focus-ring h-9 w-full min-w-0 rounded-lg border border-input bg-card px-3 text-control transition-[color,border-color,box-shadow] duration-150 ease-enter placeholder:text-tertiary-foreground hover:border-foreground/25 focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50';

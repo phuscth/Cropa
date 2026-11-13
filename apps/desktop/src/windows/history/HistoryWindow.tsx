@@ -72,10 +72,10 @@ export function HistoryView() {
 
   return (
     <main className="flex min-w-0 flex-1 flex-col">
-      <header className="flex h-14 shrink-0 items-center gap-3 border-b px-6">
-        <h1 className="text-heading">{t('history.title')}</h1>
+      <header className="flex shrink-0 items-center gap-3 px-8 pt-8 pb-2">
+        <h1 className="text-title">{t('history.title')}</h1>
         {items && items.length > 0 && (
-          <span className="text-sm text-muted-foreground">{t('history.count', { total: count })}</span>
+          <span className="text-control-sm text-muted-foreground">{t('history.count', { total: count })}</span>
         )}
         <div className="ml-auto flex items-center gap-2">
           {confirmingDeleteAll ? (
@@ -105,7 +105,7 @@ export function HistoryView() {
         </div>
       </header>
 
-      <section className="flex-1 overflow-y-auto p-6">
+      <section className="flex-1 overflow-y-auto p-8 pt-6">
         {error && (
           <div className="mb-6">
             <ErrorNotice error={error} />
@@ -155,7 +155,7 @@ function HistoryCard({ item, run }: HistoryCardProps) {
   };
 
   return (
-    <li className="group flex flex-col gap-2 rounded-xl border bg-card p-2 text-card-foreground">
+    <li className="group flex flex-col gap-2 rounded-xl bg-card p-2 text-card-foreground shadow-soft transition-[transform,translate,box-shadow] duration-150 ease-enter hover:-translate-y-0.5 hover:shadow-soft-hover">
       <div className="flex aspect-[3/2] items-center justify-center overflow-hidden rounded-lg bg-canvas">
         {thumbnail && (
           <img
@@ -166,8 +166,8 @@ function HistoryCard({ item, run }: HistoryCardProps) {
         )}
       </div>
       <div className="flex flex-col px-1">
-        <span className="text-sm">{when}</span>
-        <span className="text-xs text-muted-foreground tabular-nums">
+        <span className="text-control-sm">{when}</span>
+        <span className="text-caption tabular-nums">
           {t('history.size', { width: item.width, height: item.height })}
         </span>
       </div>
@@ -190,7 +190,7 @@ function HistoryCard({ item, run }: HistoryCardProps) {
         </Button>
       </div>
       {copied && (
-        <p role="status" className="px-1 text-xs text-muted-foreground">
+        <p role="status" className="text-caption px-1">
           {t('history.copied')}
         </p>
       )}

@@ -30,7 +30,7 @@ function Slider({
       <SliderPrimitive.Thumb
         data-slot="slider-thumb"
         aria-label={ariaLabel}
-        className="block size-4.5 shrink-0 rounded-full border border-input bg-card shadow-sm outline-none focus-visible:ring-4 focus-visible:ring-primary/16"
+        className="focus-ring block size-4.5 shrink-0 rounded-full border border-input bg-card shadow-soft"
       />
     </SliderPrimitive.Root>
   );

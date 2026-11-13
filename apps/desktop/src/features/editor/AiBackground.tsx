@@ -31,6 +31,7 @@ import {
   presetNameFrom,
 } from './ai-background.ts';
 import { beginBackgroundChange } from './background-images.ts';
+import { announceAiBackgroundReveal } from './preview-motion.ts';
 import type { SceneHistory } from './use-scene-history.ts';
 
 interface Props {
@@ -43,7 +44,7 @@ const EFFORTS: readonly AiEffort[] = ['low', 'medium', 'high'];
 const STATUS_MS = 6000;
 
 const textareaClass =
-  'w-full resize-none rounded-lg border border-input bg-card px-3.5 py-2.5 text-sm outline-none transition-[color,border-color,box-shadow] duration-150 ease-enter placeholder:text-muted-foreground hover:border-foreground/30 focus-visible:border-[color-mix(in_srgb,var(--input),var(--primary)_60%)] focus-visible:ring-4 focus-visible:ring-primary/16 disabled:pointer-events-none disabled:opacity-50 dark:bg-background';
+  'focus-ring w-full resize-none rounded-lg border border-input bg-card px-3 py-2 text-control-sm transition-[color,border-color,box-shadow] duration-150 ease-enter placeholder:text-tertiary-foreground hover:border-foreground/25 focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50';
 
 function historyAccess({ scene, preview, commit }: Props['history']): AiHistoryAccess {
   return { scene: () => scene, preview, commit };
@@ -113,6 +114,7 @@ export function AiBackground({ history, palette }: Props) {
       },
       history: historyAccess(history),
       beginBackgroundChange,
+      onApplied: announceAiBackgroundReveal,
       now: () => Date.now(),
     }),
   );

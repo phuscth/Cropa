@@ -36,7 +36,7 @@ const SPECS: &[Spec] = &[
         url: "src/windows/main/index.html",
         title: "Cropa",
         size: (1180.0, 760.0),
-        min_size: Some((800.0, 520.0)),
+        min_size: Some((880.0, 520.0)),
         resizable: true,
         decorations: false,
     },
@@ -110,8 +110,8 @@ fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewW
 /// match `--background` in packages/config/tailwind.css.
 pub fn paint_background<R: Runtime>(window: &WebviewWindow<R>, theme: tauri::Theme) {
     let background = match theme {
-        tauri::Theme::Dark => Color(0x19, 0x19, 0x19, 255),
-        _ => Color(0xfa, 0xfa, 0xfa, 255),
+        tauri::Theme::Dark => Color(0x0d, 0x0d, 0x0d, 255),
+        _ => Color(0xda, 0xda, 0xda, 255),
     };
     if let Err(err) = window.set_background_color(Some(background)) {
         log::warn!(

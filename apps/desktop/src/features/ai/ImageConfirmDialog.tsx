@@ -39,7 +39,7 @@ export function ImageConfirmDialog({
     <dialog
       ref={ref}
       aria-labelledby="image-confirm-title"
-      className="m-auto max-w-sm rounded-xl border bg-popover p-6 text-popover-foreground shadow-xl backdrop:bg-black/40"
+      className="m-auto max-w-sm rounded-xl bg-popover p-6 text-popover-foreground shadow-xl backdrop:bg-black/40"
       // Esc and any other way of closing it count as "don't send".
       onClose={() => { onAnswer(false); }}
     >

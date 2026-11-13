@@ -15,7 +15,7 @@ export interface EditorActions {
   redo: () => void;
   copy: () => void;
   quickSave: () => void;
-  /** Opens the Save as popover. */
+  /** Opens the native save dialog with the format and scale chosen in the export section. */
   saveAs: () => void;
 }
 

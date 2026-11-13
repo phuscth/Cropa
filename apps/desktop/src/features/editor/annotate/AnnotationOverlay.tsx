@@ -99,7 +99,7 @@ export function AnnotationOverlay({ annotate, scene, geometry: g }: Props) {
         placeholder={t('editor.annotate.textPlaceholder')}
         aria-label={t('editor.annotate.tools.text')}
         maxLength={2000}
-        className="absolute resize-none overflow-hidden bg-transparent outline-1 outline-offset-0 outline-dashed outline-primary placeholder:opacity-40"
+        className="absolute resize-none overflow-hidden bg-transparent outline-1 outline-offset-0 outline-dashed outline-ring placeholder:opacity-40"
         style={style}
         onChange={(event) => { annotate.setEditingText(event.target.value); }}
         onBlur={annotate.commitText}

@@ -1,13 +1,6 @@
 import { defaultScene, edgeColor, type PaletteColour } from '@cropa/core';
-import {
-  Button,
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-  SegmentedControl,
-  SegmentedControlItem,
-} from '@cropa/ui';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { Button } from '@cropa/ui';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { AnnotationOverlay } from '../../features/editor/annotate/AnnotationOverlay.tsx';
@@ -15,12 +8,14 @@ import { AnnotationProperties } from '../../features/editor/annotate/AnnotationP
 import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
 import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
 import { screenshotPalette } from '../../features/editor/code-frames.ts';
+import { requestCaptureAfterPaint } from '../../features/shell/capture.ts';
 import { publishEditorActions } from '../../features/shell/editor-actions.ts';
 import { useViewActive } from '../../features/shell/view-active.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
-import { exportPlan, type ExportScale } from '../../features/editor/export/plan.ts';
+import { type ExportScale } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
+import { LayoutPanel } from '../../features/editor/LayoutPanel.tsx';
 import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
 import { beginBackgroundChange } from '../../features/editor/background-images.ts';
 import { dataUrlToBitmap } from '../../features/editor/load-image.ts';
@@ -47,9 +42,6 @@ interface Loaded {
   capturedAt: number | null;
 }
 
-const FORMATS: readonly ExportFormat[] = ['png', 'jpeg', 'webp'];
-const SCALES: readonly ExportScale[] = [1, 2];
-
 const placeholder = defaultScene({ width: 1, height: 1 });
 
 function findEdgeColor(bitmap: ImageBitmap): string | null {
@@ -64,15 +56,6 @@ function findEdgeColor(bitmap: ImageBitmap): string | null {
   }
 }
 
-function UndoIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 3.5 3 6.5l3 3" />
-      <path d="M3 6.5h6.5a3.5 3.5 0 0 1 0 7H7" />
-    </svg>
-  );
-}
-
 function CloseIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
@@ -81,24 +64,18 @@ function CloseIcon() {
   );
 }
 
-function GripIcon() {
+/** Two crop corners around a square: the mark of an empty canvas. */
+function EmptyMark() {
   return (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <circle cx="5.5" cy="3.5" r="1.25" />
-      <circle cx="10.5" cy="3.5" r="1.25" />
-      <circle cx="5.5" cy="8" r="1.25" />
-      <circle cx="10.5" cy="8" r="1.25" />
-      <circle cx="5.5" cy="12.5" r="1.25" />
-      <circle cx="10.5" cy="12.5" r="1.25" />
-    </svg>
-  );
-}
-
-function RedoIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m10 3.5 3 3-3 3" />
-      <path d="M13 6.5H6.5a3.5 3.5 0 0 0 0 7H9" />
+    <svg viewBox="0 0 48 48" className="size-14 text-tertiary-foreground" fill="none" aria-hidden="true">
+      <path
+        d="M13 5v24a6 6 0 0 0 6 6h24M5 13h24a6 6 0 0 1 6 6v24"
+        stroke="currentColor"
+        strokeWidth="3"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <rect x="19" y="19" width="10" height="10" rx="2" fill="currentColor" opacity="0.5" />
     </svg>
   );
 }
@@ -112,7 +89,6 @@ export function EditorView() {
   const [error, setError] = useState<UserError>();
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; });
-  const [saveAsOpen, setSaveAsOpen] = useState(false);
   const [format, setFormat] = useState<ExportFormat>('png');
   const [scale, setScale] = useState<ExportScale>(2);
   const history = useSceneHistory(placeholder);
@@ -144,6 +120,7 @@ export function EditorView() {
   // An export error wins over the warning that a layer was left out.
   const exportProblem = exporter.error ?? exporter.warning;
   const { busy, quickSave, saveAs, copy, reveal, dragHandlers } = exporter;
+  const saveAsChosen = useCallback(() => saveAs(format, scale), [saveAs, format, scale]);
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
 
@@ -223,7 +200,7 @@ export function EditorView() {
       else if (is('y') || (is('z') && event.shiftKey)) redo();
       else if (is('s')) {
         if (hasImage) {
-          if (event.shiftKey) setSaveAsOpen(true);
+          if (event.shiftKey) void saveAsChosen();
           else void quickSave();
         }
       } else if (is('c') && !event.shiftKey) {
@@ -235,10 +212,7 @@ export function EditorView() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => { window.removeEventListener('keydown', onKeyDown); };
-  }, [active, undo, redo, quickSave, copy, hasImage]);
-
-  const scaleFixed = history.scene.output.width !== null;
-  const fixedSize = exportPlan(history.scene, format, scale);
+  }, [active, undo, redo, quickSave, saveAsChosen, copy, hasImage]);
 
   useEffect(() => {
     publishEditorActions({
@@ -250,205 +224,112 @@ export function EditorView() {
       redo,
       copy: () => { void copy(); },
       quickSave: () => { void quickSave(); },
-      saveAs: () => { setSaveAsOpen(true); },
+      saveAs: () => { void saveAsChosen(); },
     });
-  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSave]);
+  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSave, saveAsChosen]);
   useEffect(() => () => { publishEditorActions(null); }, []);
 
-  // Undo, redo and export float over the top right of the canvas.
-  const actionBar = (
-    <div className="absolute top-3 right-3 z-10 flex items-center gap-1 rounded-full border bg-popover p-1 shadow-md">
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t('editor.undo')}
-        title={`${t('editor.undo')} (Ctrl+Z)`}
-        disabled={!loaded || !history.canUndo}
-        onClick={undo}
-      >
-        <UndoIcon />
-      </Button>
-      <Button
-        variant="ghost"
-        size="icon-sm"
-        aria-label={t('editor.redo')}
-        title={`${t('editor.redo')} (Ctrl+Y)`}
-        disabled={!loaded || !history.canRedo}
-        onClick={redo}
-      >
-        <RedoIcon />
-      </Button>
-      <div className="mx-1 h-5 w-px bg-border" aria-hidden="true" />
-      <Button
-        variant="ghost"
-        size="sm"
-        className="cursor-grab touch-none select-none"
-        title={t('editor.export.dragHint')}
-        draggable={false}
-        disabled={!loaded || busy}
-        {...dragHandlers}
-      >
-        <GripIcon />
-        {t('editor.export.drag')}
-      </Button>
-      <Button
-        variant="ghost"
-        size="sm"
-        title={`${t('editor.export.copy')} (Ctrl+C)`}
-        disabled={!loaded || busy}
-        onClick={() => { void copy(); }}
-      >
-        {t('editor.export.copy')}
-      </Button>
-      <Popover open={saveAsOpen} onOpenChange={setSaveAsOpen}>
-        <PopoverAnchor asChild>
+  const [captureError, setCaptureError] = useState<UserError>();
+  const captureRegion = () => {
+    requestCaptureAfterPaint().catch((cause: unknown) => {
+      setCaptureError(describeUnexpected(t, cause));
+    });
+  };
+
+  // Notices stack at the top centre of the canvas and slide in.
+  const notices = (
+    <div className="pointer-events-none absolute top-3 left-1/2 z-10 flex w-[min(28rem,calc(100%-1.5rem))] -translate-x-1/2 flex-col items-stretch gap-2">
+      {error ? (
+        <div className="pointer-events-auto">
+          <ErrorNotice error={error} />
+        </div>
+      ) : (
+        exportProblem && (
+          <div className="pointer-events-auto">
+            <ErrorNotice
+              error={exportProblem}
+              onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
+            />
+          </div>
+        )
+      )}
+      {exporter.notice && (
+        <div
+          role="status"
+          className="pointer-events-auto flex animate-notice-in items-center gap-2 self-center rounded-full bg-card py-1 pr-1 pl-4 text-control-sm shadow-soft"
+        >
+          <span>
+            {exporter.notice.kind === 'saved' && t('editor.export.saved', { fileName: exporter.notice.file.fileName })}
+            {exporter.notice.kind === 'copied' && t('editor.export.copied')}
+            {exporter.notice.kind === 'dragHint' && t('editor.export.dragHold')}
+          </span>
+          {exporter.notice.kind === 'saved' && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                if (exporter.notice?.kind === 'saved') void reveal(exporter.notice.file.id);
+              }}
+            >
+              {t('editor.export.openFolder')}
+            </Button>
+          )}
           <Button
             variant="ghost"
-            size="sm"
-            title={`${t('editor.export.saveAs')} (Ctrl+Shift+S)`}
-            disabled={!loaded || busy}
-            onClick={() => { setSaveAsOpen((open) => !open); }}
+            size="icon-sm"
+            aria-label={t('editor.dismiss')}
+            onClick={exporter.dismissNotice}
           >
-            {t('editor.export.saveAs')}
+            <CloseIcon />
           </Button>
-        </PopoverAnchor>
-        <PopoverContent className="flex flex-col gap-4">
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">{t('editor.export.format')}</span>
-            <SegmentedControl
-              aria-label={t('editor.export.format')}
-              value={format}
-              onValueChange={(next) => { setFormat(next as ExportFormat); }}
-            >
-              {FORMATS.map((f) => (
-                <SegmentedControlItem key={f} value={f}>
-                  {f.toUpperCase()}
-                </SegmentedControlItem>
-              ))}
-            </SegmentedControl>
-          </div>
-          <div className="flex flex-col gap-2">
-            <span className="text-sm font-medium">{t('editor.export.scale')}</span>
-            <SegmentedControl
-              aria-label={t('editor.export.scale')}
-              value={String(scaleFixed ? 1 : scale)}
-              disabled={scaleFixed}
-              onValueChange={(next) => { setScale(Number(next) as ExportScale); }}
-            >
-              {SCALES.map((s) => (
-                <SegmentedControlItem key={s} value={String(s)}>
-                  {`${String(s)}x`}
-                </SegmentedControlItem>
-              ))}
-            </SegmentedControl>
-            {scaleFixed && (
-              <p className="text-sm text-muted-foreground tabular-nums">
-                {t('editor.export.scaleFixed', {
-                  width: fixedSize.width,
-                  height: fixedSize.height,
-                })}
-              </p>
-            )}
-          </div>
-          <Button
-            className="w-full"
-            onClick={() => {
-              setSaveAsOpen(false);
-              void saveAs(format, scale);
-            }}
-          >
-            {t('editor.export.saveAsConfirm')}
-          </Button>
-        </PopoverContent>
-      </Popover>
-      <Button
-        size="sm"
-        title={`${t('editor.export.save')} (Ctrl+S)`}
-        disabled={!loaded || busy}
-        onClick={() => { void quickSave(); }}
-      >
-        {t('editor.export.save')}
-      </Button>
+        </div>
+      )}
     </div>
   );
 
   return (
-    <main className="flex min-w-0 flex-1">
+    <main className="flex min-w-0 flex-1 gap-1.5 p-1.5 pl-0">
       {loaded ? (
         <>
-          <EditorSidebar
-            history={history}
-            imageSize={{ width: loaded.bitmap.width, height: loaded.bitmap.height }}
-            edgeColor={loaded.edge}
-            palette={loaded.palette}
-          />
+          <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
           <section className="relative flex min-w-0 flex-1 bg-canvas">
-            <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
             <ScenePreview
               scene={displayScene}
               bitmap={loaded.bitmap}
+              bottomInset={showProperties ? 112 : 56}
               overlay={(geometry) => (
                 <AnnotationOverlay annotate={annotate} scene={displayScene} geometry={geometry} />
               )}
             />
-            {actionBar}
-            {/* The annotation properties and the notices stack under the action bar, so they never overlap. */}
-            <div className="pointer-events-none absolute top-16 right-3 left-20 z-10 flex flex-col items-end gap-2">
+            {notices}
+            {/* The properties float just above the toolbar, so the two read as one group. */}
+            <div className="pointer-events-none absolute inset-x-3 bottom-[60px] z-10 flex justify-center">
               {showProperties && <AnnotationProperties annotate={annotate} />}
-              {error ? (
-                <div className="pointer-events-auto self-stretch">
-                  <ErrorNotice error={error} />
-                </div>
-              ) : (
-                exportProblem && (
-                  <div className="pointer-events-auto self-stretch">
-                    <ErrorNotice
-                      error={exportProblem}
-                      onDismiss={exporter.error ? exporter.dismissError : exporter.dismissWarning}
-                    />
-                  </div>
-                )
-              )}
             </div>
-            {exporter.notice && (
-              <div
-                role="status"
-                className="absolute bottom-4 left-1/2 flex -translate-x-1/2 items-center gap-2 rounded-full border bg-popover py-1 pr-1 pl-4 text-sm shadow-md"
-              >
-                <span>
-                  {exporter.notice.kind === 'saved' && t('editor.export.saved', { fileName: exporter.notice.file.fileName })}
-                  {exporter.notice.kind === 'copied' && t('editor.export.copied')}
-                  {exporter.notice.kind === 'dragHint' && t('editor.export.dragHold')}
-                </span>
-                {exporter.notice.kind === 'saved' && (
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => {
-                      if (exporter.notice?.kind === 'saved') void reveal(exporter.notice.file.id);
-                    }}
-                  >
-                    {t('editor.export.openFolder')}
-                  </Button>
-                )}
-                <Button
-                  variant="ghost"
-                  size="icon-sm"
-                  aria-label={t('editor.dismiss')}
-                  onClick={exporter.dismissNotice}
-                >
-                  <CloseIcon />
-                </Button>
-              </div>
-            )}
+            <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
           </section>
+          <LayoutPanel
+            history={history}
+            imageSize={{ width: loaded.bitmap.width, height: loaded.bitmap.height }}
+            format={format}
+            onFormat={setFormat}
+            scale={scale}
+            onScale={setScale}
+            busy={busy}
+            onSaveAs={() => { void saveAsChosen(); }}
+            dragHandlers={dragHandlers}
+          />
         </>
       ) : (
         <section className="relative flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
-          {actionBar}
-          {error && <ErrorNotice error={error} />}
-          <p className="text-lg text-foreground">{t('editor.empty')}</p>
-          {shortcut && <p>{t('editor.hint', { shortcut })}</p>}
+          {notices}
+          <EmptyMark />
+          <p className="text-heading text-foreground">{t('editor.empty')}</p>
+          {shortcut && <p className="max-w-sm text-control-sm font-normal">{t('editor.hint', { shortcut })}</p>}
+          {captureError && <ErrorNotice error={captureError} onDismiss={() => { setCaptureError(undefined); }} />}
+          <Button className="mt-1" onClick={captureRegion}>
+            {t('menu.file.captureRegion')}
+          </Button>
         </section>
       )}
     </main>

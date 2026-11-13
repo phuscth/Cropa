@@ -51,10 +51,15 @@ import type { SceneHistory } from '../use-scene-history.ts';
 import { isAiPreset, presetFileProblem } from './preset-file.ts';
 import { presetThumbnail } from './thumbnails.ts';
 
+/** The anchor of the presets section, which the editor panel's preset card scrolls to. */
+export const PRESETS_SECTION_ID = 'editor-presets';
+
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'edit'>;
   /** Called before a preset file is exported, so the status line is on screen. */
   onExport?: () => void;
+  /** Reports the name of the preset the background matches, or undefined when it matches none. */
+  onCurrent?: (name: string | undefined) => void;
 }
 
 type Mode =
@@ -98,7 +103,7 @@ function DotsIcon() {
 }
 
 /** A preview of a background; a neutral box until it is drawn. */
-function PresetThumb({ background }: { background: BackgroundSpec }) {
+export function PresetThumb({ background }: { background: BackgroundSpec }) {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
     let alive = true;
@@ -138,7 +143,7 @@ function PresetTile({ value, name, background, menu, testId }: PresetTileProps) 
           {isAiPreset(background) && (
             <span
               aria-hidden="true"
-              className="pointer-events-none absolute top-1 left-1 rounded bg-background/80 px-1 text-[10px] leading-4 font-medium"
+              className="pointer-events-none absolute top-2.5 left-2.5 rounded bg-background/80 px-1 text-[10px] leading-4 font-medium"
             >
               {t('editor.presets.aiBadge')}
             </span>
@@ -152,7 +157,7 @@ function PresetTile({ value, name, background, menu, testId }: PresetTileProps) 
   );
 }
 
-export function PresetsSection({ history, onExport }: Props) {
+export function PresetsSection({ history, onExport, onCurrent }: Props) {
   const { t, i18n } = useTranslation();
   const { scene, edit } = history;
   const [library, setLibrary] = useState<Library>({ presets: [], unreadable: [] });
@@ -319,6 +324,11 @@ export function PresetsSection({ history, onExport }: Props) {
   const selectedBuiltin = builtins.find((preset) => sameBackground(scene.background, preset.background));
   const selectedSaved = library.presets.find((preset) => sameBackground(scene.background, preset.background));
 
+  const currentName = selectedBuiltin
+    ? presetName(selectedBuiltin, i18n.language)
+    : selectedSaved?.name;
+  useEffect(() => { onCurrent?.(currentName); }, [currentName, onCurrent]);
+
   // The File menu exports the background on screen, under the name of the preset it matches.
   const exportCurrent = () => {
     onExport?.();
@@ -333,6 +343,7 @@ export function PresetsSection({ history, onExport }: Props) {
 
   return (
     <Section
+      id={PRESETS_SECTION_ID}
       title={t('editor.presets.title')}
       actions={
         <>
@@ -393,9 +404,9 @@ export function PresetsSection({ history, onExport }: Props) {
         ))}
       </TileGroup>
 
-      <h4 className="mt-2 text-xs text-muted-foreground">{t('editor.presets.saved')}</h4>
+      <h4 className="text-caption mt-1">{t('editor.presets.saved')}</h4>
       {library.presets.length === 0 && library.unreadable.length === 0 && (
-        <p className="text-sm text-muted-foreground">{t('editor.presets.empty')}</p>
+        <p className="text-caption">{t('editor.presets.empty')}</p>
       )}
       {library.presets.length > 0 && (
         <TileGroup
@@ -418,7 +429,7 @@ export function PresetsSection({ history, onExport }: Props) {
                     <Button
                       variant="secondary"
                       size="icon"
-                      className="absolute top-1 right-1 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
+                      className="absolute top-2.5 right-2.5 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100 data-[state=open]:opacity-100"
                       aria-label={t('editor.presets.more', { name: preset.name })}
                     >
                       <DotsIcon />
@@ -445,7 +456,7 @@ export function PresetsSection({ history, onExport }: Props) {
         </TileGroup>
       )}
       {library.unreadable.map((entry) => (
-        <div key={entry.id} className="flex items-center justify-between gap-2 text-sm text-muted-foreground">
+        <div key={entry.id} className="text-caption flex items-center justify-between gap-2">
           <span className="min-w-0 truncate">{t('editor.presets.unreadable', { name: entry.name })}</span>
           <Button
             variant="ghost"
@@ -460,7 +471,7 @@ export function PresetsSection({ history, onExport }: Props) {
         </div>
       ))}
 
-      {status && <p className="text-sm text-muted-foreground">{status}</p>}
+      {status && <p className="text-caption">{status}</p>}
 
       {mode && (
         <form
@@ -474,7 +485,7 @@ export function PresetsSection({ history, onExport }: Props) {
           }}
         >
           {mode.kind === 'delete' ? (
-            <p className="text-sm">{t('editor.presets.deleteConfirm', { name: mode.preset.name })}</p>
+            <p className="text-control-sm">{t('editor.presets.deleteConfirm', { name: mode.preset.name })}</p>
           ) : (
             <Input
               autoFocus

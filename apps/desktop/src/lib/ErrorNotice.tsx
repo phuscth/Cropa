@@ -9,12 +9,13 @@ interface Props {
   onDismiss?: () => void;
 }
 
+/** A soft red notice that slides up and fades in; it says what happened, why and what to do. */
 export function ErrorNotice({ error, onDismiss }: Props) {
   const { t } = useTranslation();
   return (
     <div
       role="alert"
-      className="relative rounded-xl border border-destructive/40 bg-destructive/5 p-4 text-sm"
+      className="relative animate-notice-in rounded-xl bg-danger-soft p-4 text-control-sm font-normal"
     >
       <p className={onDismiss ? 'pr-8 font-medium text-destructive' : 'font-medium text-destructive'}>
         {error.what}

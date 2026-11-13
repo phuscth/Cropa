@@ -7,19 +7,20 @@ import type { ReactNode } from 'react';
 export function Section({
   title,
   actions,
+  id,
   children,
 }: {
   title: string;
   actions?: ReactNode;
+  /** An anchor, so another part of the panel can scroll the section into view. */
+  id?: string;
   children: ReactNode;
 }) {
   return (
-    <section className="flex flex-col gap-2">
-      <div className="flex min-h-6 items-center justify-between gap-2">
-        <h3 className="text-[11px] font-medium tracking-[0.04em] text-muted-foreground uppercase">
-          {title}
-        </h3>
-        {actions && <div className="-my-1 flex items-center gap-1">{actions}</div>}
+    <section id={id} className="flex scroll-mt-3 flex-col gap-2.5">
+      <div className="flex min-h-5 items-center justify-between gap-2">
+        <h3 className="text-section">{title}</h3>
+        {actions && <div className="-my-1.5 flex items-center gap-1">{actions}</div>}
       </div>
       {children}
     </section>
@@ -36,10 +37,10 @@ export function Row({
   children: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-1">
-      <div className="flex items-baseline justify-between gap-2 text-sm">
+    <div className="flex flex-col gap-1.5">
+      <div className="text-caption flex items-baseline justify-between gap-2">
         <span>{label}</span>
-        {value !== undefined && <span className="text-muted-foreground tabular-nums">{value}</span>}
+        {value !== undefined && <span className="tabular-nums">{value}</span>}
       </div>
       {children}
     </div>

@@ -208,7 +208,7 @@ export function BackgroundImages({ history }: Props) {
 
       {images.length > 0 && (
         <>
-          <h4 className="mt-1 text-xs text-muted-foreground">{t('editor.background.images.yours')}</h4>
+          <h4 className="text-caption mt-1">{t('editor.background.images.yours')}</h4>
           <TileGroup
             aria-label={t('editor.background.images.yours')}
             value={current ?? undefined}
@@ -223,7 +223,7 @@ export function BackgroundImages({ history }: Props) {
                   <Button
                     variant="secondary"
                     size="icon"
-                    className="absolute top-1 right-1 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
+                    className="absolute top-2.5 right-2.5 size-5 bg-background/80 opacity-0 group-focus-within:opacity-100 group-hover:opacity-100"
                     aria-label={t('editor.background.images.more', { name: image.name })}
                     onClick={() => { setDeleting(image); }}
                   >

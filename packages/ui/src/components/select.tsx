@@ -58,7 +58,7 @@ function SelectContent({
         position={position}
         sideOffset={4}
         className={cn(
-          'relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) overflow-y-auto rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg',
+          'relative z-50 max-h-(--radix-select-content-available-height) min-w-(--radix-select-trigger-width) origin-(--radix-select-content-transform-origin) animate-menu-in overflow-y-auto rounded-xl bg-popover p-1 text-popover-foreground shadow-menu',
           className,
         )}
         {...props}
@@ -78,7 +78,7 @@ function SelectItem({
     <SelectPrimitive.Item
       data-slot="select-item"
       className={cn(
-        'relative flex h-9 w-full cursor-default items-center rounded-md pr-8 pl-2.5 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground',
+        'relative flex h-8 w-full cursor-default items-center rounded-md pr-8 pl-2.5 text-control-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-foreground',
         className,
       )}
       {...props}

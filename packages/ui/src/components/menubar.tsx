@@ -4,10 +4,10 @@ import type { ComponentProps } from 'react';
 import { cn } from '../lib/utils.ts';
 
 const itemClass =
-  'relative flex h-9 cursor-default items-center gap-2 rounded-md px-2.5 text-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-accent-foreground';
+  'relative flex h-8 cursor-default items-center gap-2 rounded-md px-2.5 text-control-sm outline-none select-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-accent data-[highlighted]:text-foreground';
 
 const contentClass =
-  'z-50 min-w-40 rounded-lg border bg-popover p-1 text-popover-foreground shadow-lg';
+  'z-50 min-w-40 origin-(--radix-menubar-content-transform-origin) animate-menu-in rounded-xl bg-popover p-1 text-popover-foreground shadow-menu';
 
 /** A row of menus: hovering moves between open menus, and Left and Right switch them. */
 function Menubar({ className, ...props }: ComponentProps<typeof MenubarPrimitive.Root>) {
@@ -32,7 +32,7 @@ function MenubarTrigger({
     <MenubarPrimitive.Trigger
       data-slot="menubar-trigger"
       className={cn(
-        'h-7 rounded-md px-2.5 text-sm text-muted-foreground outline-none transition-colors duration-150 ease-enter hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-[state=open]:bg-accent data-[state=open]:text-foreground',
+        'focus-ring h-7 rounded-md px-2.5 text-control-sm text-muted-foreground transition-colors duration-150 ease-enter hover:bg-accent hover:text-foreground data-[state=open]:bg-accent data-[state=open]:text-foreground',
         className,
       )}
       {...props}
@@ -81,7 +81,7 @@ function MenubarShortcut({ className, ...props }: ComponentProps<'span'>) {
   return (
     <span
       data-slot="menubar-shortcut"
-      className={cn('ml-auto pl-6 text-xs text-muted-foreground', className)}
+      className={cn('ml-auto pl-6 text-caption', className)}
       {...props}
     />
   );
@@ -146,7 +146,7 @@ function MenubarSubContent({
     <MenubarPrimitive.Portal>
       <MenubarPrimitive.SubContent
         data-slot="menubar-sub-content"
-        className={cn(contentClass, className)}
+        className={cn(contentClass, 'origin-(--radix-menubar-sub-content-transform-origin)', className)}
         {...props}
       />
     </MenubarPrimitive.Portal>

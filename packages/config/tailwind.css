@@ -2,11 +2,12 @@
  * Cropa design tokens (Tailwind v4 + shadcn/ui).
  * Import after `@import "tailwindcss";` in each app's entry CSS.
  *
- * Colours, radii, shadows and easing curves are adapted from the theme of
- * n8n-io/nod (Apache-2.0, see THIRD_PARTY_NOTICES.md) and changed for an
- * image editor: surfaces are neutral grays so the colours of a screenshot are
- * judged correctly, and pink marks only the primary action, the selection, the
- * focus ring and the active tool. Light and dark follow the operating system.
+ * The chrome is monochrome with one blue accent, so the colours of a
+ * screenshot are judged correctly. Three neutral layers stack from the window
+ * surround, to the floating panel, to the raised card or active control. The
+ * accent marks focus, the active tool, switches that are on and links; a
+ * selected tile is ringed in the text colour. Light and dark follow the
+ * operating system.
  */
 @custom-variant dark (@media (prefers-color-scheme: dark));
 
@@ -14,110 +15,118 @@
   color-scheme: light;
   --radius: 0.75rem;
 
-  /* App chrome. */
-  --background: #fafafa;
-  --foreground: #191919;
+  /* The window surround: what the panels float on, and the rail's surface. */
+  --background: #dadada;
+  --foreground: #000000;
+  /* Raised: cards, the active segment, menus and popovers. */
   --card: #ffffff;
-  --card-foreground: #191919;
+  --card-foreground: #000000;
   --popover: #ffffff;
-  --popover-foreground: #191919;
-  --primary: #ff91ac;
-  --primary-foreground: #191919;
-  /*
-   * Secondary and accent are see-through, so a control or menu row stays
-   * visible on any surface it sits on: chrome, card, popover or canvas.
-   */
-  --secondary: color-mix(in srgb, #191919 8%, transparent);
-  --secondary-foreground: #191919;
-  --muted: #f1f1f1;
-  --muted-foreground: #676767;
+  --popover-foreground: #000000;
+  --primary: #111111;
+  --primary-foreground: #ffffff;
+  /* Secondary control fill: tracks, small buttons and tile thumbnails. */
+  --secondary: #e0e0e0;
+  --secondary-foreground: #000000;
+  --muted: #e6e6e6;
+  --muted-foreground: rgba(0, 0, 0, 0.6);
+  --tertiary-foreground: rgba(0, 0, 0, 0.36);
   /* Neutral hover surface for ghost and outline controls and menu items. */
-  --accent: color-mix(in srgb, #191919 7%, transparent);
-  --accent-foreground: #191919;
-  --destructive: #ad2943;
-  --destructive-foreground: #fafafa;
-  --border: #e0e0e0;
-  --input: #d6d6d6;
-  --ring: #87003c;
+  --accent: rgba(0, 0, 0, 0.06);
+  --accent-foreground: #000000;
+  --destructive: #d62f2f;
+  --destructive-foreground: #ffffff;
+  --border: rgba(0, 0, 0, 0.08);
+  --input: rgba(0, 0, 0, 0.12);
+  /* The one accent: focus ring, active tool, switches that are on, links. */
+  --ring: #0a84ff;
 
-  /* Active tool, selected item and text selection. */
-  --selected: #ffd0d9;
-  --selected-foreground: #87003c;
+  /* Active navigation item and selected row: a raised neutral, never a colour. */
+  --selected: #ffffff;
+  --selected-foreground: #000000;
 
-  /* The area behind the image, and the checkerboard shown under transparency. */
-  --canvas: #eaeaea;
-  /* Side surface of the chrome: the settings section list and the editor sidebar. */
-  --sidebar: #f5f5f5;
-  /* The editor panel: a step darker than the side surface in light mode, a step lighter in dark mode. */
-  --panel: #efefef;
-  --canvas-foreground: #676767;
+  /* The area behind the image; neutral and the same as the window, so it reads as open space. */
+  --canvas: #dadada;
+  --sidebar: #dadada;
+  /* The floating panels. */
+  --panel: #eeeeee;
+  --canvas-foreground: rgba(0, 0, 0, 0.6);
   --checker-a: #ffffff;
   --checker-b: #d6d6d6;
 
-  --success: #276346;
-  --success-soft: #eaf5ee;
-  --warning: #82551c;
-  --warning-soft: #fbf1df;
-  --info: #6551a5;
-  --info-soft: #f0edf9;
+  --success: #1f8a35;
+  --success-soft: rgba(67, 210, 90, 0.16);
+  --warning: #8a6200;
+  --warning-soft: rgba(255, 183, 0, 0.18);
+  --info: #0a6fd6;
+  --info-soft: rgba(10, 132, 255, 0.12);
+  --danger-soft: rgba(255, 68, 68, 0.1);
 
-  --shadow-color: color-mix(in srgb, #191919 4%, transparent);
-  --shadow-overlay: color-mix(in srgb, #191919 12%, transparent);
+  --elev-soft: 0 5px 15px -5px rgba(0, 0, 0, 0.16);
+  --elev-soft-hover: 0 8px 20px -6px rgba(0, 0, 0, 0.24);
+  --elev-menu: 0 12px 32px rgba(0, 0, 0, 0.18);
+  --shadow-color: rgba(0, 0, 0, 0.06);
+  --shadow-overlay: rgba(0, 0, 0, 0.18);
 }
 
 @media (prefers-color-scheme: dark) {
   :root {
     color-scheme: dark;
 
-    --background: #191919;
-    --foreground: #fafafa;
-    --card: #242424;
-    --card-foreground: #fafafa;
-    --popover: #353535;
-    --popover-foreground: #fafafa;
-    --primary: #ff91ac;
-    --primary-foreground: #191919;
-    /* See-through like secondary and accent, so they also show on a card or popover. */
-    --secondary: color-mix(in srgb, #fafafa 12%, transparent);
-    --secondary-foreground: #fafafa;
-    --muted: color-mix(in srgb, #fafafa 6%, transparent);
-    --muted-foreground: #bfbfbf;
-    --accent: color-mix(in srgb, #fafafa 10%, transparent);
-    --accent-foreground: #fafafa;
-    --destructive: #ff6b6b;
-    --destructive-foreground: #191919;
-    --border: color-mix(in srgb, #fafafa 13%, transparent);
-    --input: color-mix(in srgb, #fafafa 22%, transparent);
-    --ring: #ff91ac;
+    --background: #0d0d0d;
+    --foreground: #ffffff;
+    --card: #2e2e30;
+    --card-foreground: #ffffff;
+    --popover: #2e2e30;
+    --popover-foreground: #ffffff;
+    --primary: #ffffff;
+    --primary-foreground: #000000;
+    --secondary: #3a3a3c;
+    --secondary-foreground: #ffffff;
+    --muted: #262628;
+    --muted-foreground: rgba(255, 255, 255, 0.6);
+    --tertiary-foreground: rgba(255, 255, 255, 0.36);
+    --accent: rgba(255, 255, 255, 0.08);
+    --accent-foreground: #ffffff;
+    --destructive: #ff5c5c;
+    --destructive-foreground: #000000;
+    --border: rgba(255, 255, 255, 0.08);
+    --input: rgba(255, 255, 255, 0.12);
+    --ring: #3b9bff;
 
-    --selected: #5a0026;
-    --selected-foreground: #ffd0d9;
+    --selected: #2e2e30;
+    --selected-foreground: #ffffff;
 
-    --canvas: #141414;
-    --sidebar: #202020;
-    --panel: #262626;
-    --canvas-foreground: #a4a4a4;
+    --canvas: #0d0d0d;
+    --sidebar: #0d0d0d;
+    --panel: #1c1c1e;
+    --canvas-foreground: rgba(255, 255, 255, 0.6);
     --checker-a: #464646;
     --checker-b: #353535;
 
-    --success: #96d6b0;
-    --success-soft: #23372d;
-    --warning: #e8c38e;
-    --warning-soft: #3a3023;
-    --info: #c5b5f5;
-    --info-soft: #312b42;
+    --success: #5be072;
+    --success-soft: rgba(67, 210, 90, 0.16);
+    --warning: #ffc633;
+    --warning-soft: rgba(255, 183, 0, 0.16);
+    --info: #5eb0ff;
+    --info-soft: rgba(59, 155, 255, 0.16);
+    --danger-soft: rgba(255, 68, 68, 0.16);
 
-    --shadow-color: #00000026;
-    --shadow-overlay: #00000059;
+    --elev-soft: 0 5px 15px -5px rgba(0, 0, 0, 0.5);
+    --elev-soft-hover: 0 8px 20px -6px rgba(0, 0, 0, 0.65);
+    --elev-menu: 0 12px 32px rgba(0, 0, 0, 0.55);
+    --shadow-color: rgba(0, 0, 0, 0.3);
+    --shadow-overlay: rgba(0, 0, 0, 0.5);
   }
 }
 
 @theme inline {
-  /* md: menu items (8px), lg: inputs, selects, menus and popovers (12px), xl: cards and dialogs (16px). */
-  --radius-sm: calc(var(--radius) - 6px);
-  --radius-md: calc(var(--radius) - 4px);
-  --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
+  /* md: menu items (8px), lg: inputs and buttons (10px), xl: cards, menus and popovers (12px), 2xl: panels (16px). */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 16px;
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);
@@ -130,6 +139,7 @@
   --color-secondary-foreground: var(--secondary-foreground);
   --color-muted: var(--muted);
   --color-muted-foreground: var(--muted-foreground);
+  --color-tertiary-foreground: var(--tertiary-foreground);
   --color-accent: var(--accent);
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
@@ -137,6 +147,7 @@
   --color-border: var(--border);
   --color-input: var(--input);
   --color-ring: var(--ring);
+  --color-highlight: var(--ring);
   --color-selected: var(--selected);
   --color-selected-foreground: var(--selected-foreground);
   --color-sidebar: var(--sidebar);
@@ -151,18 +162,91 @@
   --color-warning-soft: var(--warning-soft);
   --color-info: var(--info);
   --color-info-soft: var(--info-soft);
+  --color-danger-soft: var(--danger-soft);
   --shadow-xs: 0 1px 2px var(--shadow-color);
   --shadow-sm: 0 1px 3px var(--shadow-color);
   --shadow-md: 0 6px 24px var(--shadow-color), 0 1px 3px var(--shadow-color);
   --shadow-lg: 0 12px 32px var(--shadow-overlay), 0 2px 8px var(--shadow-color);
   --shadow-xl: 0 24px 80px var(--shadow-overlay);
+  --shadow-soft: var(--elev-soft);
+  --shadow-soft-hover: var(--elev-soft-hover);
+  --shadow-menu: var(--elev-menu);
 }
 
 @theme {
-  --font-sans: 'Geist Variable', system-ui, 'Segoe UI', sans-serif;
+  --font-sans: 'Inter Variable', system-ui, 'Segoe UI', sans-serif;
   --ease-enter: cubic-bezier(0.23, 1, 0.32, 1);
   --ease-reveal: cubic-bezier(0.2, 0.8, 0.2, 1);
   --ease-travel: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --animate-menu-in: menu-in 160ms var(--ease-enter);
+  --animate-fade-in: fade-in 200ms var(--ease-enter);
+  --animate-notice-in: notice-in 200ms var(--ease-enter);
+  --animate-tab-in: tab-in 200ms var(--ease-enter);
+
+  /* Movement distances, zeroed under reduced motion so only the fades remain. */
+  --motion-scale-from: 0.96;
+  --motion-rise: 8px;
+  --motion-slide: 6px;
+}
+
+@keyframes menu-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--motion-scale-from));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes notice-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-rise));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A panel's content entering from the side of the tab that was chosen. */
+@keyframes tab-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--tab-from, 0px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --motion-scale-from: 1;
+    --motion-rise: 0px;
+    --motion-slide: 0px;
+    --press-scale: 1;
+  }
+  /* Indicators, lifts and presses change at once; fades keep their duration through animations. */
+  *,
+  ::before,
+  ::after {
+    transition-duration: 0.01ms !important;
+    transition-delay: 0s !important;
+  }
 }
 
 /*
@@ -180,33 +264,53 @@
   background-size: 16px 16px;
 }
 
+/* Keyboard focus: a 2px accent ring with a 2px gap, following the element's radius. */
+@utility focus-ring {
+  outline: none;
+  &:focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+  }
+}
+
+/* Presses scale to .97 in 150ms. */
+@utility press {
+  transition-property: transform, color, background-color, border-color, box-shadow, opacity;
+  transition-duration: 150ms;
+  transition-timing-function: var(--ease-enter);
+  &:active:not(:disabled) {
+    transform: scale(var(--press-scale, 0.97));
+  }
+}
+
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
   :root {
-    accent-color: var(--primary);
+    accent-color: var(--ring);
     scrollbar-color: var(--input) transparent;
+    scrollbar-width: thin;
   }
   input,
   textarea {
-    caret-color: var(--primary);
+    caret-color: var(--ring);
   }
   ::selection {
-    background-color: var(--selected);
-    color: var(--selected-foreground);
+    background-color: color-mix(in srgb, var(--ring) 25%, transparent);
   }
   body {
-    @apply bg-background text-base leading-[1.6] text-foreground antialiased;
+    @apply bg-background text-[15px] leading-[1.5] text-foreground antialiased;
+    letter-spacing: -0.01em;
   }
 }
 
 /* Window or page title. */
 @utility text-title {
-  font-size: 32px;
+  font-size: 30px;
   line-height: 1.2;
-  font-weight: 500;
-  letter-spacing: -0.035em;
+  font-weight: 600;
+  letter-spacing: -0.04em;
 }
 
 /* Section heading. */
@@ -215,4 +319,55 @@
   line-height: 1.4;
   font-weight: 500;
   letter-spacing: -0.01em;
+}
+
+/* Panel tab labels. */
+@utility text-tab {
+  font-size: 16px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.6px;
+}
+
+/* Buttons and body controls. */
+@utility text-control {
+  font-size: 15px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+}
+
+/* Small buttons. */
+@utility text-control-sm {
+  font-size: 14px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.4px;
+}
+
+/* Tiny buttons. */
+@utility text-tiny {
+  font-size: 12.5px;
+  line-height: 1.3;
+  font-weight: 500;
+  letter-spacing: -0.2px;
+}
+
+/* Small grey uppercase section labels. */
+@utility text-section {
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--tertiary-foreground);
+}
+
+/* Tile captions and footnotes. */
+@utility text-caption {
+  font-size: 11px;
+  line-height: 1.3;
+  font-weight: 400;
+  letter-spacing: -0.2px;
+  color: var(--muted-foreground);
 }

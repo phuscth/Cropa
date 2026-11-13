@@ -11,31 +11,31 @@ type SliderFieldProps = ComponentProps<typeof SliderPrimitive.Root> & {
 };
 
 /**
- * A single-thumb slider drawn as a full-width track: the filled part is a
- * lighter surface, the label sits inside on the left and the value on the
- * right. The whole track takes clicks and drags. Pass `value` as a one-item
- * array, like Radix.
+ * A single-thumb slider drawn as a full-width 34px track: the filled part is
+ * the raised colour and follows the pointer with no transition, the label sits
+ * inside on the left and the value on the right. The whole track takes clicks
+ * and drags. Pass `value` as a one-item array, like Radix.
  */
 function SliderField({ className, label, valueText, ...props }: SliderFieldProps) {
   return (
     <SliderPrimitive.Root
       data-slot="slider-field"
       className={cn(
-        'relative flex h-9 w-full touch-none items-center rounded-lg select-none has-[[role=slider]:focus-visible]:ring-4 has-[[role=slider]:focus-visible]:ring-primary/16 data-[disabled]:opacity-50',
+        'relative flex h-[34px] w-full touch-none items-center rounded-[10px] select-none has-[[role=slider]:focus-visible]:outline-2 has-[[role=slider]:focus-visible]:outline-offset-2 has-[[role=slider]:focus-visible]:outline-ring data-[disabled]:opacity-50',
         className,
       )}
       {...props}
     >
       <SliderPrimitive.Track
         data-slot="slider-field-track"
-        className="absolute inset-0 overflow-hidden rounded-lg bg-secondary"
+        className="absolute inset-0 overflow-hidden rounded-[10px] bg-secondary"
       >
         <SliderPrimitive.Range
           data-slot="slider-field-range"
-          className="absolute h-full bg-card dark:bg-[color-mix(in_srgb,var(--foreground)_14%,transparent)]"
+          className="absolute h-full bg-card dark:bg-foreground/15"
         />
       </SliderPrimitive.Track>
-      <span aria-hidden="true" className="pointer-events-none absolute inset-x-3 z-10 flex items-center justify-between gap-2 text-sm">
+      <span aria-hidden="true" className="pointer-events-none absolute inset-x-3 z-10 flex items-center justify-between gap-2 text-control-sm">
         <span className="truncate text-muted-foreground">{label}</span>
         <span className="shrink-0 text-muted-foreground tabular-nums">{valueText}</span>
       </span>

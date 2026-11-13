@@ -63,25 +63,25 @@ export function OnboardingWindow() {
     <main className="mx-auto flex max-w-[640px] flex-col gap-6 px-8 py-10">
       <header className="flex flex-col gap-2">
         <h1 className="text-title">{t('onboarding.title')}</h1>
-        <p className="text-base text-muted-foreground">{t('onboarding.welcome')}</p>
+        <p className="text-muted-foreground">{t('onboarding.welcome')}</p>
       </header>
 
       {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
 
       {step === 'autostart' && (
-        <fieldset className="flex flex-col gap-3 rounded-xl border bg-card p-5">
+        <fieldset className="flex flex-col gap-3 rounded-xl bg-card p-5 shadow-soft">
           <legend className="float-left mb-3 w-full text-heading">
             {t('onboarding.autostart.question')}
           </legend>
           {([true, false] as const).map((value) => (
             <label
               key={String(value)}
-              className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-sm transition-colors duration-150 ease-enter hover:border-foreground/30 has-[:checked]:border-primary has-[:checked]:bg-selected/40 has-[:focus-visible]:ring-4 has-[:focus-visible]:ring-primary/16"
+              className="flex min-h-12 cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-control-sm transition-colors duration-150 ease-enter hover:border-foreground/25 has-[:checked]:border-foreground has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-ring"
             >
               <input
                 type="radio"
                 name="autostart"
-                className="size-4 shrink-0"
+                className="size-4 shrink-0 accent-ring"
                 checked={startWithWindows === value}
                 disabled={busy || answeredWithError}
                 onChange={() => { setStartWithWindows(value); }}

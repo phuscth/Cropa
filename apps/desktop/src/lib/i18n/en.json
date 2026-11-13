@@ -79,11 +79,11 @@
         "more": "Delete {{name}}",
         "deleteConfirm": "Delete this image? Presets that use it will show a plain background.",
         "delete": "Delete",
-        "cancel": "Cancel"
+        "cancel": "Cancel",
+        "title": "Images"
       }
     },
     "frame": {
-      "title": "Frame",
       "padding": "Padding",
       "radius": "Corner radius",
       "shadow": "Shadow",
@@ -102,7 +102,8 @@
       "insetAuto": "Auto",
       "insetCustom": "Custom",
       "insetColorPicker": "Pick the inset colour",
-      "insetColorHex": "Inset colour as hex"
+      "insetColorHex": "Inset colour as hex",
+      "corners": "Corners"
     },
     "aspect": {
       "title": "Aspect ratio",
@@ -124,7 +125,6 @@
       "copy": "Copy",
       "save": "Save",
       "saveAs": "Save as…",
-      "saveAsConfirm": "Save as…",
       "format": "Format",
       "scale": "Scale",
       "scaleFixed": "Platform sizes always export at 1x ({{width}} × {{height}} px)",
@@ -133,7 +133,12 @@
       "dragHold": "Hold the mouse button down while you drag the image out",
       "dragHint": "Drag the image into another app, a folder or a chat",
       "copied": "Copied to the clipboard",
-      "openFolder": "Open folder"
+      "openFolder": "Open folder",
+      "title": "Export",
+      "saveAsOptions": "These apply to Save as",
+      "saveQuick": "Save PNG at 2×",
+      "saveAsFormat": "Save as format",
+      "saveAsScale": "Save as scale"
     },
     "presets": {
       "title": "Presets",
@@ -185,14 +190,19 @@
       "label": "Editor settings",
       "tabs": "Settings group",
       "background": "Background",
-      "frame": "Frame"
+      "frame": "Frame",
+      "preset": "Preset",
+      "presetOpen": "Show presets, current: {{name}}"
     },
     "details": {
-      "title": "Details",
       "image": "Image",
-      "output": "Output at 1x",
-      "format": "Source format",
+      "saveAs": "Save as",
       "size": "{{width}} × {{height}} px"
+    },
+    "layout": {
+      "title": "Layout",
+      "label": "Layout and export",
+      "spacing": "Spacing"
     }
   },
   "rail": {

@@ -84,7 +84,7 @@ function ColorInput({
     <div data-slot="color-input" className={cn('flex items-center gap-2', className)}>
       <span
         className={cn(
-          'checkerboard relative size-10 shrink-0 overflow-hidden rounded-lg border border-input focus-within:ring-4 focus-within:ring-primary/16',
+          'checkerboard relative size-9 shrink-0 overflow-hidden rounded-lg border border-input focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-ring',
           disabled && 'opacity-50',
         )}
       >

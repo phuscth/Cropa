@@ -16,7 +16,7 @@ export function SettingsSection({ title, id, children }: SectionProps) {
   const headingId = useId();
   return (
     <section id={id} aria-labelledby={headingId} className="flex flex-col">
-      <h2 id={headingId} className="text-heading mb-3">
+      <h2 id={headingId} className="text-section mb-2 px-1">
         {title}
       </h2>
       <Card>{children}</Card>
@@ -48,13 +48,13 @@ export function SettingRow({ label, description, aside, children, stacked = fals
     <CardRow className={stacked ? 'flex-col items-stretch gap-3' : undefined}>
       <div className="flex min-w-0 flex-col gap-0.5">
         <div className="flex items-baseline gap-3">
-          <span id={ids.labelId} className="text-sm font-medium">
+          <span id={ids.labelId} className="text-control-sm">
             {label}
           </span>
           {aside}
         </div>
         {description && (
-          <p id={ids.descriptionId} className="break-words text-sm text-muted-foreground">
+          <p id={ids.descriptionId} className="break-words text-[13px] leading-snug text-muted-foreground">
             {description}
           </p>
         )}
