@@ -2,6 +2,7 @@ import { render, type Scene } from '@cropa/core';
 
 import type { ExportFormat } from '../../../lib/bindings.ts';
 import { ExportEncodeError } from '../../../lib/errors.ts';
+import { closeCodeFrames, codeEnv, renderCodeFrames, type CodeFrames } from '../code-frames.ts';
 import { loadInter } from '../fonts.ts';
 import { renderEnv } from '../render-env.ts';
 import { exportPlan, type ExportScale } from './plan.ts';
@@ -34,7 +35,18 @@ export async function renderImage(
   await loadInter();
   const plan = exportPlan(scene, format, scale);
   const canvas = new OffscreenCanvas(plan.width, plan.height);
-  render(scene, 0, context(canvas), renderEnv(bitmap));
+  let frames: CodeFrames | null = null;
+  try {
+    frames = await renderCodeFrames(scene, plan.width, plan.height, 0);
+  } catch {
+    // The layers below the code layer still export.
+    console.error('The code layer could not be rendered for export');
+  }
+  try {
+    render(scene, 0, context(canvas), codeEnv(renderEnv(bitmap), frames));
+  } finally {
+    closeCodeFrames(frames);
+  }
 
   let source = canvas;
   if (format === 'jpeg') {

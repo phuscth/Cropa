@@ -15,9 +15,9 @@ import { builtinPresets } from '../presets/builtin.ts';
 import type { Annotation } from '../schema/annotation.ts';
 import { defaultScene } from '../schema/scene.ts';
 import type { Scene } from '../schema/scene.ts';
-import type { BackgroundLayer } from '../schema/background.ts';
+import type { BackgroundLayer, CodeLayer } from '../schema/background.ts';
 import type { RenderEnv } from './canvas.ts';
-import { outputSize, screenshotRect } from './layout.ts';
+import { computeLayout, frameGeometry, outputSize, screenshotRect } from './layout.ts';
 import { isRedaction, redactScreenshot } from './redact.ts';
 import { render } from './render.ts';
 
@@ -686,6 +686,128 @@ describe('annotations', () => {
         expect(worst).toBeLessThanOrEqual(4);
       },
     );
+  });
+});
+
+describe('code layer', () => {
+  const FALLBACK = '#6366f1';
+  const STRIPE_A = [16, 185, 129];
+  const STRIPE_B = [245, 158, 11];
+  const FRONT = [255, 0, 0];
+  const SHOT_BG = [244, 244, 245];
+  const ANNOTATION = [0, 0, 255];
+  const codeLayer: CodeLayer = { type: 'code', source: 'export default {}', durationMs: 4000 };
+
+  const withCode = (): Scene => sceneWith({ layers: [{ type: 'solid', color: FALLBACK }, codeLayer] });
+  const withoutCode = (): Scene => sceneWith({ layers: [{ type: 'solid', color: FALLBACK }] });
+
+  /** Vertical stripes of two colours, as wide as the canvas. */
+  function backBitmap(width: number, height: number): Canvas {
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    for (let x = 0; x < width; x += 10) {
+      ctx.fillStyle = (x / 10) % 2 === 0 ? '#10b981' : '#f59e0b';
+      ctx.fillRect(x, 0, 10, height);
+    }
+    return canvas;
+  }
+
+  /** Transparent, with an opaque square over the padding and the screenshot's top-left corner. */
+  function frontBitmap(width: number, height: number): Canvas {
+    const canvas = createCanvas(width, height);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = '#ff0000';
+    ctx.fillRect(10, 10, 30, 30);
+    return canvas;
+  }
+
+  function codeEnv(calls: [string, number][] = []): RenderEnv {
+    return {
+      ...env,
+      code: (_layer, pass, t) => {
+        calls.push([pass, t]);
+        const { width, height } = outputSize(withCode(), 1);
+        return pass === 'back' ? backBitmap(width, height) : frontBitmap(width, height);
+      },
+    };
+  }
+
+  function pixelAt(canvas: Canvas, x: number, y: number): number[] {
+    return [...canvas.getContext('2d').getImageData(x, y, 1, 1).data.slice(0, 3)];
+  }
+
+  function renderAt(scene: Scene, renderEnv: RenderEnv, t: number): Canvas {
+    const size = outputSize(scene, 1);
+    const canvas = createCanvas(size.width, size.height);
+    render(scene, t, canvas.getContext('2d'), renderEnv);
+    return canvas;
+  }
+
+  it('matches the snapshot', async () => {
+    await expectMatchesSnapshot('code-back-front', renderAt(withCode(), codeEnv(), 0));
+  });
+
+  it('draws back under the frame, front over it, and annotations over the front', () => {
+    const calls: [string, number][] = [];
+    const scene: Scene = {
+      ...withCode(),
+      annotations: [mark('rect', [10, 10, 10, 10], { style: { fill: '#0000ff', strokeWidth: 1 } })],
+    };
+    const out = renderAt(scene, codeEnv(calls), 0.25);
+
+    expect(pixelAt(out, 5, 5)).toEqual(STRIPE_A); // padding shows back, not the fallback
+    expect(pixelAt(out, 100, 100)).toEqual(SHOT_BG); // the screenshot covers back
+    expect(pixelAt(out, 15, 15)).toEqual(FRONT); // front over the padding
+    expect(pixelAt(out, 22, 22)).toEqual(FRONT); // front over the screenshot's corner
+    expect(pixelAt(out, 35, 35)).toEqual(ANNOTATION); // annotation over the front
+    expect(pixelAt(out, 15, 5)).toEqual(STRIPE_B); // the next stripe, still back
+    expect(calls).toEqual([
+      ['back', 0.25],
+      ['front', 0.25],
+    ]);
+  });
+
+  it.each([
+    ['a missing bitmap', { ...env, code: () => undefined }],
+    ['an env without code', env],
+  ])('draws nothing for %s', (_label, renderEnv) => {
+    const got = pixels(renderAt(withCode(), renderEnv, 0));
+    const want = pixels(renderAt(withoutCode(), env, 0));
+    expect(Buffer.from(got).equals(Buffer.from(want))).toBe(true);
+  });
+});
+
+describe('frameGeometry', () => {
+  it('describes the card the renderer draws, scaled to the output', () => {
+    const base = sceneWith({
+      frame: { radius: 10, inset: 6, border: { width: 4, color: '#facc15' } },
+      output: { aspectRatio: [2, 1], width: 640 },
+    });
+    const size = outputSize(base, 1);
+    const { width, height, frame } = frameGeometry(base, size.width, size.height);
+    const layout = computeLayout(base);
+    const s = Math.min(size.width / layout.w, size.height / layout.h);
+    const shot = screenshotRect(base, size.width, size.height);
+
+    expect([width, height]).toEqual([size.width, size.height]);
+    expect(s).toBeGreaterThan(1);
+    expect(frame.x).toBeCloseTo(shot.x - 6 * s, 5);
+    expect(frame.y).toBeCloseTo(shot.y - 6 * s, 5);
+    expect(frame.width).toBeCloseTo(shot.w + 12 * s, 5);
+    expect(frame.height).toBeCloseTo(shot.h + 12 * s, 5);
+    expect(frame.radius).toBeCloseTo(10 * s, 5);
+    expect(frame.border).toBeCloseTo(4 * s, 5);
+
+    // Just outside the card, inside the border, the border colour shows.
+    const out = createCanvas(size.width, size.height);
+    render(base, 0, out.getContext('2d'), env);
+    const probe = out.getContext('2d').getImageData(
+      Math.round(frame.x + frame.width / 2),
+      Math.round(frame.y - frame.border / 2),
+      1,
+      1,
+    ).data;
+    expect([...probe.slice(0, 3)]).toEqual([250, 204, 21]);
   });
 });
 

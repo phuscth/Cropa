@@ -1,7 +1,7 @@
 import { z } from 'zod';
 
 import { Annotation, migrateAnnotation } from './annotation.ts';
-import { BackgroundSpec, migrateBackground } from './background.ts';
+import { BACKGROUND_VERSION, BackgroundSpec, migrateBackground } from './background.ts';
 import { Hex, Ref } from './color.ts';
 import { outputSize } from '../render/layout.ts';
 import { parseWith, prefixIssue, upgrade } from './migrate.ts';
@@ -122,7 +122,7 @@ export function defaultScene({ width, height }: { width: number; height: number 
       ],
     },
     background: {
-      version: 1,
+      version: BACKGROUND_VERSION,
       viewBox: [0, 0, 1000, 1000],
       layers: [
         {

@@ -14,12 +14,18 @@ export function isBuiltinImage(name: string): name is BuiltinImage {
 
 /**
  * What a preset in the community `presets/` folder may not do, one message per
- * problem. Its images must be the built-in ones or the screenshot: a contributor
+ * problem. It may not hold a code layer, and its images must be the built-in ones or the screenshot: a contributor
  * cannot bring files, and a `user:` image exists on one computer only.
  */
 export function communityPresetProblems(preset: { background: BackgroundSpec }): string[] {
   const problems: string[] = [];
   for (const [i, layer] of preset.background.layers.entries()) {
+    if (layer.type === 'code') {
+      problems.push(
+        `background.layers.${i}: a code layer runs generated code; community presets must use the built-in layer types`,
+      );
+      continue;
+    }
     if (layer.type !== 'image') continue;
     const path = `background.layers.${i}.ref`;
     const [scheme = '', name = ''] = layer.ref.split(':');

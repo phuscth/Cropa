@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import { migrateAnnotation } from './annotation.ts';
-import { migrateBackground } from './background.ts';
+import { BACKGROUND_VERSION, migrateBackground } from './background.ts';
 import { annotationJsonSchema, backgroundJsonSchema, sceneJsonSchema } from './json-schema.ts';
 import type { MigrateResult } from './migrate.ts';
 import { defaultScene, migrateScene } from './scene.ts';
@@ -31,7 +31,7 @@ describe.each([
   ['background', migrateBackground, background],
   ['annotation', migrateAnnotation, annotation],
 ] as const)('migrate %s', (_name, migrate, valid) => {
-  it('accepts a valid v1 document unchanged', () => {
+  it('accepts a valid current document unchanged', () => {
     expect(migrate(valid())).toEqual({ ok: true, value: valid() });
   });
 
@@ -47,9 +47,10 @@ describe.each([
   });
 
   it('reports a newer version as too-new', () => {
-    expect(migrate({ ...valid(), version: 2 })).toEqual({
+    const newer = (valid() as { version: number }).version + 1;
+    expect(migrate({ ...valid(), version: newer })).toEqual({
       ok: false,
-      error: { kind: 'too-new', version: 2, supported: 1 },
+      error: { kind: 'too-new', version: newer, supported: newer - 1 },
     });
   });
 
@@ -135,8 +136,11 @@ describe('annotation style', () => {
 
 describe('nested documents in a scene', () => {
   it('reports a too-new background as a too-new scene', () => {
-    const result = migrateScene({ ...scene(), background: { ...background(), version: 2 } });
-    expect(result).toEqual({ ok: false, error: { kind: 'too-new', version: 2, supported: 1 } });
+    const result = migrateScene({ ...scene(), background: { ...background(), version: 3 } });
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: 'too-new', version: 3, supported: BACKGROUND_VERSION },
+    });
   });
 
   it('reports a too-new annotation as a too-new scene', () => {
@@ -157,6 +161,50 @@ describe('nested documents in a scene', () => {
   });
 });
 
+describe('background version 2', () => {
+  const v1 = () => ({ ...background(), version: 1 });
+  const code = () => ({ type: 'code' as const, source: 'export default {}', durationMs: 4000 });
+  const withLayers = (layers: unknown[]) => ({ ...background(), layers });
+
+  it('upgrades a version 1 background and changes nothing else', () => {
+    expect(migrateBackground(v1())).toEqual({ ok: true, value: background() });
+  });
+
+  it('upgrades a version 1 background inside a scene', () => {
+    expect(migrateScene({ ...scene(), background: v1() })).toEqual({ ok: true, value: scene() });
+  });
+
+  it('reports version 3 as too-new, also through a scene', () => {
+    const too = { ...background(), version: 3 };
+    const error = { kind: 'too-new', version: 3, supported: 2 };
+    expect(migrateBackground(too)).toEqual({ ok: false, error });
+    expect(migrateScene({ ...scene(), background: too })).toEqual({ ok: false, error });
+  });
+
+  it('accepts a code layer, with and without threeD', () => {
+    for (const layer of [code(), { ...code(), threeD: true }]) {
+      const doc = withLayers([{ type: 'solid', color: '#000000' }, layer]);
+      expect(migrateBackground(doc)).toEqual({ ok: true, value: doc });
+    }
+  });
+
+  it.each([
+    ['a source over 65536 characters', { source: 'x'.repeat(65537) }],
+    ['an empty source', { source: '' }],
+    ['a duration of 999 ms', { durationMs: 999 }],
+    ['a duration of 20001 ms', { durationMs: 20001 }],
+    ['a fractional duration', { durationMs: 1500.5 }],
+  ])('rejects a code layer with %s', (_label, patch) => {
+    const issues = invalidIssues(migrateBackground(withLayers([{ ...code(), ...patch }])));
+    expect(issues.join('\n')).toContain('layers.0');
+  });
+
+  it('rejects two code layers', () => {
+    const issues = invalidIssues(migrateBackground(withLayers([code(), code()])));
+    expect(issues).toEqual([expect.stringMatching(/^layers: at most one code layer/)]);
+  });
+});
+
 describe('JSON Schema', () => {
   it('generates for every document', () => {
     expect(() => sceneJsonSchema()).not.toThrow();
@@ -166,13 +214,13 @@ describe('JSON Schema', () => {
 
   it('lists every layer type in the background schema', () => {
     const text = JSON.stringify(backgroundJsonSchema());
-    for (const type of ['solid', 'linear', 'radial', 'conic', 'mesh', 'noise', 'shape', 'image', 'blur']) {
+    for (const type of ['solid', 'linear', 'radial', 'conic', 'mesh', 'noise', 'shape', 'image', 'blur', 'code']) {
       expect(text).toContain(`"const":"${type}"`);
     }
     const schema = backgroundJsonSchema() as {
       properties: { layers: { items: { oneOf?: unknown[]; anyOf?: unknown[] } } };
     };
     const items = schema.properties.layers.items;
-    expect((items.oneOf ?? items.anyOf)?.length).toBe(9);
+    expect((items.oneOf ?? items.anyOf)?.length).toBe(10);
   });
 });

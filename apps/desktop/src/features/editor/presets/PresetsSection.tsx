@@ -6,6 +6,7 @@ import {
   presetId,
   presetName,
   type BackgroundSpec,
+  type Preset,
 } from '@cropa/core';
 import {
   Button,
@@ -147,6 +148,12 @@ export function PresetsSection({ history }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UserError>();
   const [status, setStatus] = useState<string>();
+  // A preset that needs the development code stub, so it is only loaded in development.
+  const [devPresets, setDevPresets] = useState<Preset[]>([]);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    void import('../dev-code-stub.ts').then(({ devCodePreset }) => { setDevPresets([devCodePreset]); });
+  }, []);
   const fileInput = useRef<HTMLInputElement>(null);
   const statusTimer = useRef<number>(undefined);
   const tRef = useRef(t);
@@ -333,7 +340,7 @@ export function PresetsSection({ history }: Props) {
       {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
 
       <div className="grid grid-cols-4 gap-2">
-        {builtinPresets.map((preset) => {
+        {[...builtinPresets, ...devPresets].map((preset) => {
           const label = presetName(preset, i18n.language);
           return (
             <Tile

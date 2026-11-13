@@ -3,6 +3,7 @@ import { join } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
+import { BACKGROUND_VERSION } from '../schema/background.ts';
 import type { BackgroundSpec } from '../schema/background.ts';
 import { builtinPresets } from './builtin.ts';
 import { PRESET_MAX_BYTES, exportPreset, importPreset, presetId, presetName } from './file.ts';
@@ -11,7 +12,7 @@ import { BUILTIN_IMAGES, communityPresetProblems } from './images.ts';
 const PRESETS_DIR = join(import.meta.dirname, '../../../../presets');
 
 const spec: BackgroundSpec = {
-  version: 1,
+  version: BACKGROUND_VERSION,
   viewBox: [0, 0, 1000, 1000],
   layers: [
     {
@@ -78,8 +79,11 @@ describe('preset files', () => {
 
   it('rejects a newer background version', () => {
     const doc = JSON.parse(exported()) as { background: Record<string, unknown> };
-    const result = importPreset(JSON.stringify({ ...doc, background: { ...doc.background, version: 2 } }));
-    expect(result).toEqual({ ok: false, error: { kind: 'too-new', version: 2, supported: 1 } });
+    const result = importPreset(JSON.stringify({ ...doc, background: { ...doc.background, version: 3 } }));
+    expect(result).toEqual({
+      ok: false,
+      error: { kind: 'too-new', version: 3, supported: BACKGROUND_VERSION },
+    });
   });
 
   it('prefixes the path of an invalid background', () => {
@@ -185,5 +189,17 @@ describe('community preset images', () => {
   it('refuses a user image and an unknown built-in name', () => {
     expect(communityPresetProblems(withRef('user:img-1f'))).toHaveLength(1);
     expect(communityPresetProblems(withRef('builtin:unknown'))).toHaveLength(1);
+  });
+
+  it('refuses a code layer', () => {
+    const withCode = {
+      background: {
+        ...spec,
+        layers: [...spec.layers, { type: 'code' as const, source: 'export default {}', durationMs: 4000 }],
+      },
+    };
+    expect(communityPresetProblems(withCode)).toEqual([
+      expect.stringContaining('background.layers.1: a code layer'),
+    ]);
   });
 });

@@ -34,7 +34,8 @@ function withAlpha(color: string): string {
 /**
  * Paints `spec` over the whole canvas `cw` x `ch`. The viewBox maps onto the canvas
  * non-uniformly (like SVG `preserveAspectRatio="none"`); sizes that must stay round
- * (blur radius, noise grain) use the smaller of the two scales.
+ * (blur radius, noise grain) use the smaller of the two scales. `t` in [0, 1) is passed
+ * to a code layer's bitmap lookup.
  */
 export function renderBackground(
   spec: BackgroundSpec,
@@ -42,6 +43,7 @@ export function renderBackground(
   env: RenderEnv,
   cw: number,
   ch: number,
+  t: number,
 ): void {
   const [vx, vy, vw, vh] = spec.viewBox;
   const sx = cw / vw;
@@ -58,7 +60,7 @@ export function renderBackground(
   for (const layer of spec.layers) {
     ctx.save();
     identity();
-    ctx.globalAlpha = layer.type === 'blur' ? 1 : (layer.opacity ?? 1);
+    ctx.globalAlpha = 'opacity' in layer ? (layer.opacity ?? 1) : 1;
     paintLayer(layer);
     ctx.restore();
   }
@@ -146,6 +148,11 @@ export function renderBackground(
       case 'image': {
         const img = env.image?.(layer.ref);
         if (img) drawImageFit(ctx, img, layer.fit, cw, ch);
+        return;
+      }
+      case 'code': {
+        const img = env.code?.(layer, 'back', t);
+        if (img) ctx.drawImage(img, 0, 0, cw, ch);
         return;
       }
       case 'blur':

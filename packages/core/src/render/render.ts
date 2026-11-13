@@ -4,21 +4,23 @@ import type { Canvas2D, CanvasImage, RenderEnv } from './canvas.ts';
 import { drawAnnotations } from './annotations.ts';
 import { edgeColor } from './edge-color.ts';
 import type { Placement } from './layout.ts';
-import { placeFrame } from './layout.ts';
+import { frameBoxes, placeFrame } from './layout.ts';
 import { redactScreenshot } from './redact.ts';
 import { roundedRect } from './shapes.ts';
 
 /**
- * Draws `scene` over the whole of `ctx.canvas`. The order is: the background, the
- * frame, the screenshot with its blur and pixelate annotations baked in, then the
- * other annotations in array order (they may extend over the padding). The frame
- * is scaled uniformly to fit the canvas and centred; the background always covers
- * all of it. A preview passes any canvas, an export passes one sized by
- * `outputSize`.
+ * Draws `scene` over the whole of `ctx.canvas`. The order is: the background (a
+ * code layer's `back` bitmap sits at its place in the layer stack), the frame, the
+ * screenshot with its blur and pixelate annotations baked in, the `front` bitmap of
+ * each code layer over the whole canvas, then the other annotations in array order
+ * (they may extend over the padding). The frame is scaled uniformly to fit the canvas
+ * and centred; the background always covers all of it. A preview passes any canvas,
+ * an export passes one sized by `outputSize`.
  *
- * `t` is the animation time in [0, 1); a still image uses 0. Animation and the
- * mask are not drawn yet. The scene is not validated: pass the output of
- * `migrateScene`. Throws a RangeError when `t` is outside [0, 1).
+ * `t` is the animation time in [0, 1); a still image uses 0. A code layer draws what
+ * `env.code` returns for it; without that, or without a bitmap, it draws nothing. The
+ * background animation and the mask are not drawn yet. The scene is not validated: pass
+ * the output of `migrateScene`. Throws a RangeError when `t` is outside [0, 1).
  */
 export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): void {
   if (!(t >= 0 && t < 1)) {
@@ -41,11 +43,28 @@ export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): 
     ctx.imageSmoothingEnabled = true;
     ctx.clearRect(0, 0, cw, ch);
 
-    renderBackground(scene.background, ctx, env, cw, ch);
+    renderBackground(scene.background, ctx, env, cw, ch, t);
     drawFrame(scene, placement, redactScreenshot(scene, env) ?? env.screenshot, ctx, env);
+    drawCodeFronts(scene, t, ctx, env, cw, ch);
     drawAnnotations(scene, placement.shot, ctx);
   } finally {
     ctx.restore();
+  }
+}
+
+function drawCodeFronts(
+  scene: Scene,
+  t: number,
+  ctx: Canvas2D,
+  env: RenderEnv,
+  cw: number,
+  ch: number,
+): void {
+  if (!env.code) return;
+  for (const layer of scene.background.layers) {
+    if (layer.type !== 'code') continue;
+    const img = env.code(layer, 'front', t);
+    if (img) ctx.drawImage(img, 0, 0, cw, ch);
   }
 }
 
@@ -58,18 +77,7 @@ function drawFrame(
 ): void {
   const { frame } = scene;
   const { s, shot } = placement;
-  const bw = (frame.border?.width ?? 0) * s;
-  const inset = frame.inset * s;
-
-  // The card and border are built around the rounded screenshot rectangle.
-  const card = {
-    x: shot.x - inset,
-    y: shot.y - inset,
-    w: shot.w + 2 * inset,
-    h: shot.h + 2 * inset,
-  };
-  const outer = { x: card.x - bw, y: card.y - bw, w: card.w + 2 * bw, h: card.h + 2 * bw };
-  const radius = frame.radius * s;
+  const { card, outer, radius, border: bw } = frameBoxes(placement, frame);
 
   // Canvas shadows ignore the transform, so blur and offsets are scaled here.
   // The shadow's source shape is drawn far to the left of the canvas and the
