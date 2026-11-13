@@ -91,54 +91,30 @@ export function ensureImages(spec: BackgroundSpec): Promise<{ missing: string[] 
   return ensureRefs(backgroundImageRefs(spec));
 }
 
-const TILE = { width: 128, height: 96 } as const;
-const tiles = new Map<string, Promise<string>>();
-
-/** A small picture of a user image for its tile, as a blob URL. Undefined when it can't be loaded. */
-export function imageTile(ref: string): Promise<string | undefined> {
-  let tile = tiles.get(ref);
-  if (!tile) {
-    tile = draw(ref);
-    tile.catch(() => { tiles.delete(ref); });
-    tiles.set(ref, tile);
-  }
-  return tile.catch(() => undefined);
-}
-
 /**
- * Draws the tile. An image that is already loaded is drawn from the cache; any other
- * is decoded at tile size and dropped, so browsing the list never keeps full-size
- * pictures in memory. Only images that go into a scene stay in the cache.
+ * The image `ref` for a small preview of `box` pixels. One already in the cache is
+ * returned as it is; any other is decoded at the size that covers `box`, so listing
+ * images never keeps full-size pictures in memory. Call `release` when done: it closes
+ * only a bitmap made here. Rejects when the image can't be found or decoded.
  */
-async function draw(ref: string): Promise<string> {
-  const canvas = new OffscreenCanvas(TILE.width, TILE.height);
-  const ctx = canvas.getContext('2d');
-  if (!ctx) throw new Error('2D canvas is not available');
+export async function loadSmallImage(
+  ref: string,
+  box: { width: number; height: number },
+): Promise<{ bitmap: ImageBitmap; release: () => void }> {
   const cached = bitmaps.get(ref);
-  let bitmap = cached;
-  if (!bitmap) {
-    const url = await sourceUrl(ref);
-    if (url === undefined) throw new Error('image not available');
-    const img = new Image();
-    img.src = url;
-    await img.decode();
-    // Scale to fill the tile, like `object-fit: cover`; the overflow is cropped when drawn.
-    const scale = Math.min(1, Math.max(TILE.width / img.naturalWidth, TILE.height / img.naturalHeight));
-    bitmap = await createImageBitmap(img, {
-      resizeWidth: Math.max(1, Math.round(img.naturalWidth * scale)),
-      resizeHeight: Math.max(1, Math.round(img.naturalHeight * scale)),
-      resizeQuality: 'medium',
-    });
-  }
-  try {
-    const fill = Math.max(TILE.width / bitmap.width, TILE.height / bitmap.height);
-    const width = bitmap.width * fill;
-    const height = bitmap.height * fill;
-    ctx.drawImage(bitmap, (TILE.width - width) / 2, (TILE.height - height) / 2, width, height);
-  } finally {
-    if (!cached) bitmap.close();
-  }
-  return URL.createObjectURL(await canvas.convertToBlob({ type: 'image/png' }));
+  if (cached) return { bitmap: cached, release: () => undefined };
+  const url = await sourceUrl(ref);
+  if (url === undefined) throw new Error('image not available');
+  const img = new Image();
+  img.src = url;
+  await img.decode();
+  const scale = Math.min(1, Math.max(box.width / img.naturalWidth, box.height / img.naturalHeight));
+  const bitmap = await createImageBitmap(img, {
+    resizeWidth: Math.max(1, Math.round(img.naturalWidth * scale)),
+    resizeHeight: Math.max(1, Math.round(img.naturalHeight * scale)),
+    resizeQuality: 'medium',
+  });
+  return { bitmap, release: () => { bitmap.close(); } };
 }
 
 let latestChange = 0;

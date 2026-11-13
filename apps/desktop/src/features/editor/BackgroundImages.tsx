@@ -16,8 +16,8 @@ import {
   builtinUrl,
   cacheImage,
   ensureRefs,
-  imageTile,
 } from './background-images.ts';
+import { imageThumbnail } from './presets/thumbnails.ts';
 import { backgroundImageRef, CAPTURE_REF, setBackgroundImage } from './scene-edits.ts';
 import type { SceneHistory } from './use-scene-history.ts';
 
@@ -73,7 +73,7 @@ function UserThumb({ imageRef }: { imageRef: string }) {
   const [url, setUrl] = useState<string>();
   useEffect(() => {
     let alive = true;
-    void imageTile(imageRef).then((next) => { if (alive) setUrl(next); });
+    void imageThumbnail(imageRef).then((next) => { if (alive) setUrl(next); });
     return () => { alive = false; };
   }, [imageRef]);
   return url ? (

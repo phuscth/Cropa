@@ -1,6 +1,6 @@
 import { defaultScene, render, type BackgroundSpec, type Scene } from '@cropa/core';
 
-import { ensureImages } from '../background-images.ts';
+import { ensureImages, loadSmallImage } from '../background-images.ts';
 import { renderEnv } from '../render-env.ts';
 import { withoutMissingImages } from '../scene-edits.ts';
 
@@ -61,4 +61,36 @@ export function presetThumbnail(background: BackgroundSpec): Promise<string> {
     cache.set(key, entry);
   }
   return entry;
+}
+
+const imageCache = new Map<string, Promise<string>>();
+
+async function renderImageThumbnail(ref: string): Promise<string> {
+  const { bitmap, release } = await loadSmallImage(ref, THUMB);
+  try {
+    const canvas = new OffscreenCanvas(THUMB.width, THUMB.height);
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('2D canvas is not available');
+    const background: BackgroundSpec = {
+      ...defaultScene(SOURCE).background,
+      layers: [{ type: 'image', ref, fit: 'cover' }],
+    };
+    // Only this image is offered, so the full-size picture never has to be loaded.
+    const env = { ...renderEnv(placeholderShot()), image: (r: string) => (r === ref ? bitmap : undefined) };
+    render(thumbnailScene(background), 0, ctx, env);
+    return URL.createObjectURL(await canvas.convertToBlob({ type: 'image/png' }));
+  } finally {
+    release();
+  }
+}
+
+/** A small preview of one image like the preset tiles, as a blob URL; undefined when it can't be loaded. */
+export function imageThumbnail(ref: string): Promise<string | undefined> {
+  let entry = imageCache.get(ref);
+  if (!entry) {
+    entry = renderImageThumbnail(ref);
+    entry.catch(() => { imageCache.delete(ref); });
+    imageCache.set(ref, entry);
+  }
+  return entry.catch(() => undefined);
 }
