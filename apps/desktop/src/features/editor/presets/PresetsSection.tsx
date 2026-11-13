@@ -33,7 +33,7 @@ import {
   type Result,
   type SavedPreset,
 } from '../../../lib/user-presets.ts';
-import { ensureImages } from '../background-images.ts';
+import { beginBackgroundChange, ensureImages } from '../background-images.ts';
 import {
   applyBackground,
   backgroundImageRefs,
@@ -277,7 +277,9 @@ export function PresetsSection({ history }: Props) {
 
   /** Loads the images the background draws first: the renderer only draws what is loaded. */
   const apply = async (background: BackgroundSpec) => {
+    const isCurrent = beginBackgroundChange();
     const { missing } = await ensureImages(background);
+    if (!isCurrent()) return;
     edit((s) => applyBackground(s, withoutMissingImages(background, missing)));
     if (missing.length > 0) showStatus(t('editor.presets.imageMissing'));
   };

@@ -455,7 +455,7 @@ export function backgroundImageRef(spec: BackgroundSpec): string | null {
 
 /**
  * Makes the background the image `ref`, covering the frame. On an image background
- * it keeps the blur and any opacity; from any other kind it starts with the blur that
+ * it keeps the opacity and the blur, except that the default blur follows the screenshot; from any other kind it starts with the blur that
  * suits the image: a soft backdrop for the screenshot, none for a picture.
  */
 export function setBackgroundImage(scene: Scene, ref: string): Scene {
@@ -465,7 +465,17 @@ export function setBackgroundImage(scene: Scene, ref: string): Scene {
     if (layer.ref === ref && layer.fit === 'cover') return scene;
     const layers = [...spec.layers];
     layers[mainIndex(spec)] = { ...layer, ref, fit: 'cover' };
-    return withLayers(scene, layers);
+    const next = withLayers(scene, layers);
+    // The blur the screenshot gets by default is a backdrop, not a look for a picture
+    // (and the other way round), unless the user has set their own.
+    const blur = backgroundBlur(spec);
+    if (layer.ref === CAPTURE_REF && ref !== CAPTURE_REF && blur === IMAGE_BLUR) {
+      return setBackgroundBlur(next, 0);
+    }
+    if (layer.ref !== CAPTURE_REF && ref === CAPTURE_REF && blur === 0) {
+      return setBackgroundBlur(next, IMAGE_BLUR);
+    }
+    return next;
   }
   const layers: Layer[] = [{ type: 'image', ref, fit: 'cover' }];
   if (ref === CAPTURE_REF) layers.push({ type: 'blur', radius: IMAGE_BLUR });

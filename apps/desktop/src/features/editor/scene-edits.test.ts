@@ -354,6 +354,28 @@ describe('image backgrounds', () => {
     ]);
   });
 
+  it('drops the default screenshot blur for a picture, and brings it back for the screenshot', () => {
+    // Type > Image always starts on the screenshot with the default blur.
+    const start = setBackgroundKind(fresh(), 'image');
+    expect(backgroundImageRef(start.background)).toBe(CAPTURE_REF);
+    const blurDefault = backgroundBlur(start.background);
+    expect(blurDefault).toBeGreaterThan(0);
+
+    const picture = expectValid(setBackgroundImage(start, 'builtin:silk'));
+    expect(backgroundBlur(picture.background)).toBe(0);
+    const back = expectValid(setBackgroundImage(picture, CAPTURE_REF));
+    expect(backgroundBlur(back.background)).toBe(blurDefault);
+  });
+
+  it('keeps a blur the user set when the image changes', () => {
+    const start = setBackgroundBlur(setBackgroundKind(fresh(), 'image'), 40);
+    const picture = setBackgroundImage(start, 'builtin:silk');
+    expect(backgroundBlur(picture.background)).toBe(40);
+    const sharp = setBackgroundBlur(picture, 0);
+    expect(backgroundBlur(setBackgroundImage(sharp, 'user:img-1f').background)).toBe(0);
+    expect(backgroundBlur(setBackgroundImage(picture, CAPTURE_REF).background)).toBe(40);
+  });
+
   it('is the same scene when that image is already chosen', () => {
     const scene = setBackgroundImage(fresh(), 'builtin:dunes');
     expect(setBackgroundImage(scene, 'builtin:dunes')).toBe(scene);

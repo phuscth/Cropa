@@ -11,7 +11,13 @@ import {
   describeUnexpected,
   type UserError,
 } from '../../lib/errors.ts';
-import { builtinUrl, cacheImage, ensureRefs, imageTile } from './background-images.ts';
+import {
+  beginBackgroundChange,
+  builtinUrl,
+  cacheImage,
+  ensureRefs,
+  imageTile,
+} from './background-images.ts';
 import { backgroundImageRef, CAPTURE_REF, setBackgroundImage } from './scene-edits.ts';
 import type { SceneHistory } from './use-scene-history.ts';
 
@@ -132,11 +138,13 @@ export function BackgroundImages({ history }: Props) {
   }, [reload]);
 
   const choose = async (ref: string) => {
+    const isCurrent = beginBackgroundChange();
     // The renderer draws only images that are already loaded.
     const { missing } = await ensureRefs(ref === CAPTURE_REF ? [] : [ref]);
+    if (!isCurrent()) return;
     if (missing.length > 0) {
       setError(describeBackgroundImage(t, { kind: 'BackgroundImageLoad' }));
-      void reload();
+      reload().catch((cause: unknown) => { setError(describeUnexpected(tRef.current, cause)); });
       return;
     }
     setError(undefined);
@@ -149,8 +157,9 @@ export function BackgroundImages({ history }: Props) {
       return;
     }
     setBusy(true);
+    // A picture that is not kept in the cache must be released.
+    let bitmap: ImageBitmap | undefined;
     try {
-      let bitmap: ImageBitmap;
       try {
         bitmap = await createImageBitmap(file);
       } catch {
@@ -158,24 +167,26 @@ export function BackgroundImages({ history }: Props) {
         return;
       }
       if (bitmap.width > MAX_SIDE || bitmap.height > MAX_SIDE) {
-        bitmap.close();
         setError(describeBackgroundImage(t, { kind: 'BackgroundImageDimensions', limit: MAX_SIDE }));
         return;
       }
+      const isCurrent = beginBackgroundChange();
       const result = await commands.addBackgroundImage(file.name, await readBase64(file));
       if (result.status === 'error') {
-        bitmap.close();
         setError(describeCommandError(t, result.error));
         return;
       }
       const ref = userRef(result.data.id);
       cacheImage(ref, bitmap);
+      bitmap = undefined;
       setError(undefined);
-      await reload();
-      edit((s) => setBackgroundImage(s, ref));
+      // The image is stored whether or not the list can be refreshed, so select it either way.
+      await reload().catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
+      if (isCurrent()) edit((s) => setBackgroundImage(s, ref));
     } catch (cause) {
       setError(describeUnexpected(t, cause));
     } finally {
+      bitmap?.close();
       setBusy(false);
     }
   };

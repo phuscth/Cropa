@@ -39,17 +39,23 @@ export function cacheImage(ref: string, bitmap: ImageBitmap): void {
   bitmaps.set(ref, bitmap);
 }
 
-async function fetchBitmap(ref: string): Promise<ImageBitmap | undefined> {
+/**
+ * The data URL or asset URL of the image `ref` names, or undefined when it is not
+ * there. Rejects when the command itself fails.
+ */
+async function sourceUrl(ref: string): Promise<string | undefined> {
   const [scheme, name = ''] = ref.split(':');
-  if (scheme === 'builtin') {
-    const url = isBuiltinImage(name) ? builtinUrl(name) : undefined;
-    return url === undefined ? undefined : dataUrlToBitmap(url);
-  }
+  if (scheme === 'builtin') return isBuiltinImage(name) ? builtinUrl(name) : undefined;
   if (scheme === 'user') {
     const result = await commands.readBackgroundImage(name);
-    return result.status === 'ok' ? dataUrlToBitmap(result.data) : undefined;
+    return result.status === 'ok' ? result.data : undefined;
   }
   return undefined;
+}
+
+async function fetchBitmap(ref: string): Promise<ImageBitmap | undefined> {
+  const url = await sourceUrl(ref);
+  return url === undefined ? undefined : dataUrlToBitmap(url);
 }
 
 /** Loads `ref` into the cache; false when it cannot be found or decoded. */
@@ -99,17 +105,50 @@ export function imageTile(ref: string): Promise<string | undefined> {
   return tile.catch(() => undefined);
 }
 
+/**
+ * Draws the tile. An image that is already loaded is drawn from the cache; any other
+ * is decoded at tile size and dropped, so browsing the list never keeps full-size
+ * pictures in memory. Only images that go into a scene stay in the cache.
+ */
 async function draw(ref: string): Promise<string> {
-  const { missing } = await ensureRefs([ref]);
-  const bitmap = bitmaps.get(ref);
-  if (missing.length > 0 || !bitmap) throw new Error('image not available');
   const canvas = new OffscreenCanvas(TILE.width, TILE.height);
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('2D canvas is not available');
-  // Like `object-fit: cover`: scale to fill, crop the overflow evenly.
-  const scale = Math.max(TILE.width / bitmap.width, TILE.height / bitmap.height);
-  const width = bitmap.width * scale;
-  const height = bitmap.height * scale;
-  ctx.drawImage(bitmap, (TILE.width - width) / 2, (TILE.height - height) / 2, width, height);
+  const cached = bitmaps.get(ref);
+  let bitmap = cached;
+  if (!bitmap) {
+    const url = await sourceUrl(ref);
+    if (url === undefined) throw new Error('image not available');
+    const img = new Image();
+    img.src = url;
+    await img.decode();
+    // Scale to fill the tile, like `object-fit: cover`; the overflow is cropped when drawn.
+    const scale = Math.min(1, Math.max(TILE.width / img.naturalWidth, TILE.height / img.naturalHeight));
+    bitmap = await createImageBitmap(img, {
+      resizeWidth: Math.max(1, Math.round(img.naturalWidth * scale)),
+      resizeHeight: Math.max(1, Math.round(img.naturalHeight * scale)),
+      resizeQuality: 'medium',
+    });
+  }
+  try {
+    const fill = Math.max(TILE.width / bitmap.width, TILE.height / bitmap.height);
+    const width = bitmap.width * fill;
+    const height = bitmap.height * fill;
+    ctx.drawImage(bitmap, (TILE.width - width) / 2, (TILE.height - height) / 2, width, height);
+  } finally {
+    if (!cached) bitmap.close();
+  }
   return URL.createObjectURL(await canvas.convertToBlob({ type: 'image/png' }));
+}
+
+let latestChange = 0;
+
+/**
+ * Starts a change of the scene's background that waits for something (an image
+ * loading). The newest change wins: the returned function is false once another
+ * change began, so a slow older one can do nothing.
+ */
+export function beginBackgroundChange(): () => boolean {
+  const mine = ++latestChange;
+  return () => mine === latestChange;
 }

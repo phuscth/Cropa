@@ -173,10 +173,46 @@ fn entry_format(entry: &Entry) -> Option<Format> {
     Format::from_extension(extension)
 }
 
+/// The index a damaged one is replaced with: every `img-<hex>.<ext>` file in the
+/// folder, named after its file and in the order of the ids (which are times), so
+/// pictures that lost their index are not stranded where nothing can list or delete them.
+fn rebuild(dir: &Path) -> IndexFile {
+    let mut found: Vec<(u128, Entry)> = fs::read_dir(dir)
+        .into_iter()
+        .flatten()
+        .flatten()
+        .filter_map(|item| {
+            let file = item.file_name().into_string().ok()?;
+            let (id, extension) = file.rsplit_once('.')?;
+            Format::from_extension(extension)?;
+            if !valid_id(id) {
+                return None;
+            }
+            let order = u128::from_str_radix(id.strip_prefix("img-")?, 16).ok()?;
+            let entry = Entry {
+                id: id.to_owned(),
+                name: clean_name(&file),
+                file: file.clone(),
+            };
+            item.file_type().ok()?.is_file().then_some((order, entry))
+        })
+        .collect();
+    found.sort_by_key(|(order, _)| *order);
+    IndexFile {
+        version: CURRENT_VERSION,
+        images: found
+            .into_iter()
+            .map(|(_, entry)| entry)
+            .take(MAX_IMAGES)
+            .collect(),
+    }
+}
+
 /// Load the index at `path`. A missing file is an empty list. A file that is
-/// malformed or has no version is moved aside to `<name>.bak` and the list is
-/// empty, so a bad file never blocks adding images. A file from a newer build is
-/// an error and stays where it is.
+/// malformed or has no version is moved aside to `<name>.bak` and replaced by an
+/// index rebuilt from the picture files beside it, so a bad file never blocks adding
+/// images or hides the ones already stored. A file from a newer build is an error
+/// and stays where it is.
 fn load(path: &Path) -> Result<IndexFile, ImagesError> {
     let raw = match fs::read(path) {
         Ok(raw) => raw,
@@ -195,7 +231,11 @@ fn load(path: &Path) -> Result<IndexFile, ImagesError> {
             fs::rename(path, backup_path(path)).map_err(|err| {
                 ImagesError::Read(format!("could not back up the old file: {err}"))
             })?;
-            Ok(IndexFile::default())
+            let rebuilt = rebuild(path.parent().unwrap_or_else(|| Path::new("")));
+            if !rebuilt.images.is_empty() {
+                write_index(path, &rebuilt)?;
+            }
+            Ok(rebuilt)
         }
     }
 }
@@ -615,6 +655,40 @@ mod tests {
         assert!(!dir.index().exists());
         images.add("fresh", &encode(&png())).unwrap();
         assert_eq!(images.list().unwrap().len(), 1);
+    }
+
+    #[test]
+    fn a_corrupt_index_is_rebuilt_from_the_picture_files() {
+        let dir = TempDir::new("rebuild");
+        let folder = dir.0.join("backgrounds");
+        fs::create_dir_all(&folder).unwrap();
+        // Ids sort by value, not as text: 2 comes before 10.
+        for file in ["img-10.jpg", "img-2.png", "img-3.webp"] {
+            fs::write(folder.join(file), b"x").unwrap();
+        }
+        // Files that are not pictures of this store are left out.
+        for file in [
+            "notes.txt",
+            "img-zz.png",
+            "img-4.gif",
+            "other.png",
+            "img-5.png.tmp",
+        ] {
+            fs::write(folder.join(file), b"x").unwrap();
+        }
+        fs::write(dir.index(), "{ not json").unwrap();
+        let images = dir.images();
+        let listed = images.list().unwrap();
+        let ids: Vec<&str> = listed.iter().map(|i| i.id.as_str()).collect();
+        assert_eq!(ids, ["img-2", "img-3", "img-10"]);
+        assert_eq!(listed[0].name, "img-2.png");
+        assert!(folder.join("backgrounds.json.bak").exists());
+        // The rebuilt index is on disk, so the pictures can be read and deleted.
+        assert!(dir.index().exists());
+        assert_eq!(images.read("img-3").unwrap().mime, "image/webp");
+        images.delete("img-2").unwrap();
+        assert!(!folder.join("img-2.png").exists());
+        assert_eq!(dir.images().list().unwrap().len(), 2);
     }
 
     #[test]
