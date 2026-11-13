@@ -99,6 +99,28 @@
       "deleteConfirm": "Xóa “{{name}}”? Không thể hoàn tác.",
       "unreadable": "Không đọc được “{{name}}”",
       "exported": "Đã xuất {{fileName}}"
+    },
+    "annotate": {
+      "toolbar": "Công cụ chú thích",
+      "tools": {
+        "select": "Chọn",
+        "arrow": "Mũi tên",
+        "rect": "Hình chữ nhật",
+        "text": "Văn bản",
+        "step": "Số bước",
+        "blur": "Làm mờ",
+        "pixelate": "Làm vỡ hạt"
+      },
+      "properties": "Thuộc tính chú thích",
+      "color": "Màu",
+      "otherColor": "Màu khác",
+      "strokeWidth": "Nét",
+      "fontSize": "Cỡ chữ",
+      "stepSize": "Kích thước",
+      "strength": "Độ mạnh",
+      "delete": "Xóa",
+      "textPlaceholder": "Nhập văn bản",
+      "step": "Bước {{n}}"
     }
   },
   "history": {
@@ -320,11 +342,6 @@
       "why": "Phiên bản WebView2 này không mã hóa được {{format}}.",
       "next": "Hãy chọn PNG hoặc JPEG, hoặc cập nhật Microsoft Edge WebView2."
     },
-    "ExportImageChanged": {
-      "what": "Không lưu được ảnh.",
-      "why": "Một ảnh chụp mới đã thay ảnh trong trình chỉnh sửa khi hộp thoại Lưu đang mở.",
-      "next": "Hãy lưu ảnh mới, hoặc mở ảnh trước đó từ Lịch sử rồi lưu lại."
-    },
     "PresetFileTooLarge": {
       "what": "Không nhập được preset.",
       "why": "Tệp lớn hơn {{limit}} KB nên không phải là preset của Cropa.",
@@ -344,6 +361,11 @@
       "what": "Không nhập được preset.",
       "why": "Tệp được tạo bởi phiên bản Cropa mới hơn.",
       "next": "Hãy cập nhật Cropa rồi nhập lại."
+    },
+    "ExportImageChanged": {
+      "what": "Không lưu được ảnh.",
+      "why": "Một ảnh chụp mới đã thay ảnh trong trình chỉnh sửa khi hộp thoại Lưu đang mở.",
+      "next": "Hãy lưu ảnh mới, hoặc mở ảnh trước đó từ Lịch sử rồi lưu lại."
     }
   }
 }

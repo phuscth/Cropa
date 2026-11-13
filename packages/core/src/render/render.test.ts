@@ -18,6 +18,7 @@ import type { Scene } from '../schema/scene.ts';
 import type { BackgroundLayer } from '../schema/background.ts';
 import type { RenderEnv } from './canvas.ts';
 import { outputSize, screenshotRect } from './layout.ts';
+import { isRedaction, redactScreenshot } from './redact.ts';
 import { render } from './render.ts';
 
 const SNAPSHOT_DIR = join(import.meta.dirname, '__snapshots__');
@@ -508,6 +509,18 @@ describe('annotations', () => {
 
   it.each(cases)('snapshot: %s', async (name, scene, scale = 1) => {
     await expectMatchesSnapshot(name, renderWith(detailEnv, scene, scale).canvas);
+  });
+
+  it('renders the same with redactions applied to the screenshot up front', () => {
+    // The editor preview caches the redacted screenshot and draws the scene without
+    // its redactions; this is the equivalence that shortcut relies on.
+    const scene = withMarks(mixed);
+    const redacted = redactScreenshot(scene, detailEnv);
+    if (!redacted) throw new Error('the scene has redactions');
+    const plain: Scene = { ...scene, annotations: scene.annotations.filter((a) => !isRedaction(a)) };
+    const direct = renderWith(detailEnv, scene).canvas;
+    const cached = renderWith({ ...detailEnv, screenshot: redacted }, plain).canvas;
+    expect(Buffer.from(pixels(cached)).equals(Buffer.from(pixels(direct)))).toBe(true);
   });
 
   it('derives the automatic inset colour from the redacted screenshot', () => {

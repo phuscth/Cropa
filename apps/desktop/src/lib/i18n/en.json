@@ -99,6 +99,28 @@
       "deleteConfirm": "Delete “{{name}}”? This can't be undone.",
       "unreadable": "“{{name}}” can't be read",
       "exported": "Exported {{fileName}}"
+    },
+    "annotate": {
+      "toolbar": "Annotation tools",
+      "tools": {
+        "select": "Select",
+        "arrow": "Arrow",
+        "rect": "Rectangle",
+        "text": "Text",
+        "step": "Step number",
+        "blur": "Blur",
+        "pixelate": "Pixelate"
+      },
+      "properties": "Annotation properties",
+      "color": "Colour",
+      "otherColor": "Other colour",
+      "strokeWidth": "Stroke",
+      "fontSize": "Text size",
+      "stepSize": "Size",
+      "strength": "Strength",
+      "delete": "Delete",
+      "textPlaceholder": "Type text",
+      "step": "Step {{n}}"
     }
   },
   "history": {
@@ -320,11 +342,6 @@
       "why": "This version of WebView2 can't encode {{format}}.",
       "next": "Choose PNG or JPEG, or update Microsoft Edge WebView2."
     },
-    "ExportImageChanged": {
-      "what": "Couldn't save the image.",
-      "why": "A new capture replaced the image in the editor while the Save dialog was open.",
-      "next": "Save the new image, or open the earlier one from History and save it again."
-    },
     "PresetFileTooLarge": {
       "what": "Couldn't import the preset.",
       "why": "The file is larger than {{limit}} KB, so it isn't a Cropa preset.",
@@ -344,6 +361,11 @@
       "what": "Couldn't import the preset.",
       "why": "The file was made by a newer version of Cropa.",
       "next": "Update Cropa, then import it again."
+    },
+    "ExportImageChanged": {
+      "what": "Couldn't save the image.",
+      "why": "A new capture replaced the image in the editor while the Save dialog was open.",
+      "next": "Save the new image, or open the earlier one from History and save it again."
     }
   }
 }
