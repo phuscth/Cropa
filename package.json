@@ -15,7 +15,11 @@
     "test": "turbo run test",
     "check:licenses": "node tools/license-check/check-npm-licenses.mjs",
     "check:presets": "node tools/check-presets.mjs",
-    "bindings": "node tools/bindings.mjs"
+    "bindings": "node tools/bindings.mjs",
+    "e2e": "pnpm e2e:build && pnpm e2e:capture && pnpm e2e:editor",
+    "e2e:build": "pnpm --filter @cropa/desktop build && cargo build -p cropa-desktop --features tauri/custom-protocol --target-dir target/e2e-app",
+    "e2e:capture": "cargo test -p cropa-desktop --features tauri/custom-protocol --target-dir target/e2e-app --test e2e_capture -- --ignored --nocapture",
+    "e2e:editor": "node e2e/editor.mjs"
   },
   "devDependencies": {
     "@cropa/config": "workspace:*",

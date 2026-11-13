@@ -32,6 +32,27 @@ cargo test --workspace
 CI runs the same steps on `windows-latest`, plus `cargo-deny` and the npm
 licence check.
 
+## E2E smoke tests
+
+Two smoke tests drive the real app on Windows. The capture test presses the
+capture key, drags a region and checks the clipboard image, the preview, and that
+Esc leaves the clipboard alone. The editor test opens a fixture image and checks
+the preview canvas shows it.
+
+One-time setup: `cargo install tauri-driver --version 2.0.6 --locked`. The editor
+test downloads `msedgedriver` into `target/e2e/` on first run, pinned and
+checked against its SHA-256. When WebView2 moves to a new major version the test
+says so; set the new version and hash in `e2e/msedgedriver.mjs`.
+
+Run `pnpm e2e`, or `pnpm e2e:build` and then `pnpm e2e:capture` and/or
+`pnpm e2e:editor`. They move the mouse, press keys and replace the clipboard, so
+leave the machine alone while they run. They start a separate instance
+(`cropa-e2e`) with its data in a temp folder and the capture key
+`Ctrl+Alt+Shift+F9`, so an open Cropa can stay open and its data, settings and
+start-with-Windows entry are untouched. The E2E build goes to `target/e2e-app`, so the first
+build takes a while but normal builds never overwrite it. Only debug builds read the hook. CI runs
+them in `.github/workflows/e2e.yml`.
+
 ## Background presets
 
 A background preset is one JSON file in [`presets/`](presets/). The format, the

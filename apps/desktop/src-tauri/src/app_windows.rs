@@ -92,6 +92,11 @@ fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewW
     if let Some((width, height)) = spec.min_size {
         builder = builder.min_inner_size(width, height);
     }
+    // A test instance keeps the WebView data in its own folder too; Tauri
+    // would otherwise default to the app's local data directory.
+    if let Some(e2e) = app.try_state::<crate::e2e::E2e>() {
+        builder = builder.data_directory(e2e.webview_dir());
+    }
     let window = builder.build()?;
     match window.theme() {
         Ok(theme) => paint_background(&window, theme),
