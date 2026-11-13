@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-read-background-image"
+description = "Enables the read_background_image command without any pre-configured scope."
+commands.allow = ["read_background_image"]
+
+[[permission]]
+identifier = "deny-read-background-image"
+description = "Denies the read_background_image command without any pre-configured scope."
+commands.deny = ["read_background_image"]

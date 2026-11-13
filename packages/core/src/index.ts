@@ -36,3 +36,5 @@ export {
 } from './presets/file.ts';
 export type { Preset, PresetError, PresetResult } from './presets/file.ts';
 export { builtinPresets } from './presets/builtin.ts';
+export { BUILTIN_IMAGES, communityPresetProblems, isBuiltinImage } from './presets/images.ts';
+export type { BuiltinImage } from './presets/images.ts';

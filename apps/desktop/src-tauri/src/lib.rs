@@ -2,6 +2,7 @@
 //! the pure crates.
 
 mod app_windows;
+mod background_images;
 mod capture;
 mod commands;
 mod e2e;
@@ -56,6 +57,10 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::presets::save_user_preset,
             commands::presets::delete_user_preset,
             commands::presets::save_preset_file,
+            commands::background_images::list_background_images,
+            commands::background_images::add_background_image,
+            commands::background_images::read_background_image,
+            commands::background_images::delete_background_image,
         ])
         .events(collect_events![
             capture::CaptureRequested,
@@ -76,6 +81,39 @@ fn export_bindings(builder: &tauri_specta::Builder<tauri::Wry>, path: &std::path
     builder
         .export(specta_typescript::Typescript::default(), path)
         .expect("failed to export TypeScript bindings");
+}
+
+/// Registers the per-window and on-disk stores, then prunes the stale files
+/// on background threads.
+fn manage_stores(app: &tauri::App, config_dir: &std::path::Path, local_data_dir: &std::path::Path) {
+    app.manage(app_windows::CloseTimers::default());
+    app.manage(editor::EditorImage::default());
+    app.manage(export::SavedFiles::default());
+    app.manage(history::History::new(local_data_dir.join("history")));
+    app.manage(export::DragFiles::new(local_data_dir.join("drag-out")));
+    app.manage(background_images::BackgroundImages::new(
+        local_data_dir.join("backgrounds"),
+    ));
+    app.manage(presets::UserPresets::new(
+        config_dir.join(presets::FILE_NAME),
+    ));
+    // Captures past their 30 days go even when nothing new is captured.
+    std::thread::spawn({
+        let app = app.handle().clone();
+        move || {
+            app.state::<history::History>()
+                .prune(std::time::SystemTime::now());
+        }
+    });
+
+    // Dragged files past their lifetime go; a recent one may still be uploaded.
+    std::thread::spawn({
+        let app = app.handle().clone();
+        move || {
+            app.state::<export::DragFiles>()
+                .prune(std::time::SystemTime::now());
+        }
+    });
 }
 
 /// Starts the tray app and blocks until it exits.
@@ -126,31 +164,7 @@ pub fn run() {
             // Windows created later inherit this theme.
             app.set_theme(loaded.theme.to_tauri());
             app.manage(AppState::new(settings_path, loaded));
-            app.manage(app_windows::CloseTimers::default());
-            app.manage(editor::EditorImage::default());
-            app.manage(export::SavedFiles::default());
-            app.manage(history::History::new(local_data_dir.join("history")));
-            app.manage(export::DragFiles::new(local_data_dir.join("drag-out")));
-            app.manage(presets::UserPresets::new(
-                config_dir.join(presets::FILE_NAME),
-            ));
-            // Captures past their 30 days go even when nothing new is captured.
-            std::thread::spawn({
-                let app = app.handle().clone();
-                move || {
-                    app.state::<history::History>()
-                        .prune(std::time::SystemTime::now());
-                }
-            });
-
-            // Dragged files past their lifetime go; a recent one may still be uploaded.
-            std::thread::spawn({
-                let app = app.handle().clone();
-                move || {
-                    app.state::<export::DragFiles>()
-                        .prune(std::time::SystemTime::now());
-                }
-            });
+            manage_stores(app, &config_dir, &local_data_dir);
 
             let lang = i18n::Lang::detect();
             tray::create(app.handle(), lang)?;

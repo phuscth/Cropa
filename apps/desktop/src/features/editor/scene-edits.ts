@@ -438,7 +438,67 @@ export function applyBackground(scene: Scene, background: BackgroundSpec): Scene
   return sameBackground(scene.background, background) ? scene : { ...scene, background };
 }
 
-/** True when the background draws an image layer, which a preset file can't hold. */
-export function hasImageLayer(spec: BackgroundSpec): boolean {
-  return spec.layers.some((layer) => layer.type === 'image');
+/** The plain colour that stands in for an image that can't be found. */
+const MISSING_IMAGE_COLOR = '#d4d4d8';
+
+/** Every image ref the background draws, without repeats; the screenshot itself is not one. */
+export function backgroundImageRefs(spec: BackgroundSpec): string[] {
+  const refs = spec.layers.flatMap((layer) => (layer.type === 'image' ? [layer.ref] : []));
+  return [...new Set(refs)].filter((ref) => ref !== CAPTURE_REF);
+}
+
+/** The ref of the image the background is made of, or null when it is not an image background. */
+export function backgroundImageRef(spec: BackgroundSpec): string | null {
+  const layer = mainLayer(spec);
+  return backgroundKind(spec) === 'image' && layer?.type === 'image' ? layer.ref : null;
+}
+
+/**
+ * Makes the background the image `ref`, covering the frame. On an image background
+ * it keeps the opacity and the blur, except that the default blur follows the screenshot; from any other kind it starts with the blur that
+ * suits the image: a soft backdrop for the screenshot, none for a picture.
+ */
+export function setBackgroundImage(scene: Scene, ref: string): Scene {
+  const spec = scene.background;
+  const layer = mainLayer(spec);
+  if (backgroundKind(spec) === 'image' && layer?.type === 'image') {
+    if (layer.ref === ref && layer.fit === 'cover') return scene;
+    const layers = [...spec.layers];
+    layers[mainIndex(spec)] = { ...layer, ref, fit: 'cover' };
+    const next = withLayers(scene, layers);
+    // The blur the screenshot gets by default is a backdrop, not a look for a picture
+    // (and the other way round), unless the user has set their own.
+    const blur = backgroundBlur(spec);
+    if (layer.ref === CAPTURE_REF && ref !== CAPTURE_REF && blur === IMAGE_BLUR) {
+      return setBackgroundBlur(next, 0);
+    }
+    if (layer.ref !== CAPTURE_REF && ref === CAPTURE_REF && blur === 0) {
+      return setBackgroundBlur(next, IMAGE_BLUR);
+    }
+    return next;
+  }
+  const layers: Layer[] = [{ type: 'image', ref, fit: 'cover' }];
+  if (ref === CAPTURE_REF) layers.push({ type: 'blur', radius: IMAGE_BLUR });
+  return withBackground(scene, { ...spec, viewBox: [0, 0, VIEW, VIEW], layers });
+}
+
+/**
+ * The background with every image layer whose ref is in `missing` replaced by a plain
+ * grey layer of the same opacity, so the preview and the export agree and nothing is
+ * left transparent.
+ */
+export function withoutMissingImages(spec: BackgroundSpec, missing: readonly string[]): BackgroundSpec {
+  if (missing.length === 0) return spec;
+  return {
+    ...spec,
+    layers: spec.layers.map((layer): Layer =>
+      layer.type === 'image' && missing.includes(layer.ref)
+        ? {
+            type: 'solid',
+            color: MISSING_IMAGE_COLOR,
+            ...(layer.opacity === undefined ? {} : { opacity: layer.opacity }),
+          }
+        : layer,
+    ),
+  };
 }

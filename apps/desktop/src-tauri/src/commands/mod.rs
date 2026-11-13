@@ -2,6 +2,7 @@
 //! gets an `allow-*` permission, and each window's capability grants only what
 //! that window needs.
 
+pub mod background_images;
 pub mod editor;
 pub mod export;
 pub mod history;
@@ -72,16 +73,35 @@ pub enum CommandError {
     UserPresetsRead(String),
     #[error("could not save the presets: {0}")]
     UserPresetsSave(String),
+    #[error("the file is not a PNG, JPEG or WebP picture")]
+    BackgroundImageNotSupported,
+    #[error("the picture is larger than {0} MB")]
+    BackgroundImageTooLarge(u32),
+    #[error("there are already as many background images as Cropa can keep")]
+    BackgroundImagesFull,
+    #[error("that background image does not exist")]
+    BackgroundImageMissing,
+    #[error("the background images were saved by a newer version of Cropa")]
+    BackgroundImagesTooNew,
+    #[error("could not read the background images: {0}")]
+    BackgroundImagesRead(String),
+    #[error("could not save the background image: {0}")]
+    BackgroundImagesSave(String),
+}
+
+/// An image as a `data:` URL the WebView can show in an `<img>`.
+pub(crate) fn image_data_url(mime: &str, bytes: &[u8]) -> String {
+    use base64::Engine;
+
+    format!(
+        "data:{mime};base64,{}",
+        base64::engine::general_purpose::STANDARD.encode(bytes)
+    )
 }
 
 /// A PNG as a `data:` URL the WebView can show in an `<img>`.
 pub(crate) fn png_data_url(png: &[u8]) -> String {
-    use base64::Engine;
-
-    format!(
-        "data:image/png;base64,{}",
-        base64::engine::general_purpose::STANDARD.encode(png)
-    )
+    image_data_url("image/png", png)
 }
 
 impl From<ShortcutErrorKind> for CommandError {
@@ -91,5 +111,19 @@ impl From<ShortcutErrorKind> for CommandError {
             ShortcutErrorKind::InUse => Self::ShortcutInUse,
             ShortcutErrorKind::PrintScreenInUse => Self::PrintScreenInUse,
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn a_data_url_names_the_type_and_carries_the_bytes_in_base64() {
+        assert_eq!(
+            image_data_url("image/webp", b"abc"),
+            "data:image/webp;base64,YWJj"
+        );
+        assert_eq!(png_data_url(b"abc"), "data:image/png;base64,YWJj");
     }
 }

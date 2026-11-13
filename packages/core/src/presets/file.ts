@@ -27,24 +27,11 @@ const displayName = z
 export const PresetName = z.strictObject({ en: displayName, vi: displayName.optional() });
 export type PresetName = z.infer<typeof PresetName>;
 
-/** Presets carry no files, so a layer that points at an image is not allowed. */
-const noImageLayers = (spec: BackgroundSpec, ctx: z.RefinementCtx): void => {
-  for (const [i, layer] of spec.layers.entries()) {
-    if (layer.type === 'image') {
-      ctx.addIssue({
-        code: 'custom',
-        path: ['layers', i],
-        message: 'image layers are not allowed in presets',
-      });
-    }
-  }
-};
-
 export const PresetFile = z.strictObject({
   version: z.literal(PRESET_FILE_VERSION),
   id: PresetId,
   name: PresetName,
-  background: BackgroundSpec.superRefine(noImageLayers),
+  background: BackgroundSpec,
 });
 export type PresetFile = z.infer<typeof PresetFile>;
 export type Preset = PresetFile;

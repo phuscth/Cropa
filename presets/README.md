@@ -56,8 +56,10 @@ Unknown keys are rejected.
   when it is missing. Each is 1 to 40 characters, with no leading or trailing
   space and no control characters.
 - **Size**: at most 16 KiB (16384 bytes) of UTF-8 text.
-- **No `image` layers.** Image files are not accepted, so a preset is made of
-  gradients, mesh, noise, shapes and blur only.
+- **Images**: an `image` layer may use `builtin:silk`, `builtin:dunes`, `builtin:bokeh`,
+  `builtin:contour` (the images that ship with Cropa) or `builtin:capture` (the
+  screenshot). `user:` images are refused: they exist on one computer only, and
+  a file cannot carry its own image.
 - Only `.json` files and this README live in the folder.
 
 ## Licence

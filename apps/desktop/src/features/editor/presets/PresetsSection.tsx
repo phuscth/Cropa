@@ -33,7 +33,13 @@ import {
   type Result,
   type SavedPreset,
 } from '../../../lib/user-presets.ts';
-import { applyBackground, hasImageLayer, sameBackground } from '../scene-edits.ts';
+import { beginBackgroundChange, ensureImages } from '../background-images.ts';
+import {
+  applyBackground,
+  backgroundImageRefs,
+  sameBackground,
+  withoutMissingImages,
+} from '../scene-edits.ts';
 import { Section } from '../Section.tsx';
 import type { SceneHistory } from '../use-scene-history.ts';
 import { presetFileProblem } from './preset-file.ts';
@@ -211,6 +217,12 @@ export function PresetsSection({ history }: Props) {
     }
   };
 
+  const showStatus = (text: string) => {
+    window.clearTimeout(statusTimer.current);
+    setStatus(text);
+    statusTimer.current = window.setTimeout(() => { setStatus(undefined); }, STATUS_MS);
+  };
+
   const exportFile = async (preset: SavedPreset) => {
     const text = exportPreset(preset.background, {
       id: presetId(preset.name),
@@ -222,9 +234,9 @@ export function PresetsSection({ history }: Props) {
     }
     const fileName = await run(() => commands.savePresetFile(preset.name, text.value));
     if (typeof fileName === 'string') {
-      window.clearTimeout(statusTimer.current);
-      setStatus(t('editor.presets.exported', { fileName }));
-      statusTimer.current = window.setTimeout(() => { setStatus(undefined); }, STATUS_MS);
+      // A user image stays on this computer, so the file alone can't bring it along.
+      const ownImage = backgroundImageRefs(preset.background).some((ref) => ref.startsWith('user:'));
+      showStatus(t(ownImage ? 'editor.presets.exportedWithImage' : 'editor.presets.exported', { fileName }));
     }
   };
 
@@ -256,12 +268,23 @@ export function PresetsSection({ history }: Props) {
         background: parsed.value.background,
       }),
     );
-    if (saved) await reload();
+    if (saved) {
+      await reload();
+      const { missing } = await ensureImages(parsed.value.background);
+      if (missing.length > 0) showStatus(t('editor.presets.imageMissing'));
+    }
   };
 
-  const imageBackground = hasImageLayer(scene.background);
+  /** Loads the images the background draws first: the renderer only draws what is loaded. */
+  const apply = async (background: BackgroundSpec) => {
+    const isCurrent = beginBackgroundChange();
+    const { missing } = await ensureImages(background);
+    if (!isCurrent()) return;
+    edit((s) => applyBackground(s, withoutMissingImages(background, missing)));
+    if (missing.length > 0) showStatus(t('editor.presets.imageMissing'));
+  };
   const select = (background: BackgroundSpec) => () => {
-    edit((s) => applyBackground(s, background));
+    void apply(background);
   };
 
   return (
@@ -274,8 +297,8 @@ export function PresetsSection({ history }: Props) {
             size="icon"
             className="size-6"
             aria-label={t('editor.presets.saveCurrent')}
-            title={imageBackground ? t('editor.presets.imageNotSavable') : t('editor.presets.saveCurrent')}
-            disabled={imageBackground || busy}
+            title={t('editor.presets.saveCurrent')}
+            disabled={busy}
             onClick={() => { open({ kind: 'save' }); }}
           >
             <PlusIcon />

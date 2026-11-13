@@ -23,14 +23,30 @@
         "radial": "Chuyển màu tròn",
         "conic": "Chuyển màu xoay",
         "mesh": "Lưới màu",
-        "image": "Ảnh (chính ảnh chụp, làm mờ)"
+        "image": "Ảnh"
       },
       "color": "Màu {{n}}",
       "colorPicker": "Chọn màu {{n}}",
       "colorHex": "Mã hex của màu {{n}}",
       "angle": "Góc",
       "blur": "Làm mờ",
-      "matchImage": "Khớp màu ảnh"
+      "matchImage": "Khớp màu ảnh",
+      "images": {
+        "label": "Ảnh nền",
+        "capture": "Ảnh chụp",
+        "names": {
+          "silk": "Lụa",
+          "dunes": "Đồi cát",
+          "bokeh": "Bokeh",
+          "contour": "Đường đồng mức"
+        },
+        "add": "Thêm ảnh của bạn",
+        "yours": "Ảnh của bạn",
+        "more": "Xóa {{name}}",
+        "deleteConfirm": "Xóa ảnh này? Các preset dùng ảnh này sẽ hiện nền trơn.",
+        "delete": "Xóa",
+        "cancel": "Hủy"
+      }
     },
     "frame": {
       "title": "Khung",
@@ -88,7 +104,6 @@
     "presets": {
       "title": "Preset",
       "saveCurrent": "Lưu nền hiện tại",
-      "imageNotSavable": "Không thể lưu nền ảnh thành preset",
       "import": "Nhập tệp preset",
       "saved": "Đã lưu",
       "empty": "Lưu nền hiện tại để dùng lại cho các ảnh chụp khác.",
@@ -101,7 +116,9 @@
       "cancel": "Hủy",
       "deleteConfirm": "Xóa “{{name}}”? Không thể hoàn tác.",
       "unreadable": "Không đọc được “{{name}}”",
-      "exported": "Đã xuất {{fileName}}"
+      "exported": "Đã xuất {{fileName}}",
+      "imageMissing": "Preset này dùng một ảnh không có trên máy này. Ảnh có thể đã bị xóa, hoặc preset được tạo trên máy khác. Nền trơn được hiển thị thay thế; hãy chọn một ảnh để thay.",
+      "exportedWithImage": "Đã xuất {{fileName}}. Preset này dùng một ảnh của bạn, ảnh không nằm trong file; trên máy khác nó sẽ hiện nền trơn."
     },
     "annotate": {
       "toolbar": "Công cụ chú thích",
@@ -374,6 +391,56 @@
       "what": "Không lưu được ảnh.",
       "why": "Một ảnh chụp mới đã thay ảnh trong trình chỉnh sửa khi hộp thoại Lưu đang mở.",
       "next": "Hãy lưu ảnh mới, hoặc mở ảnh trước đó từ Lịch sử rồi lưu lại."
+    },
+    "BackgroundImageNotSupported": {
+      "what": "Chưa thêm được ảnh.",
+      "why": "Chỉ có thể dùng ảnh PNG, JPEG và WebP làm nền.",
+      "next": "Chọn một file PNG, JPEG hoặc WebP."
+    },
+    "BackgroundImageTooLarge": {
+      "what": "Chưa thêm được ảnh.",
+      "why": "File lớn hơn {{detail}} MB.",
+      "next": "Chọn file nhỏ hơn, hoặc lưu một bản ảnh nhỏ hơn trước."
+    },
+    "BackgroundImagesFull": {
+      "what": "Chưa thêm được ảnh.",
+      "why": "Bạn đã có số ảnh tối đa Cropa có thể lưu (100).",
+      "next": "Xóa một ảnh bạn không dùng nữa rồi thử lại."
+    },
+    "BackgroundImageMissing": {
+      "what": "Ảnh này không còn nữa.",
+      "why": "File của ảnh đã bị xóa, có thể từ cửa sổ khác hoặc bởi ứng dụng khác.",
+      "next": "Hãy thêm lại ảnh."
+    },
+    "BackgroundImagesTooNew": {
+      "what": "Chưa thay đổi được ảnh của bạn.",
+      "why": "Ảnh của bạn được lưu bởi phiên bản Cropa mới hơn, nên phiên bản này không động đến chúng.",
+      "next": "Cập nhật Cropa lên phiên bản mới nhất."
+    },
+    "BackgroundImagesRead": {
+      "what": "Chưa tải được ảnh của bạn.",
+      "why": "Cropa không đọc được thư mục ảnh ({{detail}}).",
+      "next": "Kiểm tra thư mục người dùng không bị khóa, rồi mở lại trình chỉnh sửa."
+    },
+    "BackgroundImagesSave": {
+      "what": "Chưa lưu được ảnh.",
+      "why": "Cropa không ghi được vào thư mục ảnh ({{detail}}).",
+      "next": "Kiểm tra thư mục người dùng còn chỗ trống và không bị khóa ghi, rồi thử lại."
+    },
+    "BackgroundImageDimensions": {
+      "what": "Chưa thêm được ảnh.",
+      "why": "Ảnh rộng hoặc cao hơn {{limit}} điểm ảnh.",
+      "next": "Chọn ảnh nhỏ hơn, hoặc thu nhỏ ảnh trước."
+    },
+    "BackgroundImageUnreadable": {
+      "what": "Chưa thêm được ảnh.",
+      "why": "Không đọc được file như một bức ảnh. File có thể bị hỏng.",
+      "next": "Chọn file khác."
+    },
+    "BackgroundImageLoad": {
+      "what": "Chưa hiển thị được ảnh này.",
+      "why": "Không tải được ảnh. Ảnh của người dùng có thể đã bị xóa.",
+      "next": "Chọn ảnh khác."
     }
   }
 }

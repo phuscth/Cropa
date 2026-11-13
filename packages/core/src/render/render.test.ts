@@ -360,6 +360,17 @@ describe('render', () => {
     ],
     ['bg-image', [{ type: 'image', ref: 'builtin:checker', fit: 'cover' }]],
     [
+      'bg-image-blur',
+      [{ type: 'image', ref: 'builtin:checker', fit: 'cover' }, { type: 'blur', radius: 8 }],
+    ],
+    [
+      'bg-image-contain',
+      [
+        { type: 'solid', color: '#6366f1' },
+        { type: 'image', ref: 'builtin:checker', fit: 'contain' },
+      ],
+    ],
+    [
       'bg-blur',
       [
         { type: 'solid', color: '#ffffff' },

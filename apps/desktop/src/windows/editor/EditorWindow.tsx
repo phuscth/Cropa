@@ -19,6 +19,7 @@ import { exportPlan, type ExportScale } from '../../features/editor/export/plan.
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
 import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
+import { beginBackgroundChange } from '../../features/editor/background-images.ts';
 import { dataUrlToBitmap } from '../../features/editor/load-image.ts';
 import { ScenePreview } from '../../features/editor/ScenePreview.tsx';
 import { useSceneHistory } from '../../features/editor/use-scene-history.ts';
@@ -147,6 +148,8 @@ export function EditorWindow() {
 
     const loadImage = () => {
       const id = ++loadId.current;
+      // A background still loading belongs to the scene of the previous capture.
+      beginBackgroundChange();
       const failed = (next: UserError) => {
         if (id === loadId.current) setError(next);
       };

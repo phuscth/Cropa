@@ -48,6 +48,8 @@ import {
   type BackgroundKind,
   type ShadowLevel,
 } from './scene-edits.ts';
+import { BackgroundImages } from './BackgroundImages.tsx';
+import { beginBackgroundChange } from './background-images.ts';
 import { PresetsSection } from './presets/PresetsSection.tsx';
 import { Row, Section } from './Section.tsx';
 import type { SceneHistory } from './use-scene-history.ts';
@@ -180,7 +182,10 @@ export function EditorSidebar({ history, edgeColor }: Props) {
         <Row label={t('editor.background.type')}>
           <Select
             value={kind}
-            onValueChange={(next) => { edit((s) => setBackgroundKind(s, next as BackgroundKind)); }}
+            onValueChange={(next) => {
+              beginBackgroundChange();
+              edit((s) => setBackgroundKind(s, next as BackgroundKind));
+            }}
           >
             <SelectTrigger aria-label={t('editor.background.type')}>
               <SelectValue />
@@ -194,6 +199,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
             </SelectContent>
           </Select>
         </Row>
+        {kind === 'image' && <BackgroundImages history={history} />}
         {colors.map((color, index) => (
           <Row key={index} label={t('editor.background.color', { n: index + 1 })}>
             <ColorInput
