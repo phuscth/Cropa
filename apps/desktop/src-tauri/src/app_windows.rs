@@ -1,4 +1,4 @@
-//! The app's WebView windows (editor, history, settings, onboarding), created on demand.
+//! The app's WebView windows (main, onboarding), created on demand.
 //!
 //! Nothing is created at startup, so a Cropa that only sits in the tray holds
 //! no WebView. Closing a window hides it; if it is not shown again within
@@ -12,9 +12,7 @@ use std::time::Duration;
 use tauri::window::Color;
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
-pub const EDITOR: &str = "editor";
-pub const HISTORY: &str = "history";
-pub const SETTINGS: &str = "settings";
+pub const MAIN: &str = "main";
 pub const ONBOARDING: &str = "onboarding";
 
 /// How long a closed window stays hidden before it is destroyed.
@@ -31,27 +29,11 @@ struct Spec {
 
 const SPECS: &[Spec] = &[
     Spec {
-        label: EDITOR,
-        url: "src/windows/editor/index.html",
+        label: MAIN,
+        url: "src/windows/main/index.html",
         title: "Cropa",
         size: (1180.0, 760.0),
         min_size: Some((800.0, 520.0)),
-        resizable: true,
-    },
-    Spec {
-        label: HISTORY,
-        url: "src/windows/history/index.html",
-        title: "Cropa History",
-        size: (1000.0, 680.0),
-        min_size: Some((640.0, 420.0)),
-        resizable: true,
-    },
-    Spec {
-        label: SETTINGS,
-        url: "src/windows/settings/index.html",
-        title: "Cropa Settings",
-        size: (880.0, 680.0),
-        min_size: Some((680.0, 480.0)),
         resizable: true,
     },
     Spec {
@@ -203,46 +185,46 @@ impl CloseTimers {
 
 #[cfg(test)]
 mod tests {
-    use super::{CloseTimers, EDITOR, HISTORY, ONBOARDING, SETTINGS, SPECS};
+    use super::{CloseTimers, MAIN, ONBOARDING, SPECS};
 
     #[test]
     fn a_closed_window_is_destroyed_when_its_timer_fires() {
         let timers = CloseTimers::default();
-        let token = timers.start(EDITOR);
-        assert!(timers.expire(EDITOR, token));
-        assert!(!timers.expire(EDITOR, token), "a timer fires once");
+        let token = timers.start(MAIN);
+        assert!(timers.expire(MAIN, token));
+        assert!(!timers.expire(MAIN, token), "a timer fires once");
     }
 
     #[test]
     fn showing_the_window_again_cancels_the_timer() {
         let timers = CloseTimers::default();
-        let token = timers.start(EDITOR);
-        timers.cancel(EDITOR);
-        assert!(!timers.expire(EDITOR, token));
+        let token = timers.start(MAIN);
+        timers.cancel(MAIN);
+        assert!(!timers.expire(MAIN, token));
     }
 
     #[test]
     fn only_the_latest_close_counts() {
         let timers = CloseTimers::default();
-        let first = timers.start(EDITOR);
-        let second = timers.start(EDITOR);
-        assert!(!timers.expire(EDITOR, first));
-        assert!(timers.expire(EDITOR, second));
+        let first = timers.start(MAIN);
+        let second = timers.start(MAIN);
+        assert!(!timers.expire(MAIN, first));
+        assert!(timers.expire(MAIN, second));
     }
 
     #[test]
     fn windows_have_separate_timers() {
         let timers = CloseTimers::default();
-        let editor = timers.start(EDITOR);
-        let settings = timers.start(SETTINGS);
-        timers.cancel(EDITOR);
-        assert!(!timers.expire(EDITOR, editor));
-        assert!(timers.expire(SETTINGS, settings));
+        let main = timers.start(MAIN);
+        let onboarding = timers.start(ONBOARDING);
+        timers.cancel(MAIN);
+        assert!(!timers.expire(MAIN, main));
+        assert!(timers.expire(ONBOARDING, onboarding));
     }
 
     #[test]
     fn every_label_has_a_spec() {
-        for label in [EDITOR, HISTORY, SETTINGS, ONBOARDING] {
+        for label in [MAIN, ONBOARDING] {
             assert!(SPECS.iter().any(|spec| spec.label == label), "{label}");
         }
     }

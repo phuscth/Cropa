@@ -15,7 +15,7 @@ import { AnnotationProperties } from '../../features/editor/annotate/AnnotationP
 import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
 import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
 import { screenshotPalette } from '../../features/editor/code-frames.ts';
-import { AppRail } from '../../features/shell/AppRail.tsx';
+import { useViewActive } from '../../features/shell/view-active.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
 import { exportPlan, type ExportScale } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
@@ -102,8 +102,10 @@ function RedoIcon() {
   );
 }
 
-export function EditorWindow() {
+export function EditorView() {
   const { t } = useTranslation();
+  // Hidden while another view is open: the keyboard shortcuts then belong to that view.
+  const active = useViewActive();
   const [shortcut, setShortcut] = useState<string>();
   const [loaded, setLoaded] = useState<Loaded>();
   const [error, setError] = useState<UserError>();
@@ -115,7 +117,7 @@ export function EditorWindow() {
   const history = useSceneHistory(placeholder);
   const { load } = history;
   const hasImage = loaded !== undefined;
-  const annotate = useAnnotate({ history, imageId: loaded?.imageId ?? 0, enabled: hasImage });
+  const annotate = useAnnotate({ history, imageId: loaded?.imageId ?? 0, enabled: hasImage && active });
   const { undo, redo } = annotate;
   // While a text is being edited, its glyphs are the text field's; the renderer skips empty text.
   const editingIndex = annotate.editing?.index ?? null;
@@ -211,6 +213,7 @@ export function EditorWindow() {
   useEffect(() => () => { bitmap?.close(); }, [bitmap]);
 
   useEffect(() => {
+    if (!active) return;
     const onKeyDown = (event: KeyboardEvent) => {
       if (!(event.ctrlKey || event.metaKey) || event.altKey || isTextField(event.target)) return;
       const letter = keyLetter(event);
@@ -231,14 +234,12 @@ export function EditorWindow() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => { window.removeEventListener('keydown', onKeyDown); };
-  }, [undo, redo, quickSave, copy, hasImage]);
+  }, [active, undo, redo, quickSave, copy, hasImage]);
 
   const scaleFixed = history.scene.output.width !== null;
   const fixedSize = exportPlan(history.scene, format, scale);
 
   return (
-    <div className="flex h-screen">
-    <AppRail current="Editor" />
     <main className="flex min-w-0 flex-1 flex-col">
       <header className="flex h-12 shrink-0 items-center gap-2 border-b bg-background px-4">
         <h1 className="mr-auto text-sm font-medium">{t('editor.title')}</h1>
@@ -424,6 +425,5 @@ export function EditorWindow() {
         </section>
       )}
     </main>
-    </div>
   );
 }

@@ -142,12 +142,10 @@ export const commands = {
 	 */
 	answerAutostartQuestion: (enabled: boolean) => typedError<boolean, CommandError>(__TAURI_INVOKE("answer_autostart_question", { enabled })),
 	/**
-	 *  Show a window, creating it first if needed, and bring it to the front.
-	 * 
-	 *  Async on purpose: on Windows, creating a webview window from a synchronous
-	 *  command deadlocks, because sync commands run on the main thread.
+	 *  The view the main window should show when its page loads. It only reads
+	 *  state and creates no window, so it may be a synchronous command.
 	 */
-	openWindow: (window: AppWindow) => typedError<null, CommandError>(__TAURI_INVOKE("open_window", { window })),
+	getMainView: () => __TAURI_INVOKE<MainView>("get_main_view"),
 };
 
 /** Events */
@@ -156,6 +154,7 @@ export const events = {
 	captureRequested: makeEvent<CaptureRequested, CaptureRequested>("capture-requested"),
 	editorImageChanged: makeEvent<EditorImageChanged, EditorImageChanged>("editor-image-changed"),
 	historyChanged: makeEvent<HistoryChanged, HistoryChanged>("history-changed"),
+	mainViewRequested: makeEvent<MainViewRequested, MainViewRequested>("main-view-requested"),
 	shortcutStatus: makeEvent<ShortcutStatus_Serialize, ShortcutStatus_Deserialize>("shortcut-status"),
 };
 
@@ -354,12 +353,9 @@ export type AiSettings_Serialize = {
 	onboardingAnswered: boolean,
 };
 
-/**  A window the app rail can open. */
-export type AppWindow = "Editor" | "History" | "Settings";
-
 /**
  *  What Windows reports for start-at-sign-in after the first-launch answer,
- *  so an open Settings window can update its checkbox.
+ *  so an open Settings view can update its checkbox.
  */
 export type AutostartChanged = {
 	enabled: boolean,
@@ -384,7 +380,7 @@ export type CaptureSource = "Hotkey" | "Tray";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenWindow" } | { kind: "OpenTerminal"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
 
 /**  How a drag out of the editor ended. */
 export type DragResult = "dropped" | "cancelled" | 
@@ -429,6 +425,14 @@ export type HistoryItem = {
 
 /**  Any JSON value, typed `unknown` in the bindings (the WebView holds the schema). */
 export type Json = unknown;
+
+/**  A view of the main window. */
+export type MainView = "Editor" | "History" | "Settings";
+
+/**  Another view of the main window was requested while its page is open. */
+export type MainViewRequested = {
+	view: MainView,
+};
 
 export type SaveAsChoice = { kind: "chosen"; token: number; format: ExportFormat; fileName: string } | { kind: "cancelled" };
 

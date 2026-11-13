@@ -389,7 +389,7 @@
     },
     "UserPresetMissing": {
       "what": "Preset này không còn nữa.",
-      "why": "Preset đã bị xóa, có thể từ một cửa sổ khác.",
+      "why": "Preset đã bị xóa sau khi danh sách được tải.",
       "next": "Hãy lưu nền này thành một preset mới."
     },
     "UserPresetsTooNew": {
@@ -474,7 +474,7 @@
     },
     "BackgroundImageMissing": {
       "what": "Ảnh này không còn nữa.",
-      "why": "File của ảnh đã bị xóa, có thể từ cửa sổ khác hoặc bởi ứng dụng khác.",
+      "why": "File của ảnh đã bị xóa, có thể bởi ứng dụng khác.",
       "next": "Hãy thêm lại ảnh."
     },
     "BackgroundImagesTooNew": {
@@ -516,11 +516,6 @@
       "what": "Không tìm thấy công cụ dòng lệnh.",
       "why": "Nó không nằm trong PATH nên Cropa không thể mở phần đăng nhập của nó.",
       "next": "Hãy cài đặt theo hướng dẫn, rồi kiểm tra lại."
-    },
-    "OpenWindow": {
-      "what": "Không mở được cửa sổ.",
-      "why": "Cropa không thể tạo hoặc hiển thị nó.",
-      "next": "Hãy thử lại. Nếu vẫn lỗi, hãy khởi động lại Cropa từ khay hệ thống."
     },
     "OpenTerminal": {
       "what": "Không mở được terminal.",

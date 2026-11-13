@@ -3,7 +3,7 @@ import type { ComponentProps, ReactNode } from 'react';
 import { cn } from '../lib/utils.ts';
 
 interface NavRailProps extends ComponentProps<'aside'> {
-  /** The mark at the top. */
+  /** The 32px mark at the top. */
   logo?: ReactNode;
   /** Items pinned to the bottom. */
   footer?: ReactNode;
@@ -14,10 +14,10 @@ function NavRail({ className, logo, footer, children, ...props }: NavRailProps) 
   return (
     <aside
       data-slot="nav-rail"
-      className={cn('flex w-24 shrink-0 flex-col items-center gap-1 bg-sidebar py-3', className)}
+      className={cn('relative z-20 flex w-24 shrink-0 flex-col items-center bg-sidebar pt-6 pb-3', className)}
       {...props}
     >
-      {logo ? <div className="mb-3 flex h-10 items-center justify-center">{logo}</div> : null}
+      {logo ? <div className="mb-9 flex size-8 items-center justify-center">{logo}</div> : null}
       <nav className="flex flex-col items-center gap-1">{children}</nav>
       {footer ? <div className="mt-auto flex flex-col items-center gap-1">{footer}</div> : null}
     </aside>
@@ -26,39 +26,33 @@ function NavRail({ className, logo, footer, children, ...props }: NavRailProps) 
 
 interface NavRailItemProps extends Omit<ComponentProps<'button'>, 'children'> {
   icon: ReactNode;
-  /** Shown under the pill; also the accessible name and tooltip. */
+  /** The accessible name, also shown as a tooltip on hover and keyboard focus. */
   label: string;
   active?: boolean;
 }
 
-/** A 72x44px pill with a 20px icon and a short label under it. */
+/** A 72x44px pill with a 20px icon; its name shows only as a tooltip. */
 function NavRailItem({ className, icon, label, active = false, ...props }: NavRailItemProps) {
   return (
     <button
       type="button"
       data-slot="nav-rail-item"
-      title={label}
       aria-label={label}
       aria-current={active ? 'page' : undefined}
-      className={cn('group flex w-20 flex-col items-center gap-1 outline-none', className)}
+      className={cn(
+        'group relative flex h-11 w-18 items-center justify-center rounded-full outline-none transition-[color,background-color,box-shadow] duration-150 ease-enter focus-visible:ring-2 focus-visible:ring-ring [&_svg]:size-5',
+        active
+          ? 'bg-selected text-foreground'
+          : 'text-muted-foreground hover:bg-accent hover:text-foreground',
+        className,
+      )}
       {...props}
     >
-      <span
-        className={cn(
-          'flex h-11 w-18 items-center justify-center rounded-full transition-[color,background-color,box-shadow] duration-150 ease-enter group-focus-visible:ring-4 group-focus-visible:ring-primary/16 [&_svg]:size-5',
-          active
-            ? 'bg-selected text-selected-foreground'
-            : 'text-muted-foreground group-hover:bg-accent group-hover:text-foreground',
-        )}
-      >
-        {icon}
-      </span>
+      {icon}
+      {/* The button's aria-label already names it, so the tooltip is visual only. */}
       <span
         aria-hidden="true"
-        className={cn(
-          'line-clamp-2 w-full text-center text-xs leading-tight break-words',
-          active ? 'text-foreground' : 'text-muted-foreground',
-        )}
+        className="pointer-events-none absolute top-1/2 left-full z-50 ml-2 -translate-y-1/2 rounded-md bg-foreground px-2 py-1 text-xs font-medium whitespace-nowrap text-background opacity-0 shadow-md transition-opacity duration-150 ease-enter group-hover:opacity-100 group-focus-visible:opacity-100"
       >
         {label}
       </span>

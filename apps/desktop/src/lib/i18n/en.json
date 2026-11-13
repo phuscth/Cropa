@@ -389,7 +389,7 @@
     },
     "UserPresetMissing": {
       "what": "That preset is no longer there.",
-      "why": "It was deleted, possibly from another window.",
+      "why": "It was deleted after the list was loaded.",
       "next": "Save the background as a new preset instead."
     },
     "UserPresetsTooNew": {
@@ -474,7 +474,7 @@
     },
     "BackgroundImageMissing": {
       "what": "That image is no longer there.",
-      "why": "Its file was deleted, possibly from another window or by another app.",
+      "why": "Its file was deleted, possibly by another app.",
       "next": "Add the image again."
     },
     "BackgroundImagesTooNew": {
@@ -516,11 +516,6 @@
       "what": "Couldn't find the command line tool.",
       "why": "It isn't on your PATH, so Cropa can't open its login.",
       "next": "Install it with the install guide, then check again."
-    },
-    "OpenWindow": {
-      "what": "Couldn't open the window.",
-      "why": "Cropa could not create or show it.",
-      "next": "Try again. If it keeps failing, restart Cropa from the tray."
     },
     "OpenTerminal": {
       "what": "Couldn't open the terminal.",

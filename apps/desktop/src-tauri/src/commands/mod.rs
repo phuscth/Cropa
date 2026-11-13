@@ -8,9 +8,9 @@ pub mod background_images;
 pub mod editor;
 pub mod export;
 pub mod history;
+pub mod main_window;
 pub mod presets;
 pub mod settings;
-pub mod windows;
 
 use serde::Serialize;
 use specta::Type;
@@ -94,8 +94,6 @@ pub enum CommandError {
     AiProviderUnavailable,
     #[error("the AI command line tool was not found")]
     AiCliNotFound,
-    #[error("could not open the window")]
-    OpenWindow,
     #[error("could not open a terminal: {0}")]
     OpenTerminal(String),
 }

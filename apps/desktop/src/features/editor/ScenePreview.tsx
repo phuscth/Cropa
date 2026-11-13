@@ -63,6 +63,8 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
   const lastFrames = useRef<CodeFrames | null>(null);
   // Animation time survives a redraw of the scene, so editing does not restart it.
   const clock = useRef<number>(undefined);
+  // When the animation loop last stopped, so a pause (the view hidden) does not skip time.
+  const stoppedAt = useRef<number>(undefined);
 
   useEffect(() => {
     if (codeText === undefined) return;
@@ -167,6 +169,10 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
     let inFlight = false;
     let raf = 0;
     let hiddenAt: number | undefined;
+    if (stoppedAt.current !== undefined && clock.current !== undefined) {
+      clock.current += performance.now() - stoppedAt.current;
+    }
+    stoppedAt.current = undefined;
 
     const draw = (frames: CodeFrames | null, t: number) => {
       const canvas = canvasRef.current;
@@ -238,6 +244,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
     else raf = requestAnimationFrame(tick);
     return () => {
       stopped = true;
+      stoppedAt.current = hiddenAt ?? performance.now();
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVisibility);
     };

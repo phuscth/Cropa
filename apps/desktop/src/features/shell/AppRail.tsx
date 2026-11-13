@@ -1,50 +1,50 @@
 import { NavRail, NavRailItem } from '@cropa/ui';
 import type { ReactNode } from 'react';
-import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { commands, type AppWindow } from '../../lib/bindings.ts';
-import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
-import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+import type { MainView } from '../../lib/bindings.ts';
 
 interface Props {
-  /** The window this rail is in. */
-  current: AppWindow;
+  /** The view on screen. */
+  current: MainView;
+  onSelect: (view: MainView) => void;
 }
 
+/** Solid 16px icons: 1.5px bars with square ends, drawn at 20px. */
 function Icon({ children }: { children: ReactNode }) {
   return (
-    <svg
-      viewBox="0 0 20 20"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
+    <svg viewBox="0 0 16 16" fill="currentColor" fillRule="evenodd" aria-hidden="true">
       {children}
     </svg>
   );
 }
 
+/** Two crop marks. */
 const EDITOR_ICON = (
   <Icon>
-    <path d="M6 2.5v11a1 1 0 0 0 1 1h10.5M2.5 6H13a1 1 0 0 1 1 1v10.5" />
+    <path d="M4 1h1.5v9.5H15V12H4z" />
+    <path d="M1 4h11v11h-1.5V5.5H1z" />
   </Icon>
 );
 
+/** A clock face with its hands. */
 const HISTORY_ICON = (
   <Icon>
-    <path d="M3 10a7 7 0 1 0 2.2-5.1M3 3.5v3h3M10 6.5V10l2.5 1.5" />
+    <path d="M8 1a7 7 0 1 1 0 14A7 7 0 0 1 8 1zm0 1.5a5.5 5.5 0 1 0 0 11 5.5 5.5 0 0 0 0-11z" />
+    <path d="M7.25 4h1.5v3.25H11v1.5H7.25z" />
   </Icon>
 );
 
+const GEAR_TEETH = [0, 45, 90, 135, 180, 225, 270, 315];
+
+/** A gear: a ring with eight square teeth and a hub. */
 const SETTINGS_ICON = (
   <Icon>
-    <path d="M3 6h8M15 6h2M3 14h2M9 14h8" />
-    <circle cx="13" cy="6" r="2" />
-    <circle cx="7" cy="14" r="2" />
+    <path d="M8 2.5a5.5 5.5 0 1 1 0 11 5.5 5.5 0 0 1 0-11zM8 4a4 4 0 1 0 0 8 4 4 0 0 0 0-8z" />
+    <circle cx="8" cy="8" r="1.75" />
+    {GEAR_TEETH.map((angle) => (
+      <rect key={angle} x="7" y="0.75" width="2" height="2.5" transform={`rotate(${String(angle)} 8 8)`} />
+    ))}
   </Icon>
 );
 
@@ -65,53 +65,29 @@ function Logo() {
   );
 }
 
-/** The side rail shared by the editor, history and settings windows. */
-export function AppRail({ current }: Props) {
+/** The side rail of the main window: it switches between its views. */
+export function AppRail({ current, onSelect }: Props) {
   const { t } = useTranslation();
-  // Shown as a floating notice when another window could not be opened.
-  const [error, setError] = useState<UserError>();
 
-  const open = async (window: AppWindow) => {
-    try {
-      const result = await commands.openWindow(window);
-      if (result.status === 'error') setError(describeCommandError(t, result.error));
-      else setError(undefined);
-    } catch (cause) {
-      setError(describeUnexpected(t, cause));
-    }
-  };
-
-  const item = (window: AppWindow, label: string, icon: ReactNode) => (
+  const item = (view: MainView, label: string, icon: ReactNode) => (
     <NavRailItem
       icon={icon}
       label={label}
-      active={window === current}
+      active={view === current}
       onClick={() => {
-        if (window !== current) void open(window);
+        onSelect(view);
       }}
     />
   );
 
   return (
-    <>
-      <NavRail
-        aria-label={t('rail.label')}
-        logo={<Logo />}
-        footer={item('Settings', t('rail.settings'), SETTINGS_ICON)}
-      >
-        {item('Editor', t('rail.editor'), EDITOR_ICON)}
-        {item('History', t('rail.history'), HISTORY_ICON)}
-      </NavRail>
-      {error && (
-        <div className="fixed bottom-4 left-28 z-50 w-80 max-w-[calc(100vw-8rem)] shadow-lg">
-          <ErrorNotice
-            error={error}
-            onDismiss={() => {
-              setError(undefined);
-            }}
-          />
-        </div>
-      )}
-    </>
+    <NavRail
+      aria-label={t('rail.label')}
+      logo={<Logo />}
+      footer={item('Settings', t('rail.settings'), SETTINGS_ICON)}
+    >
+      {item('Editor', t('rail.editor'), EDITOR_ICON)}
+      {item('History', t('rail.history'), HISTORY_ICON)}
+    </NavRail>
   );
 }

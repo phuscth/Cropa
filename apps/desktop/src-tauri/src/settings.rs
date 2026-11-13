@@ -173,7 +173,7 @@ pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
     }
 }
 
-/// A version 1 file is only written from the Settings window, which already
+/// A version 1 file is only written from the Settings view, which already
 /// shows the start-at-login toggle, so that user has seen the choice and is not
 /// asked again at launch.
 fn v1_to_v2(mut value: serde_json::Value) -> serde_json::Value {

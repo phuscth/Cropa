@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 
+import { useViewActive } from '../shell/view-active.ts';
 import { commands, type AiEffort, type AiProvider, type Settings } from '../../lib/bindings.ts';
 
 /** Whether AI features may run: no provider chosen yet means locked. */
@@ -19,19 +20,20 @@ export function aiAccess(settings: Settings | undefined): AiAccess {
 }
 
 /**
- * The AI access of this window. Settings can change in another window, so they
- * are read again whenever this window gains the focus. The window needs
- * `allow-get-settings`.
+ * The AI access of this window. The provider is chosen in the Settings view, so
+ * the settings are read again whenever the window gains the focus and whenever
+ * this view comes to the front. The window needs `allow-get-settings`.
  */
 export function useAiAccess(): AiAccess {
   const [settings, setSettings] = useState<Settings>();
+  const active = useViewActive();
   useEffect(() => {
     const load = () => {
       commands.getSettings().then(setSettings).catch(() => undefined);
     };
-    load();
+    if (active) load();
     window.addEventListener('focus', load);
     return () => { window.removeEventListener('focus', load); };
-  }, []);
+  }, [active]);
   return aiAccess(settings);
 }

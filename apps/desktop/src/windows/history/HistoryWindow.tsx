@@ -3,13 +3,14 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commands, events, type CommandError, type HistoryItem } from '../../lib/bindings.ts';
-import { AppRail } from '../../features/shell/AppRail.tsx';
+import { useViewActive } from '../../features/shell/view-active.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 
 type Outcome<T> = { status: 'ok'; data: T } | { status: 'error'; error: CommandError };
 
-export function HistoryWindow() {
+export function HistoryView() {
+  const active = useViewActive();
   const { t } = useTranslation();
   const [items, setItems] = useState<HistoryItem[]>();
   const [saveHistory, setSaveHistory] = useState(true);
@@ -45,15 +46,21 @@ export function HistoryWindow() {
 
   useEffect(() => {
     reload();
-    void commands
-      .getSettings()
-      .then((settings) => { setSaveHistory(settings.saveHistory); })
-      .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
     const unlisten = events.historyChanged.listen(() => { reload(); });
     return () => {
       void unlisten.then((off) => { off(); });
     };
   }, [reload, t]);
+
+  // The "history is off" setting is changed in the Settings view, so read it
+  // whenever this view comes to the front.
+  useEffect(() => {
+    if (!active) return;
+    void commands
+      .getSettings()
+      .then((settings) => { setSaveHistory(settings.saveHistory); })
+      .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
+  }, [active, t]);
 
   const deleteAll = async () => {
     setConfirmingDeleteAll(false);
@@ -64,8 +71,6 @@ export function HistoryWindow() {
   const count = items?.length ?? 0;
 
   return (
-    <div className="flex h-screen">
-    <AppRail current="History" />
     <main className="flex min-w-0 flex-1 flex-col">
       <header className="flex h-14 shrink-0 items-center gap-3 border-b px-6">
         <h1 className="text-heading">{t('history.title')}</h1>
@@ -121,7 +126,6 @@ export function HistoryWindow() {
         )}
       </section>
     </main>
-    </div>
   );
 }
 

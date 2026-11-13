@@ -69,8 +69,10 @@ try {
   if (!fs.existsSync(app)) throw new Error(`${app} is missing; run \`pnpm e2e:build\` first.`);
   const msedgedriver = await ensureMsedgedriver();
 
-  // A capture key the user's own Cropa does not hold, so no Settings window
-  // opens over the editor; a save folder, so Ctrl+S never opens a folder dialog.
+  // A capture key the user's own Cropa does not hold, so the shortcut-error notice
+  // does not appear (the window ends on the editor either way, because the test
+  // image opens after the startup Settings request); a save folder, so Ctrl+S
+  // never opens a folder dialog.
   fs.rmSync(dir, { recursive: true, force: true });
   fs.mkdirSync(path.join(dir, 'config'), { recursive: true });
   fs.mkdirSync(saveFolder);

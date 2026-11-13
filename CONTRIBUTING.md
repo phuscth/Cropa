@@ -78,7 +78,7 @@ exist only for it.
 Whenever `BOOTSTRAP_SCRIPT` changes, update `BOOTSTRAP_CSP_HASH` and the hash in
 `tauri.conf.json`; the test in `sandbox.test.ts` fails otherwise.
 
-Before a release, check the escape surface by hand: open the editor window's
+Before a release, check the escape surface by hand: open the main window's
 devtools with a test module loaded and try each of these. Every one must fail or
 be undefined, and nothing may reach the network.
 
