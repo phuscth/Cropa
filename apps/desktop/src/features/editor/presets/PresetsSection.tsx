@@ -5,7 +5,9 @@ import {
   PRESET_MAX_BYTES,
   presetId,
   presetName,
+  withoutCodeLayers,
   type BackgroundSpec,
+  type Preset,
 } from '@cropa/core';
 import {
   Button,
@@ -147,6 +149,12 @@ export function PresetsSection({ history }: Props) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UserError>();
   const [status, setStatus] = useState<string>();
+  // A preset that needs the development code stub, so it is only loaded in development.
+  const [devPresets, setDevPresets] = useState<Preset[]>([]);
+  useEffect(() => {
+    if (!import.meta.env.DEV) return;
+    void import('../dev-code-stub.ts').then(({ devCodePreset }) => { setDevPresets([devCodePreset]); });
+  }, []);
   const fileInput = useRef<HTMLInputElement>(null);
   const statusTimer = useRef<number>(undefined);
   const tRef = useRef(t);
@@ -224,7 +232,14 @@ export function PresetsSection({ history }: Props) {
   };
 
   const exportFile = async (preset: SavedPreset) => {
-    const text = exportPreset(preset.background, {
+    // A file cannot carry a code layer, so it gets the layers under it.
+    const fileSpec = withoutCodeLayers(preset.background);
+    if (!fileSpec) {
+      setError(describePresetFile(t, { kind: 'PresetExportOnlyCode' }));
+      return;
+    }
+    const droppedCode = fileSpec.layers.length < preset.background.layers.length;
+    const text = exportPreset(fileSpec, {
       id: presetId(preset.name),
       name: { en: preset.name },
     });
@@ -235,8 +250,15 @@ export function PresetsSection({ history }: Props) {
     const fileName = await run(() => commands.savePresetFile(preset.name, text.value));
     if (typeof fileName === 'string') {
       // A user image stays on this computer, so the file alone can't bring it along.
-      const ownImage = backgroundImageRefs(preset.background).some((ref) => ref.startsWith('user:'));
-      showStatus(t(ownImage ? 'editor.presets.exportedWithImage' : 'editor.presets.exported', { fileName }));
+      const ownImage = backgroundImageRefs(fileSpec).some((ref) => ref.startsWith('user:'));
+      const key = droppedCode
+        ? ownImage
+          ? 'editor.presets.exportedWithoutCodeWithImage'
+          : 'editor.presets.exportedWithoutCode'
+        : ownImage
+          ? 'editor.presets.exportedWithImage'
+          : 'editor.presets.exported';
+      showStatus(t(key, { fileName }));
     }
   };
 
@@ -333,7 +355,7 @@ export function PresetsSection({ history }: Props) {
       {error && <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />}
 
       <div className="grid grid-cols-4 gap-2">
-        {builtinPresets.map((preset) => {
+        {[...builtinPresets, ...devPresets].map((preset) => {
           const label = presetName(preset, i18n.language);
           return (
             <Tile

@@ -1,8 +1,16 @@
-import { outputSize, render, type Scene } from '@cropa/core';
+import { frameGeometry, outputSize, render, type Scene } from '@cropa/core';
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { PreviewGeometry } from './annotate/geometry.ts';
+import {
+  closeCodeFrames,
+  codeEnv,
+  codeLayerOf,
+  createCodeFrameSource,
+  type CodeFrames,
+  type CodeFrameSource,
+} from './code-frames.ts';
 import { createRedactionCache } from './redaction-cache.ts';
 import { renderEnv } from './render-env.ts';
 
@@ -38,6 +46,54 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
   // Blur and pixelate are costly to recompute, so the preview keeps their result
   // between frames; export renders the full scene without it.
   const redactions = useRef(createRedactionCache());
+
+  // A code layer animates: its source runs in the sandbox and the preview draws one
+  // bitmap pair per animation frame. Without a sandbox in this build, or after a
+  // failure, the layer draws nothing and the static path below draws the fallback.
+  const codeLayer = codeLayerOf(scene);
+  const codeText = codeLayer?.source;
+  const durationMs = codeLayer?.durationMs ?? 0;
+  const [loaded, setLoaded] = useState<{ source: CodeFrameSource; text: string } | null>(null);
+  // A source loaded for an earlier text counts as absent until the new one is ready.
+  const live = loaded && loaded.text === codeText ? loaded.source : null;
+  const lastFrames = useRef<CodeFrames | null>(null);
+  // Animation time survives a redraw of the scene, so editing does not restart it.
+  const clock = useRef<number>(undefined);
+
+  useEffect(() => {
+    if (codeText === undefined) return;
+    const held: { alive: boolean; source: CodeFrameSource | null } = { alive: true, source: null };
+    const cancelled = () => !held.alive;
+    void (async () => {
+      try {
+        const source = await createCodeFrameSource();
+        if (!source) return;
+        if (cancelled()) {
+          source.dispose();
+          return;
+        }
+        held.source = source;
+        await source.load(codeText);
+        if (cancelled()) {
+          source.dispose();
+          held.source = null;
+          return;
+        }
+        setLoaded({ source, text: codeText });
+      } catch {
+        console.error('The code layer could not be loaded');
+        held.source?.dispose();
+        held.source = null;
+      }
+    })();
+    return () => {
+      held.alive = false;
+      setLoaded(null);
+      held.source?.dispose();
+      closeCodeFrames(lastFrames.current);
+      lastFrames.current = null;
+    };
+  }, [codeText]);
 
   useLayoutEffect(() => {
     const element = areaRef.current;
@@ -83,7 +139,7 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
   const backingH = Math.max(1, current.height);
 
   useEffect(() => {
-    if (area.width === 0) return;
+    if (area.width === 0 || live) return;
     const frame = requestAnimationFrame(() => {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
@@ -98,7 +154,90 @@ export function ScenePreview({ scene, bitmap, overlay }: Props) {
       performance.measure('cropa:preview-render', { start, end: performance.now() });
     });
     return () => { cancelAnimationFrame(frame); };
-  }, [scene, env, backingW, backingH, area.width]);
+  }, [scene, env, backingW, backingH, area.width, live]);
+
+  useEffect(() => {
+    if (area.width === 0 || !live) return;
+    let stopped = false;
+    // Local to this run, so a frame of an earlier source that never settles blocks nothing.
+    let inFlight = false;
+    let raf = 0;
+    let hiddenAt: number | undefined;
+
+    const draw = (frames: CodeFrames | null, t: number) => {
+      const canvas = canvasRef.current;
+      const ctx = canvas?.getContext('2d');
+      if (!canvas || !ctx) return;
+      const began = performance.now();
+      if (canvas.width !== backingW) canvas.width = backingW;
+      if (canvas.height !== backingH) canvas.height = backingH;
+      const cached = redactions.current.scene(scene, env);
+      render(cached.scene, t, ctx, codeEnv(cached.env, frames));
+      performance.clearMeasures('cropa:preview-render');
+      performance.measure('cropa:preview-render', { start: began, end: performance.now() });
+    };
+
+    const fail = () => {
+      if (stopped) return;
+      stopped = true;
+      console.error('The code layer stopped: a frame could not be rendered');
+      setLoaded(null);
+    };
+
+    const tick = (now: number) => {
+      raf = 0;
+      if (stopped) return;
+      raf = requestAnimationFrame(tick);
+      if (inFlight) return;
+      clock.current ??= now;
+      const elapsed = (now - clock.current) % durationMs;
+      const t = elapsed >= 0 && elapsed < durationMs ? elapsed / durationMs : 0;
+      inFlight = true;
+      const geometry = { ...frameGeometry(scene, backingW, backingH), palette: [] };
+      live.renderFrame(t, geometry).then(
+        (frames) => {
+          inFlight = false;
+          if (stopped) {
+            closeCodeFrames(frames);
+            return;
+          }
+          draw(frames, t);
+          closeCodeFrames(lastFrames.current);
+          lastFrames.current = frames;
+        },
+        () => {
+          inFlight = false;
+          fail();
+        },
+      );
+    };
+
+    const onVisibility = () => {
+      if (document.hidden) {
+        hiddenAt = performance.now();
+        cancelAnimationFrame(raf);
+        raf = 0;
+      } else if (raf === 0 && !stopped) {
+        // Time continues from where it stopped instead of jumping ahead.
+        if (hiddenAt !== undefined && clock.current !== undefined) {
+          clock.current += performance.now() - hiddenAt;
+        }
+        hiddenAt = undefined;
+        raf = requestAnimationFrame(tick);
+      }
+    };
+
+    // Until the first new frame arrives, the previous one keeps the canvas from going blank.
+    if (lastFrames.current) draw(lastFrames.current, 0);
+    document.addEventListener('visibilitychange', onVisibility);
+    if (document.hidden) onVisibility();
+    else raf = requestAnimationFrame(tick);
+    return () => {
+      stopped = true;
+      cancelAnimationFrame(raf);
+      document.removeEventListener('visibilitychange', onVisibility);
+    };
+  }, [scene, env, backingW, backingH, area.width, live, durationMs]);
 
   return (
     <div ref={areaRef} className="flex min-h-0 min-w-0 flex-1 items-center justify-center">

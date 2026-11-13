@@ -3,7 +3,8 @@
 export { clamp } from './math.ts';
 
 export { Scene, migrateScene, defaultScene } from './schema/scene.ts';
-export { BackgroundSpec, migrateBackground } from './schema/background.ts';
+export { BACKGROUND_VERSION, BackgroundSpec, migrateBackground } from './schema/background.ts';
+export type { CodeLayer } from './schema/background.ts';
 export { Annotation, migrateAnnotation } from './schema/annotation.ts';
 export type { MigrateError, MigrateResult } from './schema/migrate.ts';
 export {
@@ -13,7 +14,8 @@ export {
 } from './schema/json-schema.ts';
 
 export { render } from './render/render.ts';
-export { outputSize, screenshotRect } from './render/layout.ts';
+export { frameGeometry, outputSize, screenshotRect } from './render/layout.ts';
+export type { FrameGeometry } from './render/layout.ts';
 export { ANNOTATION_DEFAULTS, ANNOTATION_FONT } from './render/annotations.ts';
 export { annotationBounds, hitTest } from './render/hit-test.ts';
 export { isRedaction, redactScreenshot } from './render/redact.ts';
@@ -34,6 +36,7 @@ export {
   migratePresetFile,
   importPreset,
   exportPreset,
+  withoutCodeLayers,
   presetId,
   presetName,
 } from './presets/file.ts';

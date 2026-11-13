@@ -35,6 +35,8 @@ for (const name of readdirSync(dir).sort()) {
       problems.push(`${label}: version ${error.version} is newer than the supported ${error.supported}`);
     } else if (error.kind === 'not-json') {
       problems.push(`${label}: not valid JSON`);
+    } else if (error.kind === 'has-code') {
+      problems.push(`${label}: a preset file may not contain a code layer`);
     } else {
       problems.push(`${label}: ${error.bytes} bytes, over the ${error.limit} byte limit`);
     }

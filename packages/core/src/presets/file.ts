@@ -39,6 +39,8 @@ export type Preset = PresetFile;
 export type PresetError =
   | MigrateError
   | { kind: 'not-json' }
+  /** A preset file may not carry a `code` layer: only the app's own AI creates one. */
+  | { kind: 'has-code' }
   | { kind: 'too-large'; bytes: number; limit: number };
 
 export type PresetResult<T> = { ok: true; value: T } | { ok: false; error: PresetError };
@@ -91,7 +93,24 @@ export function importPreset(text: string): PresetResult<Preset> {
   } catch {
     return { ok: false, error: { kind: 'not-json' } };
   }
-  return migratePresetFile(data);
+  const migrated = migratePresetFile(data);
+  if (migrated.ok && hasCodeLayer(migrated.value.background)) {
+    return { ok: false, error: { kind: 'has-code' } };
+  }
+  return migrated;
+}
+
+function hasCodeLayer(spec: BackgroundSpec): boolean {
+  return spec.layers.some((layer) => layer.type === 'code');
+}
+
+/**
+ * `spec` without its code layers, or null when no layer would be left. Preset files
+ * cannot carry code, so this is what a file gets.
+ */
+export function withoutCodeLayers(spec: BackgroundSpec): BackgroundSpec | null {
+  const layers = spec.layers.filter((layer) => layer.type !== 'code');
+  return layers.length === 0 ? null : { ...spec, layers };
 }
 
 /** The text of a preset file for `spec`. What it returns always passes {@link importPreset}. */
@@ -106,6 +125,7 @@ export function exportPreset(
     background: spec,
   });
   if (!checked.ok) return checked;
+  if (hasCodeLayer(checked.value.background)) return { ok: false, error: { kind: 'has-code' } };
   const text = `${JSON.stringify(checked.value, null, 2)}\n`;
   const bytes = utf8Length(text);
   if (bytes > PRESET_MAX_BYTES) {

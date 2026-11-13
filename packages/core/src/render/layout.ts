@@ -88,6 +88,56 @@ export function screenshotRect(scene: Scene, canvasWidth: number, canvasHeight: 
   return placeFrame(scene, canvasWidth, canvasHeight).shot;
 }
 
+/** The frame's boxes on the canvas, in canvas pixels, as `render` draws them. */
+export interface FrameBoxes {
+  /** Card plus border; the border's outer edge. */
+  outer: Box;
+  /** Screenshot plus inset. */
+  card: Box;
+  /** Corner radius of the card. The outer corner radius is `radius + border`. */
+  radius: number;
+  /** Border width, drawn outside the card. 0 without a border. */
+  border: number;
+}
+
+/** The card, border and corner radius for a placement; the renderer and `frameGeometry` share it. */
+export function frameBoxes(placement: Placement, frame: Scene['frame']): FrameBoxes {
+  const { s, shot } = placement;
+  const border = (frame.border?.width ?? 0) * s;
+  const inset = frame.inset * s;
+  // The card and border are built around the rounded screenshot rectangle.
+  const card = {
+    x: shot.x - inset,
+    y: shot.y - inset,
+    w: shot.w + 2 * inset,
+    h: shot.h + 2 * inset,
+  };
+  const outer = { x: card.x - border, y: card.y - border, w: card.w + 2 * border, h: card.h + 2 * border };
+  return { outer, card, radius: frame.radius * s, border };
+}
+
+/** The canvas and the frame on it, for code that draws around the frame. */
+export interface FrameGeometry {
+  /** Canvas size in pixels. */
+  width: number;
+  height: number;
+  /**
+   * The card (screenshot plus inset) in canvas pixels, exactly as `render` draws it.
+   * `radius` is the card's corner radius; `border` is the border width, drawn outside
+   * this rectangle, so the outer corner radius is `radius + border`.
+   */
+  frame: { x: number; y: number; width: number; height: number; radius: number; border: number };
+}
+
+export function frameGeometry(scene: Scene, canvasWidth: number, canvasHeight: number): FrameGeometry {
+  const { card, radius, border } = frameBoxes(placeFrame(scene, canvasWidth, canvasHeight), scene.frame);
+  return {
+    width: canvasWidth,
+    height: canvasHeight,
+    frame: { x: card.x, y: card.y, width: card.w, height: card.h, radius, border },
+  };
+}
+
 /**
  * Pixel size of the exported image. A fixed `output.width` wins over the natural
  * size and keeps the aspect; `scale` multiplies the result (for example 2 for a 2x export).

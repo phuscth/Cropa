@@ -12,6 +12,7 @@ describe('presetFileProblem', () => {
     expect(presetFileProblem({ kind: 'too-new', version: 9, supported: 1 })).toEqual({
       kind: 'PresetFileTooNew',
     });
+    expect(presetFileProblem({ kind: 'has-code' })).toEqual({ kind: 'PresetFileHasCode' });
   });
 
   it('keeps at most three issues', () => {

@@ -118,6 +118,8 @@
       "unreadable": "“{{name}}” can't be read",
       "exported": "Exported {{fileName}}",
       "imageMissing": "This preset uses an image that is not on this computer. It may have been deleted, or the preset was made on another computer. A plain background is shown instead; pick an image to replace it.",
+      "exportedWithoutCode": "Exported {{fileName}} without the AI animation: preset files can't carry code.",
+      "exportedWithoutCodeWithImage": "Exported {{fileName}} without the AI animation: preset files can't carry code. This preset also uses one of your own images, which is not inside the file; on another computer it shows a plain background.",
       "exportedWithImage": "Exported {{fileName}}. This preset uses one of your own images, which is not inside the file; on another computer it shows a plain background."
     },
     "annotate": {
@@ -386,6 +388,16 @@
       "what": "Couldn't import the preset.",
       "why": "The file was made by a newer version of Cropa.",
       "next": "Update Cropa, then import it again."
+    },
+    "PresetFileHasCode": {
+      "what": "Couldn't import the preset.",
+      "why": "The file contains code written by AI, and presets from files can't carry code because it would run on this computer.",
+      "next": "Ask for a version of the preset without the AI background, or create one with AI in Cropa."
+    },
+    "PresetExportOnlyCode": {
+      "what": "Couldn't export the preset.",
+      "why": "It only has an AI-written background, and preset files can't carry code.",
+      "next": "Keep it as a saved preset in Cropa, or export an image instead."
     },
     "ExportImageChanged": {
       "what": "Couldn't save the image.",

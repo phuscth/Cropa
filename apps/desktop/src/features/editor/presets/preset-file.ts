@@ -4,7 +4,10 @@ export type PresetFileProblem =
   | { kind: 'PresetFileTooLarge'; limitKb: number }
   | { kind: 'PresetFileNotJson' }
   | { kind: 'PresetFileInvalid'; detail: string }
-  | { kind: 'PresetFileTooNew' };
+  | { kind: 'PresetFileTooNew' }
+  | { kind: 'PresetFileHasCode' }
+  /** Raised on export, when a preset has nothing but an AI-written background. */
+  | { kind: 'PresetExportOnlyCode' };
 
 /** What went wrong with a preset file, in the terms of the message shown to the user. */
 export function presetFileProblem(error: PresetError): PresetFileProblem {
@@ -17,5 +20,7 @@ export function presetFileProblem(error: PresetError): PresetFileProblem {
       return { kind: 'PresetFileInvalid', detail: error.issues.slice(0, 3).join('; ') };
     case 'too-new':
       return { kind: 'PresetFileTooNew' };
+    case 'has-code':
+      return { kind: 'PresetFileHasCode' };
   }
 }

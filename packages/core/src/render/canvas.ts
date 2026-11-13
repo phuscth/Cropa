@@ -2,6 +2,8 @@
 // this package needs no DOM types. The WebView's CanvasRenderingContext2D and
 // OffscreenCanvasRenderingContext2D, and @napi-rs/canvas in Node, all satisfy it.
 
+import type { CodeLayer } from '../schema/background.ts';
+
 /** Anything a 2D context can draw: an ImageBitmap, an OffscreenCanvas, an <img>, or a Node canvas or image. */
 export interface CanvasImage {
   readonly width: number;
@@ -103,6 +105,8 @@ export interface RenderEnv {
   screenshot: CanvasImage;
   /** Resolves an image layer's `ref`. A missing image skips that layer. */
   image?: (ref: string) => CanvasImage | undefined;
+  /** Bitmaps for a `code` layer: `back` sits at the layer's place in the background, `front` over the frame. undefined draws nothing. */
+  code?: (layer: CodeLayer, pass: 'back' | 'front', t: number) => CanvasImage | undefined;
   /**
    * Creates an offscreen 2D context: `new OffscreenCanvas(w, h).getContext('2d')` in the
    * WebView, `createCanvas(w, h).getContext('2d')` in Node.
