@@ -41,6 +41,48 @@ describe('extractPalette', () => {
     expect(extractPalette(pixels)).toEqual(extractPalette(pixels));
   });
 
+  it('gives a fixed palette for a smooth gradient, where seeding decides the split', () => {
+    const gradient = image(600, 100, (x) => {
+      const v = Math.round((x / 599) * 255);
+      return [v, 64, 255 - v, 255];
+    });
+    const palette = extractPalette(gradient).map((c) => ({
+      hex: c.hex,
+      weight: Math.round(c.weight * 1000) / 1000,
+    }));
+    expect(palette).toMatchInlineSnapshot(`
+      [
+        {
+          "hex": "#e04024",
+          "weight": 0.242,
+        },
+        {
+          "hex": "#2040e3",
+          "weight": 0.222,
+        },
+        {
+          "hex": "#5141af",
+          "weight": 0.187,
+        },
+        {
+          "hex": "#aa4156",
+          "weight": 0.187,
+        },
+        {
+          "hex": "#7d4182",
+          "weight": 0.163,
+        },
+      ]
+    `);
+  });
+
+  it('counts each pixel by its alpha', () => {
+    // Half faint red (alpha 1/255), half opaque teal: teal carries almost all the weight.
+    const palette = extractPalette(image(200, 200, (x) => (x < 100 ? [230, 57, 70, 1] : TEAL)));
+    expect(palette[0]?.hex).toBe('#2a9d8f');
+    expect(palette[0]?.weight).toBeGreaterThan(0.99);
+  });
+
   it('finds the two colours of a two-colour image with weights near their area', () => {
     // 30% red on the left, 70% teal on the right; 1000 px wide so blocks straddle the edge.
     const palette = extractPalette(image(1000, 400, (x) => (x < 300 ? RED : TEAL)));

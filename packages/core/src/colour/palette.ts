@@ -11,7 +11,7 @@ export interface Pixels {
 export interface PaletteColour {
   /** `#rrggbb` */
   hex: string;
-  /** Share of the visible pixels, 0..1; the weights of a palette add up to 1. */
+  /** Share of the visible pixels (each counted by its alpha), 0..1; the weights add up to 1. */
   weight: number;
 }
 
@@ -34,7 +34,8 @@ interface Cluster extends Oklab {
 }
 
 /**
- * The dominant colours of an image, heaviest first. Fully transparent pixels are left out.
+ * The dominant colours of an image, heaviest first. Each pixel counts by its alpha, so
+ * fully transparent pixels are left out and faint ones count little.
  * Deterministic: the same pixels always give the same palette.
  *
  * The image is box-averaged (in linear light, weighted by alpha) down to `maxSide` on its
@@ -76,7 +77,7 @@ interface Points {
   l: Float64Array;
   a: Float64Array;
   b: Float64Array;
-  /** Number of visible source pixels behind each point. */
+  /** Summed alpha (0..1 per pixel) of the source pixels behind each point. */
   weight: Float64Array;
 }
 
@@ -90,7 +91,6 @@ function downscale({ data, width, height }: Pixels, maxSide: number): Points {
   const sumG = new Float64Array(cells);
   const sumB = new Float64Array(cells);
   const sumA = new Float64Array(cells);
-  const count = new Float64Array(cells);
 
   for (let y = 0; y < height; y++) {
     const rowStart = Math.floor(y / block) * cols;
@@ -103,7 +103,6 @@ function downscale({ data, width, height }: Pixels, maxSide: number): Points {
         sumG[cell] = (sumG[cell] ?? 0) + (SRGB_TO_LINEAR[data[i + 1] ?? 0] ?? 0) * a;
         sumB[cell] = (sumB[cell] ?? 0) + (SRGB_TO_LINEAR[data[i + 2] ?? 0] ?? 0) * a;
         sumA[cell] = (sumA[cell] ?? 0) + a;
-        count[cell] = (count[cell] ?? 0) + 1;
       }
       if (++cx === block) {
         cx = 0;
@@ -113,7 +112,7 @@ function downscale({ data, width, height }: Pixels, maxSide: number): Points {
   }
 
   let n = 0;
-  for (let c = 0; c < cells; c++) if ((count[c] ?? 0) > 0) n++;
+  for (let c = 0; c < cells; c++) if ((sumA[c] ?? 0) > 0) n++;
   const points: Points = {
     l: new Float64Array(n),
     a: new Float64Array(n),
@@ -121,9 +120,8 @@ function downscale({ data, width, height }: Pixels, maxSide: number): Points {
     weight: new Float64Array(n),
   };
   for (let c = 0, p = 0; c < cells; c++) {
-    const visible = count[c] ?? 0;
-    if (visible === 0) continue;
-    const alpha = sumA[c] ?? 1;
+    const alpha = sumA[c] ?? 0;
+    if (alpha === 0) continue;
     const lab = linearToOklab(
       (sumR[c] ?? 0) / alpha,
       (sumG[c] ?? 0) / alpha,
@@ -132,7 +130,7 @@ function downscale({ data, width, height }: Pixels, maxSide: number): Points {
     points.l[p] = lab.l;
     points.a[p] = lab.a;
     points.b[p] = lab.b;
-    points.weight[p] = visible;
+    points.weight[p] = alpha;
     p++;
   }
   return points;
