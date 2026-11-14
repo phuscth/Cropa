@@ -29,8 +29,8 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
     )?;
 
     TrayIconBuilder::with_id("main")
-        // The small mark at 32 px: Windows halves it to 16 px at 100% scaling. The window icon is the
-        // large mark, which blurs at tray size.
+        // The logo rendered at 32 px: Windows halves it to 16 px at 100% scaling. The default window
+        // icon is the 256 px entry, which blurs when shrunk to tray size.
         .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .tooltip(text.tooltip)
         .menu(&menu)

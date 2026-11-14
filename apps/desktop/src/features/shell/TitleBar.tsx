@@ -26,6 +26,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import logoUrl from '../../../icon-src/icon.svg?url';
 import { commands, events, type MainView, type ThemePreference } from '../../lib/bindings.ts';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 import { toggleChatPanel, useChatPanelOpen } from '../chat/panel-state.ts';
@@ -52,38 +53,16 @@ const VIEW_LABELS: Record<MainView, string> = {
 };
 const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
 
-/**
- * The small Cropa mark (`apps/desktop/icon-src/icon-small.svg`): a glass frame behind a white frame
- * with two crop corners around the accent square. Accent parts follow the theme's accent colour.
- */
+/** The Cropa logo, the same master the app icon is generated from (`apps/desktop/icon-src/icon.svg`). */
 function Logo() {
   return (
-    <svg viewBox="0 0 32 32" className="pointer-events-none size-5" aria-hidden="true">
-      <path
-        d="M8 2H20A6 6 0 0 1 26 8V20A6 6 0 0 1 20 26H8A6 6 0 0 1 2 20V8A6 6 0 0 1 8 2ZM8 6H20A2 2 0 0 1 22 8V20A2 2 0 0 1 20 22H8A2 2 0 0 1 6 20V8A2 2 0 0 1 8 6Z"
-        fillRule="evenodd"
-        fillOpacity={0.8}
-        className="fill-ring"
-      />
-      <rect x="13" y="13" width="10" height="10" rx="2" fillOpacity={0.3} className="fill-ring" />
-      <path
-        d="M12 6H24A6 6 0 0 1 30 12V24A6 6 0 0 1 24 30H12A6 6 0 0 1 6 24V12A6 6 0 0 1 12 6ZM15 14H21A1 1 0 0 1 22 15V21A1 1 0 0 1 21 22H15A1 1 0 0 1 14 21V15A1 1 0 0 1 15 14Z"
-        fillRule="evenodd"
-        className="fill-[#a9b6c5] dark:fill-[#6b7685]"
-      />
-      <path
-        d="M12 8H24A4 4 0 0 1 28 12V24A4 4 0 0 1 24 28H12A4 4 0 0 1 8 24V12A4 4 0 0 1 12 8ZM15 14H21A1 1 0 0 1 22 15V21A1 1 0 0 1 21 22H15A1 1 0 0 1 14 21V15A1 1 0 0 1 15 14Z"
-        fillRule="evenodd"
-        className="fill-white"
-      />
-      <path
-        d="M11 18V13a2 2 0 0 1 2-2H18M25 18V23a2 2 0 0 1-2 2H18"
-        fill="none"
-        strokeWidth="2"
-        className="stroke-ring"
-      />
-      <rect x="16" y="16" width="4" height="4" rx="1" className="fill-ring" />
-    </svg>
+    <img
+      src={logoUrl}
+      alt=""
+      aria-hidden="true"
+      draggable={false}
+      className="pointer-events-none size-6 select-none"
+    />
   );
 }
 
