@@ -109,6 +109,22 @@ pub enum MigrateError {
     Malformed(#[from] serde_json::Error),
 }
 
+impl MigrateError {
+    /// A description with no content of the file: a parse error can quote a value from it.
+    pub fn kind(&self) -> String {
+        match self {
+            Self::MissingVersion => "no version".to_owned(),
+            Self::TooNew(version) => format!("version {version} is too new"),
+            Self::Malformed(err) => format!(
+                "{:?} at line {} column {}",
+                err.classify(),
+                err.line(),
+                err.column()
+            ),
+        }
+    }
+}
+
 /// Bring any known on-disk version up to [`CURRENT_VERSION`]. Only version 1 exists.
 pub fn migrate(value: serde_json::Value) -> Result<ChatFile, MigrateError> {
     let version = value
@@ -272,6 +288,14 @@ pub(crate) mod tests {
             migrate(json!({"messages": []})),
             Err(MigrateError::MissingVersion)
         ));
+    }
+
+    #[test]
+    fn a_migrate_error_is_described_without_the_content_of_the_file() {
+        let file = json!({"version": 1, "messages": [{"id": "a", "role": "SECRET-TEXT"}]});
+        let error = migrate(file).unwrap_err();
+        assert!(error.to_string().contains("SECRET-TEXT"));
+        assert!(!error.kind().contains("SECRET-TEXT"));
     }
 
     #[test]

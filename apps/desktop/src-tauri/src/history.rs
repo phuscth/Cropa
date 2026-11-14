@@ -110,7 +110,11 @@ impl History {
             Ok(file) => Ok(file.messages),
             Err(MigrateError::TooNew(_)) => Err(ChatError::TooNew),
             Err(err) => {
-                log::warn!("chat of capture {id} reset to an empty conversation: {err}");
+                // The error text can quote the file, so only its kind is logged.
+                log::warn!(
+                    "chat of capture {id} reset to an empty conversation: {}",
+                    err.kind()
+                );
                 Ok(Vec::new())
             }
         }
@@ -211,22 +215,19 @@ impl History {
     pub fn delete(&self, id: &str) -> Result<(), HistoryError> {
         let id = valid_id(id)?;
         let _guard = self.guard();
-        remove_if_present(&self.chat_path(id))?;
-        remove(&self.dir.join(format!("{id}.png")))?;
+        // The conversation goes last: if the capture cannot be removed, it stays with its chat.
+        let original = remove(&self.dir.join(format!("{id}.png")));
+        if matches!(original, Err(HistoryError::Io(_))) {
+            return original;
+        }
         remove_if_present(&self.thumbnails_dir().join(format!("{id}.png")))?;
-        Ok(())
+        remove_if_present(&self.chat_path(id))?;
+        original
     }
 
     /// Remove every capture, thumbnail and chat. Other files in the folder stay.
     pub fn delete_all(&self) -> Result<(), HistoryError> {
         let _guard = self.guard();
-        let chats = self.chats_dir();
-        for (_, id) in ids_with_suffix(&chats, ".json") {
-            remove_if_present(&chats.join(format!("{id}.json")))?;
-        }
-        for (_, id) in ids_with_suffix(&chats, ".json.tmp") {
-            remove_if_present(&chats.join(format!("{id}.json.tmp")))?;
-        }
         for dir in [self.dir.clone(), self.thumbnails_dir()] {
             for (_, id) in ids_in(&dir) {
                 remove_if_present(&dir.join(format!("{id}.png")))?;
@@ -234,6 +235,14 @@ impl History {
             for name in leftovers_in(&dir) {
                 remove_if_present(&dir.join(name))?;
             }
+        }
+        // Conversations last, so a capture that could not be removed keeps its chat.
+        let chats = self.chats_dir();
+        for (_, id) in ids_with_suffix(&chats, ".json") {
+            remove_if_present(&chats.join(format!("{id}.json")))?;
+        }
+        for (_, id) in ids_with_suffix(&chats, ".json.tmp") {
+            remove_if_present(&chats.join(format!("{id}.json.tmp")))?;
         }
         Ok(())
     }
