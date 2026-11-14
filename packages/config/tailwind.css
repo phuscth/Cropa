@@ -188,6 +188,7 @@
   --animate-confirm-in: confirm-in 200ms var(--ease-enter);
   --animate-confirm-out: confirm-out 160ms var(--ease-enter) forwards;
   --animate-tab-in: tab-in 200ms var(--ease-enter);
+  --animate-section-in: section-in 200ms var(--ease-enter);
   --animate-tooltip-in: tooltip-in 150ms var(--ease-enter);
   --animate-view-in: view-in 240ms var(--ease-enter);
   --animate-chat-space-in: chat-space-in 220ms var(--ease-enter);
@@ -295,6 +296,18 @@
   from {
     opacity: 0;
     transform: translateX(var(--tab-from, 0px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A page's content entering from above or below, after the item chosen in a vertical list. */
+@keyframes section-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--section-from, 0px));
   }
   to {
     opacity: 1;

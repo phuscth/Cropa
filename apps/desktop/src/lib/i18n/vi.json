@@ -328,6 +328,7 @@
   },
   "settings": {
     "title": "Cài đặt",
+    "nav": "Các trang cài đặt",
     "sections": {
       "capture": "Chụp màn hình",
       "appearance": "Giao diện",

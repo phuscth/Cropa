@@ -3,7 +3,7 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ABOUT_SECTION_ID } from '../../features/settings/SettingsLayout.tsx';
+import { selectSettingsSection } from '../../features/settings/sections.ts';
 import { TitleBar } from '../../features/shell/TitleBar.tsx';
 import { ViewActiveContext } from '../../features/shell/view-active.ts';
 import { commands, events, type MainView } from '../../lib/bindings.ts';
@@ -93,16 +93,10 @@ export function MainWindow() {
     }
   }, [view]);
 
-  // The settings view may not be mounted yet, and loads before it shows the card.
+  // The settings view reads the chosen page when it mounts, so this works before its first visit.
   const showAbout = useCallback(() => {
+    selectSettingsSection('about');
     show('Settings');
-    let tries = 0;
-    const scroll = () => {
-      const card = document.getElementById(ABOUT_SECTION_ID);
-      if (card) card.scrollIntoView({ block: 'start' });
-      else if (++tries < 60) requestAnimationFrame(scroll);
-    };
-    requestAnimationFrame(scroll);
   }, [show]);
 
   // A pane that comes to the front slides in from the side it lies on; History and Settings sit in a panel of their own.

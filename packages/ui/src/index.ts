@@ -40,6 +40,7 @@ export {
 export { SelectorCard } from './components/selector-card.tsx';
 export { OptionList, OptionListItem } from './components/option-list.tsx';
 export { SegmentedControl, SegmentedControlItem } from './components/segmented-control.tsx';
+export { SidebarNav, type SidebarNavItem } from './components/sidebar-nav.tsx';
 export { Slider } from './components/slider.tsx';
 export { SliderField } from './components/slider-field.tsx';
 export { Switch } from './components/switch.tsx';

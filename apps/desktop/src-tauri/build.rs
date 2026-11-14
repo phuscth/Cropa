@@ -52,6 +52,8 @@ fn main() {
         "open_login_terminal",
         "answer_autostart_question",
         "get_main_view",
+        "get_settings_section",
+        "set_settings_section",
         "request_capture",
     ]);
 
