@@ -307,7 +307,7 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
           role="img"
           data-testid="editor-preview"
           aria-label={t('editor.previewAlt')}
-          className="checkerboard"
+          className="checkerboard rounded-xl"
           style={{ width: css.width, height: css.height }}
         />
         {overlay?.({ css, backing: { width: backingW, height: backingH } })}
