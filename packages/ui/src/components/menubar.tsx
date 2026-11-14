@@ -1,6 +1,7 @@
 import { Menubar as MenubarPrimitive } from 'radix-ui';
 import type { ComponentProps } from 'react';
 
+import { CheckIcon, ChevronRightIcon } from '../icons.tsx';
 import { cn } from '../lib/utils.ts';
 
 const itemClass =
@@ -105,9 +106,7 @@ function MenubarRadioItem({
     >
       <span className="absolute left-2.5 flex size-4 items-center justify-center">
         <MenubarPrimitive.ItemIndicator>
-          <svg viewBox="0 0 16 16" className="size-4" fill="currentColor" aria-hidden="true">
-            <path d="M6.5 11.5 3 8l1.1-1.1 2.4 2.4 5.4-5.4L13 5z" />
-          </svg>
+          <CheckIcon className="size-4" />
         </MenubarPrimitive.ItemIndicator>
       </span>
       {children}
@@ -131,9 +130,7 @@ function MenubarSubTrigger({
       {...props}
     >
       {children}
-      <svg viewBox="0 0 16 16" className="ml-auto size-4" fill="currentColor" aria-hidden="true">
-        <path d="M6 3.5 10.5 8 6 12.5 5 11.5 8.5 8 5 4.5z" />
-      </svg>
+      <ChevronRightIcon className="ml-auto size-4" />
     </MenubarPrimitive.SubTrigger>
   );
 }

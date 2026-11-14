@@ -161,6 +161,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@solar-icons/react':
+        specifier: 2.3.3
+        version: 2.3.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)
       class-variance-authority:
         specifier: 0.7.1
         version: 0.7.1
@@ -1236,6 +1239,13 @@ packages:
 
   '@rolldown/pluginutils@1.1.0':
     resolution: {integrity: sha512-K+NU2HDCEem4sClgHH4ZZXwdJeNFkJo+hRk479DIwdIviAPN2hFJH1KHHwg8CxHQXvi0M5XY4deTXINfIiSG6w==}
+
+  '@solar-icons/react@2.3.3':
+    resolution: {integrity: sha512-ysV8O4SitjscEnfsuHehHwkQFPZYKk6A9+Zooqw9SmG80n4V/R0ciTkwABHZ3VTlCRtkqQgaDZHkczkujhtcag==}
+    engines: {node: '>=16'}
+    peerDependencies:
+      react: '>= 16.8'
+      react-dom: '>= 16.8'
 
   '@tailwindcss/node@4.3.5':
     resolution: {integrity: sha512-yT53FzV4ke0cr/BguDxhWMpm5MJu1O2muzk+tKw6lKHjODAsYArBbWwFbJiaksfzFv1tpkO9QHGzmfs1hJT66g==}
@@ -3414,6 +3424,11 @@ snapshots:
     optional: true
 
   '@rolldown/pluginutils@1.1.0': {}
+
+  '@solar-icons/react@2.3.3(react-dom@19.3.1(react@19.3.1))(react@19.3.1)':
+    dependencies:
+      react: 19.3.1
+      react-dom: 19.3.1(react@19.3.1)
 
   '@tailwindcss/node@4.3.5':
     dependencies:

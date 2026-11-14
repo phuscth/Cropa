@@ -1,4 +1,4 @@
-import { Button } from '@cropa/ui';
+import { Button, CloseIcon } from '@cropa/ui';
 import { useTranslation } from 'react-i18next';
 
 import type { UserError } from './errors.ts';
@@ -30,9 +30,7 @@ export function ErrorNotice({ error, onDismiss }: Props) {
           aria-label={t('editor.dismiss')}
           onClick={onDismiss}
         >
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-            <path d="m4 4 8 8M12 4l-8 8" />
-          </svg>
+          <CloseIcon />
         </Button>
       )}
     </div>

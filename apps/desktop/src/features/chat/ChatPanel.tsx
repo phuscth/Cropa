@@ -1,4 +1,11 @@
-import { Button, SegmentedControl, SegmentedControlItem } from '@cropa/ui';
+import {
+  Button,
+  CloseIcon,
+  SegmentedControl,
+  SegmentedControlItem,
+  SendIcon,
+  StopIcon,
+} from '@cropa/ui';
 import { useId, useLayoutEffect, useRef, useState, type KeyboardEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -16,30 +23,6 @@ const STICK_PX = 32;
 
 const textareaClass =
   'focus-ring max-h-32 min-h-[72px] w-full resize-none rounded-xl border border-input bg-card px-3 py-2 text-control-sm font-normal transition-[color,border-color,box-shadow] duration-150 ease-enter placeholder:text-tertiary-foreground hover:border-foreground/25 focus-visible:border-ring disabled:pointer-events-none disabled:opacity-50';
-
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-      <path d="m4 4 8 8M12 4l-8 8" />
-    </svg>
-  );
-}
-
-function SendIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 13V3M3.5 7.5 8 3l4.5 4.5" />
-    </svg>
-  );
-}
-
-function StopIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <rect x="4" y="4" width="8" height="8" rx="1.5" />
-    </svg>
-  );
-}
 
 function Composer({ chat }: { chat: ChatController }) {
   const { t } = useTranslation();

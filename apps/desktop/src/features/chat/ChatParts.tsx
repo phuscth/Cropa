@@ -1,5 +1,5 @@
 import { AGENT_ERROR_KINDS, TASK_ERROR_KINDS, type AiErrorKind } from '@cropa/ai';
-import { Button, Input } from '@cropa/ui';
+import { Button, CheckIcon, ChevronRightIcon, Input } from '@cropa/ui';
 import { useEffect, useId, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -28,18 +28,9 @@ function Elapsed({ startedAt }: { startedAt: number }) {
 
 function Chevron({ open }: { open: boolean }) {
   return (
-    <svg
-      viewBox="0 0 16 16"
+    <ChevronRightIcon
       className={`size-3.5 shrink-0 transition-transform duration-150 ease-enter ${open ? 'rotate-90' : ''}`}
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="1.5"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m6 3.5 4.5 4.5L6 12.5" />
-    </svg>
+    />
   );
 }
 
@@ -239,9 +230,7 @@ export function AgentReply({
       {reached && (
         <p className="flex items-center gap-2 text-control-sm font-normal">
           <span className="inline-flex items-center gap-1 text-success">
-            <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-              <path d="m3.5 8.5 3 3 6-7" />
-            </svg>
+            <CheckIcon className="size-3.5" />
             {t('chat.applied')}
           </span>
           {onCanvas && <span className="text-muted-foreground">{t('chat.onCanvas')}</span>}
