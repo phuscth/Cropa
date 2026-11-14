@@ -243,6 +243,8 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
 
   const inEditor = view === 'Editor';
   const loaded = inEditor && (actions?.hasImage ?? false);
+  // A popover left open must not come back when the editor does.
+  if (!loaded && saveOpen) setSaveOpen(false);
   const canExport = loaded && !(actions?.busy ?? false);
   const canUndo = loaded && (actions?.canUndo ?? false);
   const canRedo = loaded && (actions?.canRedo ?? false);
@@ -406,13 +408,13 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
         >
           <CopyIcon />
         </Button>
-        <Popover open={saveOpen && loaded} onOpenChange={setSaveOpen}>
+        <Popover open={saveOpen} onOpenChange={setSaveOpen}>
           <PopoverTrigger asChild>
             <Button
               size="icon-sm"
               aria-label={t('editor.export.save')}
               title={t('editor.export.saveOptions')}
-              disabled={!canExport}
+              disabled={!loaded}
             >
               <SaveIcon />
             </Button>
