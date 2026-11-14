@@ -12,7 +12,7 @@ recorded.
 |---|---|---|---|---|
 | Microsoft Edge WebView2 Runtime | App UI | Microsoft software licence | n/a | Installed by the NSIS bootstrapper if missing |
 | Inter typeface (via @fontsource/inter 5.3.0 and @fontsource-variable/inter 5.3.0) | App UI text (the variable font, weights 100 to 900) and the text and step numbers the renderer draws on images (the static files) | OFL-1.1 | n/a | WOFF2 files (Latin, Latin Extended, Vietnamese and further subsets; static weights 600 and 700, and the variable-weight font) bundled into the app by Vite |
-| [three.js](https://threejs.org) 0.187.0 | 3D in AI-written backgrounds | MIT | n/a | Bundled into the app as a classic script and loaded only into the background sandbox worker |
+| [three.js](https://threejs.org) 0.187.0 | 3D in AI-written backgrounds | MIT | n/a | Bundled into the app as a classic script, with a fixed set of addons from `examples/jsm` (RoomEnvironment, RoundedBoxGeometry, EffectComposer, RenderPass, UnrealBloomPass, OutputPass), and loaded only into the background sandbox worker |
 | [Solar Icons Set](https://www.figma.com/community/file/1166831539721848736) by 480 Design, via [@solar-icons/react](https://github.com/saoudi-h/solar-icons) 2.3.3 | UI icons | MIT (components); artwork CC BY 4.0 | n/a | Bundled into the app by Vite, only the icons used |
 | [Lobe Icons](https://github.com/lobehub/lobe-icons) by LobeHub, `@lobehub/icons-static-svg` 1.102.0 | Anthropic and OpenAI marks naming the AI provider in the model picker, Settings and onboarding | MIT | n/a | Two SVG paths copied unmodified into `packages/ui/src/provider-logos.tsx`; the package is not a dependency |
 
@@ -25,7 +25,7 @@ Copyright 2016 The Inter Project Authors (https://github.com/rsms/inter). Licens
 
 ## three.js
 
-Copyright © 2010-2026 three.js authors. Licensed under the MIT License. The build is the unmodified `three.module.js` of 0.187.0 bundled as a classic script by Vite.
+Copyright © 2010-2026 three.js authors. Licensed under the MIT License. The build is the unmodified `three.module.js` of 0.187.0 and the unmodified addons named above from its `examples/jsm` folder (same licence and copyright), bundled together as a classic script by Vite.
 
 ## Solar Icons
 

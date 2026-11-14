@@ -242,7 +242,12 @@
 
   const materialOf = (material) => {
     if (Array.isArray(material)) return material.map(materialOf);
-    return [material?.color?.getHexString() ?? null, round(material?.opacity ?? 1, 0.01)];
+    return [
+      material?.color?.getHexString() ?? null,
+      round(material?.opacity ?? 1, 0.01),
+      material?.emissive?.getHexString() ?? null,
+      round(material?.emissiveIntensity ?? 1, 0.01),
+    ];
   };
 
   const NOOP = new Proxy(function noop() {}, {
@@ -254,6 +259,17 @@
   class StubRenderer {
     constructor(params) {
       this.domElement = params?.canvas instanceof StubCanvas ? params.canvas : new StubCanvas(300, 150);
+      // The defaults post-processing and colour management read, so they do not throw on a NOOP.
+      this.outputColorSpace = 'srgb';
+      this.toneMapping = 0;
+      this.toneMappingExposure = 1;
+      this.autoClear = true;
+      this.shadowMap = { enabled: false, type: 1 };
+      this.pixelRatio = 1;
+      this.target = null;
+      // Set once a Scene has been rendered: after that, the full-screen quads of a composer's
+      // later passes must not replace what the scene drew.
+      this.sawScene = false;
       return new Proxy(this, {
         get: (target, prop) => (prop in target ? Reflect.get(target, prop, target) : NOOP),
       });
@@ -264,10 +280,48 @@
       this.domElement.height = height;
     }
 
+    setPixelRatio(ratio) {
+      this.pixelRatio = ratio;
+    }
+
+    getPixelRatio() {
+      return this.pixelRatio;
+    }
+
+    getSize(target) {
+      return target.set(this.domElement.width, this.domElement.height);
+    }
+
+    getDrawingBufferSize(target) {
+      return target.set(this.domElement.width * this.pixelRatio, this.domElement.height * this.pixelRatio);
+    }
+
+    getRenderTarget() {
+      return this.target;
+    }
+
+    setRenderTarget(target) {
+      this.target = target ?? null;
+    }
+
+    getClearColor(target) {
+      return target;
+    }
+
+    getClearAlpha() {
+      return 0;
+    }
+
     render(scene, camera) {
+      if (scene.isScene === true) this.sawScene = true;
+      else if (this.sawScene) return;
       scene.updateMatrixWorld(true);
       camera.updateMatrixWorld(true);
       const ops = [['camera', matrixOf(camera.matrixWorld), matrixOf(camera.projectionMatrix)]];
+      const background = scene.background;
+      if (background?.isColor) ops.push(['background', background.getHexString()]);
+      // A texture by its size, not its pixels: a canvas texture may be redrawn without a reset.
+      else if (background?.isTexture) ops.push(['background-texture', background.image?.width ?? null, background.image?.height ?? null]);
       scene.traverseVisible((object) => {
         if (object.isMesh || object.isPoints || object.isLine || object.isSprite) {
           ops.push([
@@ -394,7 +448,28 @@
     },
     // Puts three.js, with the stub renderer, on the global.
     useThree(namespace) {
-      g.THREE = Object.assign({}, namespace, { WebGLRenderer: StubRenderer });
+      // The real PMREMGenerator renders with WebGL, which this stub does not have, so it hands
+      // back an empty texture instead.
+      class StubPMREMGenerator {
+        fromScene() {
+          return { texture: new namespace.Texture(), dispose() {} };
+        }
+
+        fromEquirectangular() {
+          return { texture: new namespace.Texture(), dispose() {} };
+        }
+
+        fromCubemap() {
+          return { texture: new namespace.Texture(), dispose() {} };
+        }
+
+        compileEquirectangularShader() {}
+
+        compileCubemapShader() {}
+
+        dispose() {}
+      }
+      g.THREE = Object.assign({}, namespace, { WebGLRenderer: StubRenderer, PMREMGenerator: StubPMREMGenerator });
     },
   };
   for (const name of Object.keys(driver)) Object.freeze(driver[name]);

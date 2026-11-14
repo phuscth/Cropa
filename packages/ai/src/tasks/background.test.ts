@@ -4,6 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { MockTransport } from '../mock-transport.ts';
 import { runTask } from '../run-task.ts';
 
+import art from './background-art.md?raw';
 import {
   BACKGROUND_EXAMPLES,
   MAX_BACKGROUND_SOURCE_BYTES,
@@ -47,6 +48,10 @@ describe('backgroundTask prompt', () => {
     ]) {
       expect(prompt.system).toContain(keyword);
     }
+  });
+
+  it('carries the art direction', () => {
+    expect(prompt.system).toContain(art.trim());
   });
 
   it('carries every example module', () => {

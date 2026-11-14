@@ -69,6 +69,7 @@ function readableFiles(): string[] {
     `${SANDBOX_DIR}compose-worker.ts`,
     `${SANDBOX_DIR}errors.ts`,
     `${SANDBOX_DIR}worker-runtime.js`,
+    `${SANDBOX_DIR}three-entry.js`,
     // The package as the child resolves it (a link) and where pnpm keeps it (the real path).
     here('../node_modules/three'),
     realpathSync(here('../node_modules/three')),

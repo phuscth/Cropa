@@ -105,11 +105,15 @@ function driverText(value: unknown): string {
 }
 
 /**
- * three.js evaluated inside `context`: its own source, linked from the package directory, so
- * every THREE function has the context's Function as its constructor.
+ * The sandbox's three.js bundle entry (three plus the fixed addons) evaluated inside `context`:
+ * its own source and the package's, linked from disk, so every THREE function has the context's
+ * Function as its constructor.
  */
 async function loadThree(context: vm.Context): Promise<object> {
-  const entry = fileURLToPath(import.meta.resolve('three'));
+  const threeFile = fileURLToPath(import.meta.resolve('three'));
+  // <package>/build/three.module.js
+  const packageRoot = dirname(dirname(threeFile));
+  const entry = fileURLToPath(new URL('../../../apps/desktop/src/features/code-sandbox/three-entry.js', import.meta.url));
   const modules = new Map<string, vm.SourceTextModule>();
   const open = (file: string): vm.SourceTextModule => {
     let module = modules.get(file);
@@ -127,7 +131,13 @@ async function loadThree(context: vm.Context): Promise<object> {
   };
   const root = open(entry);
   await root.link((specifier, referencing) => {
-    if (!specifier.startsWith('./')) throw new Error(`Unexpected import ${specifier} in three`);
+    if (specifier === 'three') return Promise.resolve(open(threeFile));
+    if (specifier.startsWith('three/addons/')) {
+      return Promise.resolve(open(resolve(packageRoot, 'examples/jsm', specifier.slice('three/addons/'.length))));
+    }
+    if (!specifier.startsWith('./') && !specifier.startsWith('../')) {
+      throw new Error(`Unexpected import ${specifier} in three`);
+    }
     return Promise.resolve(open(resolve(dirname(referencing.identifier), specifier)));
   });
   await root.evaluate();

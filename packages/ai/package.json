@@ -10,7 +10,8 @@
   "scripts": {
     "lint": "eslint .",
     "test": "vitest run",
-    "eval": "node evals/run.ts"
+    "eval": "node --import ./evals/raw-text-hooks.ts evals/run.ts",
+    "frames": "node --import ./evals/raw-text-hooks.ts evals/frames.ts"
   },
   "dependencies": {
     "@cropa/core": "workspace:*",

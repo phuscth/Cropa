@@ -55,6 +55,8 @@ export interface CaseRecord {
   /** The note sent with the retry: why attempt 1 was refused (schema, postprocess or check). */
   retryNote?: string;
   attempts: AttemptRecord[];
+  /** The accepted answer, as the task produced it, when the case passed. */
+  result?: unknown;
 }
 
 const MAX_DETAIL_CHARS = 1000;
@@ -226,6 +228,7 @@ export async function runEval(opts: EvalOptions): Promise<{ report: EvalReport; 
           ? { retryNote: secondPrompt.slice(firstPrompt.length).trim().slice(0, MAX_NOTE_CHARS) }
           : {}),
         attempts: attemptRecords,
+        ...(passed ? { result: out.result } : {}),
       });
 
       if (out.source === 'ai') {

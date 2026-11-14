@@ -4,5 +4,5 @@
     "outDir": "dist/types/node",
     "types": ["node"]
   },
-  "include": ["vite.config.ts", "vitest.config.ts"]
+  "include": ["vite.config.ts", "three-bundle.ts", "vitest.config.ts"]
 }
