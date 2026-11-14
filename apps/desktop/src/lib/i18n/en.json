@@ -317,6 +317,7 @@
   },
   "settings": {
     "title": "Settings",
+    "nav": "Settings pages",
     "sections": {
       "capture": "Capture",
       "appearance": "Appearance",
