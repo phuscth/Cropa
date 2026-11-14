@@ -44,8 +44,20 @@ pub enum CutoutError {
     Misaligned { dx: i32, dy: i32 },
     #[error("the cut-out shares too little with the original to line up")]
     WeakAlignment,
-    #[error("could not keep the cut-out: {0}")]
+    /// The cut-out could not be finished (encoding, a worker that died); nothing was changed.
+    #[error("could not finish the cut-out: {0}")]
+    Failed(String),
+    /// The history could not be updated to match what the editor shows.
+    #[error("could not update the cut-out kept with the capture: {0}")]
     Save(String),
+}
+
+/// A decoder that stops on its size or memory limit says the picture is too large, not broken.
+fn decode_error(err: &image::ImageError) -> CutoutError {
+    match err {
+        image::ImageError::Limits(_) => CutoutError::TooLarge,
+        other => CutoutError::Unreadable(other.to_string()),
+    }
 }
 
 impl From<MatteError> for CutoutError {
@@ -108,7 +120,7 @@ fn decode_ai(data: &str) -> Result<RgbaImage, CutoutError> {
     reader.limits(limits());
     Ok(reader
         .decode()
-        .map_err(|err| CutoutError::Unreadable(err.to_string()))?
+        .map_err(|err| decode_error(&err))?
         .into_rgba8())
 }
 
@@ -117,7 +129,7 @@ fn decode_original(png: &[u8]) -> Result<RgbaImage, CutoutError> {
     reader.limits(limits());
     Ok(reader
         .decode()
-        .map_err(|err| CutoutError::Unreadable(err.to_string()))?
+        .map_err(|err| decode_error(&err))?
         .into_rgba8())
 }
 
@@ -130,7 +142,7 @@ fn encode_png(image: &RgbaImage) -> Result<Vec<u8>, CutoutError> {
             image.height(),
             ExtendedColorType::Rgba8,
         )
-        .map_err(|err| CutoutError::Save(err.to_string()))?;
+        .map_err(|err| CutoutError::Failed(err.to_string()))?;
     Ok(bytes)
 }
 
@@ -163,7 +175,7 @@ pub fn make_cutout(original_png: &[u8], ai_base64: &str) -> Result<Vec<u8>, Cuto
         }
     };
     let cutout = RgbaImage::from_raw(matte.width, matte.height, matte.rgba)
-        .ok_or_else(|| CutoutError::Save("the cut-out buffer has the wrong size".to_owned()))?;
+        .ok_or_else(|| CutoutError::Failed("the cut-out buffer has the wrong size".to_owned()))?;
     let png = encode_png(&cutout)?;
     log::info!(
         "cut-out made in {} ms: {}x{} from a {}x{} picture, offset {:?}, peak {:.2}, coverage {:.2}, keyed {}",
@@ -260,6 +272,16 @@ mod tests {
             make_cutout(&png_of(&original), &base64_png(&everything)).unwrap_err(),
             CutoutError::NoBackground
         );
+    }
+
+    #[test]
+    fn a_decoder_limit_is_too_large_and_other_failures_are_unreadable() {
+        use image::error::{LimitError, LimitErrorKind};
+        let limit =
+            image::ImageError::Limits(LimitError::from_kind(LimitErrorKind::InsufficientMemory));
+        assert_eq!(decode_error(&limit), CutoutError::TooLarge);
+        let broken = image::ImageError::IoError(std::io::Error::other("truncated"));
+        assert!(matches!(decode_error(&broken), CutoutError::Unreadable(_)));
     }
 
     #[test]

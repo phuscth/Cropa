@@ -77,6 +77,20 @@ function load(ref: string): Promise<boolean> {
   return job;
 }
 
+/**
+ * Closes the cut-out bitmaps (`mask:` refs) of every image but the one named `imageKey`, whose
+ * cut-outs stay for undo, redo and export. Cut-out names start with the image key; with
+ * `null` (no image) all go.
+ */
+export function releaseMasksExcept(imageKey: string | null): void {
+  const keep = imageKey === null ? null : `mask:${imageKey}-`;
+  for (const [ref, bitmap] of bitmaps) {
+    if (!ref.startsWith('mask:') || (keep !== null && ref.startsWith(keep))) continue;
+    bitmap.close();
+    bitmaps.delete(ref);
+  }
+}
+
 /** Loads each of `refs`; the ones that could not be resolved come back in `missing`. */
 export async function ensureRefs(refs: readonly string[]): Promise<{ missing: string[] }> {
   const found = await Promise.all(refs.map(load));

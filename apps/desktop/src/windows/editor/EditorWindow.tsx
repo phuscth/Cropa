@@ -126,7 +126,11 @@ export function EditorView() {
     imageId: loaded?.imageId ?? 0,
     historyId: loaded?.historyId ?? null,
   });
-  const removeBackground = useRemoveBackground({ history, imageKey: loaded?.imageKey ?? null });
+  const removeBackground = useRemoveBackground({
+    history,
+    imageKey: loaded?.imageKey ?? null,
+    bitmap: loaded?.bitmap,
+  });
   const chatOpen = useChatPanelOpen();
   const sidebarOpen = useEditorSidebarOpen();
   // While the AI writes a background, the image is not exported: the result would replace it.

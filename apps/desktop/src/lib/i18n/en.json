@@ -858,6 +858,11 @@
         "why": "Background removal sends the picture to Codex, which accepts up to {{limit}} MB.",
         "next": "Crop or resize the picture, then try again."
       },
+      "TooManyPixels": {
+        "what": "The picture is too large to cut out.",
+        "why": "Background removal handles pictures up to {{limit}} megapixels, and nothing was sent to Codex.",
+        "next": "Crop or resize the picture, then try again."
+      },
       "Unreadable": {
         "what": "Cropa could not read the cut-out.",
         "why": "The picture Codex returned was not a usable image.",
@@ -888,10 +893,15 @@
         "why": "Its mask would not line up with your screenshot.",
         "next": "Nothing was changed. Try again."
       },
-      "Save": {
-        "what": "Cropa could not keep the cut-out with this capture.",
+      "Failed": {
+        "what": "Cropa could not finish the cut-out.",
         "why": "{{detail}}",
-        "next": "The cut-out still shows, but it will not be there when you reopen the capture from History."
+        "next": "Nothing was changed. Try again."
+      },
+      "Save": {
+        "what": "Cropa could not update the cut-out kept with this capture.",
+        "why": "{{detail}}",
+        "next": "The editor still shows what you chose, but reopening this capture from History may bring back an older cut-out or none. Make the change again to retry."
       }
     }
   },

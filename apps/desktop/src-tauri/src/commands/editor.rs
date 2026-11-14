@@ -26,7 +26,8 @@ pub struct EditorImageData {
     pub history_id: Option<String>,
     /// Names this image for `apply_cutout` and `show_cutout`; it changes whenever the image does.
     pub image_key: String,
-    /// The background cut-out the history kept for this capture, when it has one.
+    /// The background cut-out the editor's scene shows, when it shows one: the one the history
+    /// kept for this capture at first, then whichever the scene last showed.
     pub cutout: Option<EditorCutout>,
 }
 
@@ -46,10 +47,11 @@ pub struct EditorCutout {
 pub async fn get_editor_image(app: AppHandle) -> Result<Option<EditorImageData>, CommandError> {
     tauri::async_runtime::spawn_blocking(move || {
         app.state::<EditorImage>().get().map(|current| {
-            let name = current.history_cutout_name();
-            let cutout = current.cutouts.get(&name).map(|png| EditorCutout {
-                name,
-                image: png_data_url(png),
+            let cutout = current.shown_cutout.as_ref().and_then(|name| {
+                current.cutouts.get(name).map(|png| EditorCutout {
+                    name: name.clone(),
+                    image: png_data_url(png),
+                })
             });
             EditorImageData {
                 image: png_data_url(&current.png),

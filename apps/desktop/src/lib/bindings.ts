@@ -546,7 +546,11 @@ export type CutoutError =
 { kind: "ImageChanged" } | { kind: "Unreadable"; detail: string } | { kind: "TooLarge" } | { kind: "NoSubject" } | { kind: "NoBackground" } | { kind: "Misaligned"; detail: {
 	dx: number,
 	dy: number,
-} } | { kind: "WeakAlignment" } | { kind: "Save"; detail: string };
+} } | { kind: "WeakAlignment" } | 
+/**  The cut-out could not be finished (encoding, a worker that died); nothing was changed. */
+{ kind: "Failed"; detail: string } | 
+/**  The history could not be updated to match what the editor shows. */
+{ kind: "Save"; detail: string };
 
 /**  How a drag out of the editor ended. */
 export type DragResult = "dropped" | "cancelled" | 
@@ -577,7 +581,10 @@ export type EditorImageData_Deserialize = {
 	historyId?: string | null,
 	/**  Names this image for `apply_cutout` and `show_cutout`; it changes whenever the image does. */
 	imageKey: string,
-	/**  The background cut-out the history kept for this capture, when it has one. */
+	/**
+	 *  The background cut-out the editor's scene shows, when it shows one: the one the history
+	 *  kept for this capture at first, then whichever the scene last showed.
+	 */
 	cutout?: EditorCutout | null,
 };
 
@@ -591,7 +598,10 @@ export type EditorImageData_Serialize = {
 	historyId: string | null,
 	/**  Names this image for `apply_cutout` and `show_cutout`; it changes whenever the image does. */
 	imageKey: string,
-	/**  The background cut-out the history kept for this capture, when it has one. */
+	/**
+	 *  The background cut-out the editor's scene shows, when it shows one: the one the history
+	 *  kept for this capture at first, then whichever the scene last showed.
+	 */
 	cutout: EditorCutout | null,
 };
 

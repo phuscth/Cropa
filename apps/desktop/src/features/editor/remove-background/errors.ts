@@ -2,7 +2,7 @@ import type { TFunction } from 'i18next';
 
 import type { CutoutError } from '../../../lib/bindings.ts';
 import type { UserError } from '../../../lib/errors.ts';
-import { MAX_SEND_BYTES } from './rules.ts';
+import { MAX_CUTOUT_PIXELS, MAX_SEND_BYTES } from './rules.ts';
 
 function render(t: TFunction, kind: string, vars: Record<string, string>): UserError {
   return {
@@ -12,9 +12,11 @@ function render(t: TFunction, kind: string, vars: Record<string, string>): UserE
   };
 }
 
-/** The picture is over what an AI turn accepts, so nothing was sent. */
-export function describeImageTooLarge(t: TFunction): UserError {
-  return render(t, 'ImageTooLarge', { limit: String(MAX_SEND_BYTES / (1024 * 1024)) });
+/** The picture can not be cut out (too many pixels, or too heavy to send), so nothing was sent. */
+export function describeSendProblem(t: TFunction, problem: 'tooManyPixels' | 'tooManyBytes'): UserError {
+  return problem === 'tooManyPixels'
+    ? render(t, 'TooManyPixels', { limit: String(MAX_CUTOUT_PIXELS / 1_000_000) })
+    : render(t, 'ImageTooLarge', { limit: String(MAX_SEND_BYTES / (1024 * 1024)) });
 }
 
 /**

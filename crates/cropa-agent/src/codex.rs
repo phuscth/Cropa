@@ -516,11 +516,15 @@ enum Thread {
 }
 
 /// Reads the JSON lines of one turn.
+#[allow(clippy::struct_excessive_bools)] // independent facts about one turn, not a state
 #[derive(Debug, Default)]
 struct CodexStream {
     /// Whether the turn asked for a schema: the final message is then the structured
     /// answer, not prose.
     wants_schema: bool,
+    /// Whether the turn's answer is an image found by its thread id. Only then does an
+    /// id of an unexpected shape end the turn; a text turn never uses the id.
+    image_turn: bool,
     started: bool,
     thread: Thread,
     /// Whether a reasoning summary was already sent, so the next one follows a blank line.
@@ -553,9 +557,10 @@ fn event_label(line: &Value) -> String {
 }
 
 impl CodexStream {
-    fn new(wants_schema: bool) -> Self {
+    fn new(wants_schema: bool, image_turn: bool) -> Self {
         Self {
             wants_schema,
+            image_turn,
             ..Self::default()
         }
     }
@@ -588,10 +593,11 @@ impl CodexStream {
         match line["type"].as_str() {
             Some("thread.started") => match line["thread_id"].as_str() {
                 Some(id) if valid_thread_id(id) => self.thread = Thread::Id(id.to_owned()),
-                _ => {
+                _ if self.image_turn => {
                     self.thread = Thread::Refused;
                     return LineFlow::Stop;
                 }
+                _ => {}
             },
             Some("item.completed") if line["item"]["type"] == "agent_message" => {
                 if let Some(text) = line["item"]["text"].as_str() {
@@ -918,7 +924,7 @@ impl AgentCli for CodexExec {
             keep_stdin_open: false,
             timeout: req.timeout,
         };
-        let mut stream = CodexStream::new(schema.is_some());
+        let mut stream = CodexStream::new(schema.is_some(), req.want_image);
         let process = run_process(&spec, dir.path(), cancel, &mut |line| {
             stream.push(&line, &mut *on_event)
         });
@@ -965,11 +971,15 @@ mod tests {
 
     /// Feeds lines like the runner does: in order, up to the first `Stop`.
     fn feed(lines: &str) -> (CodexStream, Vec<Event>, usize) {
-        feed_as(lines, false)
+        feed_as(lines, false, false)
     }
 
-    fn feed_as(lines: &str, wants_schema: bool) -> (CodexStream, Vec<Event>, usize) {
-        let mut stream = CodexStream::new(wants_schema);
+    fn feed_as(
+        lines: &str,
+        wants_schema: bool,
+        image_turn: bool,
+    ) -> (CodexStream, Vec<Event>, usize) {
+        let mut stream = CodexStream::new(wants_schema, image_turn);
         let mut events = Vec::new();
         let mut fed = 0;
         for line in lines.lines().filter(|l| !l.trim().is_empty()) {
@@ -1097,7 +1107,7 @@ mod tests {
     #[test]
     fn a_schema_turn_returns_the_last_agent_message_as_json() {
         let schema = json!({"type": "object", "properties": {"layers": {"type": "array"}}, "required": ["layers"]});
-        let (stream, events, fed) = feed_as(SCHEMA_OK, true);
+        let (stream, events, fed) = feed_as(SCHEMA_OK, true, false);
         assert_eq!(events.len(), 2);
         assert_eq!(events[0], Event::Started);
         assert!(matches!(&events[1], Event::OutputDelta { text } if text.starts_with('{')));
@@ -1109,7 +1119,7 @@ mod tests {
     #[test]
     fn a_reasoning_summary_streams_as_thinking_before_the_answer() {
         let schema = json!({"type": "object"});
-        let (stream, events, _) = feed_as(REASONING, true);
+        let (stream, events, _) = feed_as(REASONING, true, false);
         let final_text = match events.last() {
             Some(Event::OutputDelta { text }) => text.clone(),
             other => panic!("expected the answer last, got {other:?}"),
@@ -1369,7 +1379,7 @@ mod tests {
     }
 
     fn image_turn(lines: &str, home: &Path) -> Result<RunOutput, AgentError> {
-        let (stream, _, _) = feed(lines);
+        let (stream, _, _) = feed_as(lines, false, true);
         stream.finish(ok(), None, Some(home))
     }
 
@@ -1496,7 +1506,7 @@ mod tests {
                 r#"{"type":"turn.completed"}"#.to_owned(),
             ]
             .join("\n");
-            let (_, _, fed) = feed(&lines);
+            let (_, _, fed) = feed_as(&lines, false, true);
             assert_eq!(fed, 1, "the stream stops at the bad id: {bad:?}");
             assert_eq!(
                 image_turn(&lines, home.path()).unwrap_err(),
@@ -1512,6 +1522,20 @@ mod tests {
         assert!(valid_thread_id(THREAD));
         assert!(valid_thread_id("a"));
         assert!(valid_thread_id(&"a".repeat(64)));
+    }
+
+    #[test]
+    fn a_text_turn_ignores_a_thread_id_it_does_not_use() {
+        let lines = [
+            r#"{"type":"thread.started","thread_id":"a/b"}"#,
+            r#"{"type":"item.completed","item":{"type":"agent_message","text":"hi"}}"#,
+            r#"{"type":"turn.completed"}"#,
+        ]
+        .join("\n");
+        let (stream, _, fed) = feed(&lines);
+        assert_eq!(fed, 3, "the stream runs to the end of the turn");
+        let out = stream.finish(ok(), None, None).unwrap();
+        assert_eq!(out.json, Some(json!("hi")));
     }
 
     #[test]

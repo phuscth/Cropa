@@ -49,7 +49,7 @@ pub async fn apply_cutout(
         })
     })
     .await
-    .map_err(|err| CutoutError::Save(err.to_string()))?
+    .map_err(|err| CutoutError::Failed(err.to_string()))?
 }
 
 /// The cut-out the editor's scene shows now: `name` as returned by `apply_cutout` (or the
@@ -63,7 +63,19 @@ pub async fn show_cutout(
     name: Option<String>,
 ) -> Result<(), CutoutError> {
     tauri::async_runtime::spawn_blocking(move || {
-        let current = cutout::current_for(&app.state::<EditorImage>(), &image_key)?;
+        let editor = app.state::<EditorImage>();
+        let current = cutout::current_for(&editor, &image_key)?;
+        // What the scene shows is what a recreated editor window gets back, in history or not.
+        let shown = match &name {
+            Some(name) => {
+                cutout::named_cutout(&current, name)?;
+                Some(name.clone())
+            }
+            None => None,
+        };
+        if !editor.set_shown_cutout(current.generation, shown) {
+            return Err(CutoutError::ImageChanged);
+        }
         let Some(id) = current.history_id.as_deref() else {
             return Ok(());
         };

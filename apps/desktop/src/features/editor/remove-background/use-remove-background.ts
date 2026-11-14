@@ -14,18 +14,20 @@ import { useImageConfirm } from '../../ai/ImageConfirmDialog.tsx';
 import { capabilitiesOf, providerName, vendorName } from '../../ai/providers.ts';
 import { createDesktopTransport } from '../../ai/transport.ts';
 import { useDetection } from '../../ai/use-ai-providers.ts';
-import { cacheImage } from '../background-images.ts';
+import { cacheImage, releaseMasksExcept } from '../background-images.ts';
 import { dataUrlToBitmap } from '../load-image.ts';
 import { maskName, maskRef, setMask } from '../scene-edits.ts';
 import type { SceneHistory } from '../use-scene-history.ts';
-import { describeCutoutError, describeImageTooLarge } from './errors.ts';
+import { describeCutoutError, describeSendProblem } from './errors.ts';
 import {
-  MAX_SEND_BYTES,
   dataUrlBase64,
   dataUrlBytes,
   removeBackgroundLock,
+  sendProblem,
   type LockReason,
 } from './rules.ts';
+import { canvasToPngDataUrl, pictureToSend } from './send-image.ts';
+import { renderEnv } from '../render-env.ts';
 
 const PROVIDER = 'codex';
 
@@ -33,6 +35,8 @@ interface Options {
   history: Pick<SceneHistory, 'scene' | 'edit'>;
   /** Names the image the editor shows (from Rust); null while it shows none. */
   imageKey: string | null;
+  /** The image the editor shows, at full size. */
+  bitmap: ImageBitmap | undefined;
 }
 
 /** Everything the background removal section shows and does. */
@@ -61,7 +65,7 @@ export interface RemoveBackgroundController {
  * The cut-out the scene shows is also what the history keeps for the capture: whenever the
  * scene's mask changes (apply, restore, undo, redo) Rust is told which one is shown.
  */
-export function useRemoveBackground({ history, imageKey }: Options): RemoveBackgroundController {
+export function useRemoveBackground({ history, imageKey, bitmap }: Options): RemoveBackgroundController {
   const { t } = useTranslation();
   const access = useAiAccess();
   const { listed } = useDetection();
@@ -84,7 +88,16 @@ export function useRemoveBackground({ history, imageKey }: Options): RemoveBackg
   const [error, setError] = useState<UserError>();
   const abort = useRef<AbortController | undefined>(undefined);
   const imageKeyNow = useRef(imageKey);
-  useEffect(() => { imageKeyNow.current = imageKey; });
+  const sceneNow = useRef(scene);
+  const bitmapNow = useRef(bitmap);
+  useEffect(() => {
+    imageKeyNow.current = imageKey;
+    sceneNow.current = scene;
+    bitmapNow.current = bitmap;
+  });
+
+  // Cut-outs of earlier images are not needed again; this image's stay for undo, redo and export.
+  useEffect(() => { releaseMasksExcept(imageKey); }, [imageKey]);
 
   // A new image ends the run for the old one: its answer would belong to a picture that is gone.
   useEffect(() => () => {
@@ -113,15 +126,26 @@ export function useRemoveBackground({ history, imageKey }: Options): RemoveBackg
         return;
       }
       const data = fetched.data;
-      if (!data) return;
-      if (dataUrlBytes(data.image) > MAX_SEND_BYTES) {
-        setError(describeImageTooLarge(t));
+      const source = bitmapNow.current;
+      if (!data || !source) return;
+      // Checked before anything is sent: a run Rust would refuse afterwards still costs quota.
+      const tooBig = sendProblem(source, null);
+      if (tooBig) {
+        setError(describeSendProblem(t, tooBig));
+        return;
+      }
+      // Blur and pixelate boxes live only in the scene: what leaves the computer has them applied.
+      const image = await pictureToSend(sceneNow.current, renderEnv(source), data.image, canvasToPngDataUrl);
+      if (aborted()) return;
+      const heavy = sendProblem(source, dataUrlBytes(image));
+      if (heavy) {
+        setError(describeSendProblem(t, heavy));
         return;
       }
 
       const outcome = await runTask(
         removeBackgroundTask,
-        { image: data.image },
+        { image },
         {
           transport: createDesktopTransport({ provider: PROVIDER, model: null }),
           provider: { name: PROVIDER, capabilities: codex ? capabilitiesOf(codex) : [] },
@@ -181,6 +205,7 @@ export function useRemoveBackground({ history, imageKey }: Options): RemoveBackg
   // an image is what the history already has, so only later changes are sent.
   const shownName = maskName(scene);
   const reported = useRef<{ key: string | null; name: string | null }>({ key: null, name: null });
+  const queue = useRef<{ tail: Promise<void>; latest: number }>({ tail: Promise.resolve(), latest: 0 });
   useEffect(() => {
     if (imageKey === null) {
       reported.current = { key: null, name: null };
@@ -192,14 +217,20 @@ export function useRemoveBackground({ history, imageKey }: Options): RemoveBackg
     }
     if (reported.current.name === shownName) return;
     reported.current = { key: imageKey, name: shownName };
-    commands.showCutout(imageKey, shownName).then(
-      (result) => {
+    // One call at a time, and only the newest state matters: a call started later could finish
+    // first on its own thread and leave the history out of step with the scene.
+    const mine = ++queue.current.latest;
+    queue.current.tail = queue.current.tail.then(async () => {
+      if (mine !== queue.current.latest) return;
+      try {
+        const result = await commands.showCutout(imageKey, shownName);
         if (result.status !== 'error') return;
         const notice = describeCutoutError(t, result.error);
         if (notice) setError(notice);
-      },
-      (cause: unknown) => { setError(describeUnexpected(t, cause)); },
-    );
+      } catch (cause) {
+        setError(describeUnexpected(t, cause));
+      }
+    });
   }, [imageKey, shownName, t]);
 
   return {

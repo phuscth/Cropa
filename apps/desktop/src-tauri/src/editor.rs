@@ -30,6 +30,9 @@ pub struct Current {
     /// The cut-out PNGs made for this image, by name. The one the history kept for the
     /// capture, if any, is named `<generation>-history`; the ones made here `<generation>-<n>`.
     pub cutouts: HashMap<String, Arc<Vec<u8>>>,
+    /// The name of the cut-out the editor's scene shows now, if any: what a window created
+    /// later is given back. It starts as the history's cut-out and follows `show_cutout`.
+    pub shown_cutout: Option<String>,
 }
 
 impl Current {
@@ -75,13 +78,30 @@ impl EditorImage {
             history_id,
             generation,
             cutouts: HashMap::new(),
+            shown_cutout: None,
         };
         if let Some(cutout) = history_cutout {
-            current
-                .cutouts
-                .insert(current.history_cutout_name(), Arc::new(cutout));
+            let name = current.history_cutout_name();
+            current.cutouts.insert(name.clone(), Arc::new(cutout));
+            current.shown_cutout = Some(name);
         }
         *slot = Some(current);
+    }
+
+    /// Record which cut-out the scene of the image of `generation` shows. `false` when the
+    /// editor's image has been replaced since.
+    pub fn set_shown_cutout(&self, generation: u64, name: Option<String>) -> bool {
+        let mut slot = self.current.lock().unwrap_or_else(PoisonError::into_inner);
+        match slot
+            .as_mut()
+            .filter(|current| current.generation == generation)
+        {
+            Some(current) => {
+                current.shown_cutout = name;
+                true
+            }
+            None => false,
+        }
     }
 
     /// Keep a cut-out made for the image of `generation` and return its name. `None` when the
@@ -270,7 +290,14 @@ mod tests {
         let current = editor.get().unwrap();
         assert_eq!(current.cutouts[&name].as_slice(), &[7]);
 
+        assert_eq!(first.shown_cutout, Some(first.history_cutout_name()));
+        assert!(editor.set_shown_cutout(first.generation, Some(name.clone())));
+        assert_eq!(editor.get().unwrap().shown_cutout, Some(name));
+        assert!(editor.set_shown_cutout(first.generation, None));
+        assert_eq!(editor.get().unwrap().shown_cutout, None);
+
         editor.set(vec![2], None, None, None);
+        assert!(!editor.set_shown_cutout(first.generation, None));
         assert_eq!(editor.add_cutout(first.generation, vec![1]), None);
         assert!(editor.get().unwrap().cutouts.is_empty());
         editor.clear();

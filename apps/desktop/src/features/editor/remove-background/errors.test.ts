@@ -15,13 +15,14 @@ const KINDS: Record<Kind, true> = {
   NoBackground: true,
   Misaligned: true,
   WeakAlignment: true,
+  Failed: true,
   Save: true,
 };
 const SHOWN = (Object.keys(KINDS) as Kind[]).filter((kind) => kind !== 'ImageChanged');
 
 describe('background removal errors', () => {
   for (const [language, strings] of [['en', en], ['vi', vi]] as const) {
-    it.each([...SHOWN, 'ImageTooLarge'])(`${language} says what, why and what next for %s`, (kind) => {
+    it.each([...SHOWN, 'ImageTooLarge', 'TooManyPixels'])(`${language} says what, why and what next for %s`, (kind) => {
       const message = (strings.removeBackground.errors as Record<string, Record<string, unknown>>)[kind];
       for (const part of ['what', 'why', 'next']) {
         expect(typeof message?.[part]).toBe('string');

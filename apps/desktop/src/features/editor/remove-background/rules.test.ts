@@ -1,7 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import type { AiDetection } from '../../../lib/bindings.ts';
-import { dataUrlBase64, dataUrlBytes, removeBackgroundLock } from './rules.ts';
+import {
+  MAX_CUTOUT_PIXELS,
+  MAX_SEND_BYTES,
+  dataUrlBase64,
+  dataUrlBytes,
+  removeBackgroundLock,
+  sendProblem,
+} from './rules.ts';
 
 function codex(overrides: Partial<AiDetection> = {}): AiDetection {
   return {
@@ -49,6 +56,19 @@ describe('removeBackgroundLock', () => {
   it('names the missing Codex before the images setting', () => {
     expect(removeBackgroundLock({ ...open, codex: undefined, allowImages: false })).toBe('needsCodex');
     expect(removeBackgroundLock({ ...open, allowImages: false })).toBe('imagesOff');
+  });
+});
+
+describe('sendProblem', () => {
+  it('refuses a picture the cut-out could not use before anything is sent', () => {
+    expect(sendProblem({ width: 5000, height: 5000 }, null)).toBeNull();
+    expect(sendProblem({ width: 5000, height: 5001 }, null)).toBe('tooManyPixels');
+    expect(MAX_CUTOUT_PIXELS).toBe(25_000_000);
+  });
+
+  it('refuses a PNG over what an AI turn takes', () => {
+    expect(sendProblem({ width: 100, height: 100 }, MAX_SEND_BYTES)).toBeNull();
+    expect(sendProblem({ width: 100, height: 100 }, MAX_SEND_BYTES + 1)).toBe('tooManyBytes');
   });
 });
 

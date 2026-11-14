@@ -858,6 +858,11 @@
         "why": "Xóa nền gửi ảnh cho Codex, và Codex chỉ nhận tối đa {{limit}} MB.",
         "next": "Hãy cắt hoặc thu nhỏ ảnh rồi thử lại."
       },
+      "TooManyPixels": {
+        "what": "Ảnh quá lớn để tách nền.",
+        "why": "Xóa nền xử lý được ảnh tối đa {{limit}} megapixel, và chưa có gì được gửi cho Codex.",
+        "next": "Hãy cắt hoặc thu nhỏ ảnh rồi thử lại."
+      },
       "Unreadable": {
         "what": "Cropa không đọc được ảnh đã tách nền.",
         "why": "Ảnh Codex trả về không phải là một ảnh dùng được.",
@@ -888,10 +893,15 @@
         "why": "Mặt nạ của nó sẽ không khớp với ảnh chụp màn hình của bạn.",
         "next": "Không có gì bị thay đổi. Hãy thử lại."
       },
-      "Save": {
-        "what": "Cropa không lưu được ảnh đã tách nền cùng với bản chụp này.",
+      "Failed": {
+        "what": "Cropa không hoàn tất được ảnh đã tách nền.",
         "why": "{{detail}}",
-        "next": "Ảnh đã tách nền vẫn hiển thị, nhưng sẽ không còn khi bạn mở lại bản chụp từ Lịch sử."
+        "next": "Không có gì bị thay đổi. Hãy thử lại."
+      },
+      "Save": {
+        "what": "Cropa không cập nhật được ảnh tách nền lưu cùng bản chụp này.",
+        "why": "{{detail}}",
+        "next": "Trình chỉnh sửa vẫn hiển thị lựa chọn của bạn, nhưng khi mở lại bản chụp từ Lịch sử có thể xuất hiện ảnh tách nền cũ hoặc không có. Hãy thực hiện lại thay đổi để thử lại."
       }
     }
   },
