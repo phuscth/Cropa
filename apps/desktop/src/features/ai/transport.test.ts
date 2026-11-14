@@ -83,12 +83,19 @@ describe('the desktop transport', () => {
     const { deps } = harness((emit) => {
       emit({ kind: 'started' });
       emit({ kind: 'delta', text: 'hi' });
+      emit({ kind: 'thinking', text: 'hm' });
+      emit({ kind: 'output', text: '{"a"' });
       emit({ kind: 'future' } as unknown as AiEvent);
       return ok({});
     });
     const seen: unknown[] = [];
     await createDesktopTransport('codex', deps).run(REQUEST, { onEvent: (e) => seen.push(e) });
-    expect(seen).toEqual([{ type: 'started' }, { type: 'delta', text: 'hi' }]);
+    expect(seen).toEqual([
+      { type: 'started' },
+      { type: 'delta', text: 'hi' },
+      { type: 'thinking', text: 'hm' },
+      { type: 'output', text: '{"a"' },
+    ]);
   });
 
   it('returns the JSON and image, leaving out what the run did not produce', async () => {

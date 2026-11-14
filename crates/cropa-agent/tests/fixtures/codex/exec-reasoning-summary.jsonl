@@ -1,0 +1,5 @@
+{"type":"thread.started","thread_id":"00000000-0000-0000-0000-000000000000"}
+{"type":"turn.started"}
+{"type":"item.completed","item":{"id":"item_0","type":"reasoning","text":"**Sizing the canvas**"}}
+{"type":"item.completed","item":{"id":"item_1","type":"agent_message","text":"{\"source\":\"export default function draw(ctx, t) {\\n  const { width: w, height: h } = ctx.canvas;\\n  const s = Math.sin(t * 0.00015);\\n  const g = ctx.createLinearGradient(0, h * (0.3 + s * 0.2), w, h);\\n  g.addColorStop(0, '#030b1c');\\n  g.addColorStop(0.5, `hsl(${218 + s * 8}, 65%, 14%)`);\\n  g.addColorStop(1, '#08152e');\\n  ctx.fillStyle = g;\\n  ctx.fillRect(0, 0, w, h);\\n}\",\"note\":\"A deep navy gradient shifts gently over time, with t in milliseconds.\"}"}}
+{"type":"turn.completed","usage":{"input_tokens":9512,"cached_input_tokens":0,"cache_write_input_tokens":0,"output_tokens":207,"reasoning_output_tokens":18}}

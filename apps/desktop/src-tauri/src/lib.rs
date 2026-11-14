@@ -4,6 +4,7 @@
 mod app_windows;
 mod background_images;
 mod capture;
+mod chat;
 mod commands;
 mod e2e;
 mod editor;
@@ -44,6 +45,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::history::delete_history_image,
             commands::history::delete_all_history,
             commands::history::open_history_in_editor,
+            commands::history::get_chat,
+            commands::history::save_chat,
             commands::editor::get_editor_image,
             commands::export::quick_save,
             commands::export::choose_save_as_path,

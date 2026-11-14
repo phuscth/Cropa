@@ -18,6 +18,8 @@ fn main() {
         "delete_history_image",
         "delete_all_history",
         "open_history_in_editor",
+        "get_chat",
+        "save_chat",
         "get_editor_image",
         "quick_save",
         "choose_save_as_path",

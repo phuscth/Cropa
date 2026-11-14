@@ -89,8 +89,14 @@ pub struct Detection {
 pub enum Event {
     /// The process runs and the prompt was sent.
     Started,
-    /// Partial model output, for a progress indicator.
+    /// Reply text (prose) as it arrives.
     Delta { text: String },
+    /// Reasoning the CLI exposes, as it arrives. It is the summary the CLI chooses to
+    /// show, not the raw chain of thought, and some turns send none.
+    Thinking { text: String },
+    /// The structured answer as raw JSON text while it is being written; the text so far
+    /// may be incomplete JSON. The final value still comes in `RunOutput`.
+    OutputDelta { text: String },
 }
 
 pub trait AgentCli: Send + Sync {

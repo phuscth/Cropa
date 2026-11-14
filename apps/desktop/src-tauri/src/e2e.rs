@@ -92,7 +92,7 @@ pub fn open_editor_image<R: Runtime>(app: &AppHandle<R>) {
     };
     match std::fs::read(&path) {
         // A fixture has no capture time.
-        Ok(png) => crate::editor::open(app, png, None),
+        Ok(png) => crate::editor::open(app, png, None, None),
         Err(err) => log::warn!("could not read the editor test image: {err}"),
     }
 }

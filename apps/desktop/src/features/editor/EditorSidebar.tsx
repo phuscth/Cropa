@@ -1,4 +1,3 @@
-import type { PaletteColour } from '@cropa/core';
 import {
   Button,
   ColorInput,
@@ -48,7 +47,6 @@ import {
   type FrameStyle,
   type ShadowLevel,
 } from './scene-edits.ts';
-import { AiBackground } from './AiBackground.tsx';
 import { BackgroundImages } from './BackgroundImages.tsx';
 import { beginBackgroundChange } from './background-images.ts';
 import { ShadowThumb, SliderRow, StyleThumb } from './panel-parts.tsx';
@@ -65,12 +63,10 @@ interface Props {
   history: Pick<SceneHistory, 'scene' | 'blocked' | 'edit' | 'preview' | 'commit'>;
   /** The colour found at the screenshot's edges, or null when it has none. */
   edgeColor: string | null;
-  /** The screenshot's dominant colours, heaviest first; empty when they could not be read. */
-  palette: readonly PaletteColour[];
 }
 
 /** The editor's left panel: the Mockup and Frame tabs. */
-export function EditorSidebar({ history, edgeColor, palette }: Props) {
+export function EditorSidebar({ history, edgeColor }: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('mockup');
   // Which way the content slides in: from the right when the tab is further along.
@@ -261,7 +257,6 @@ export function EditorSidebar({ history, edgeColor, palette }: Props) {
           className="flex animate-tab-in flex-col gap-5"
         >
           <PresetPicker history={history} onExport={() => { setTab('frame'); }} />
-          <AiBackground history={history} palette={palette} />
           <CollapsibleSection
             title={t('editor.background.customize')}
             open={customizeOpen}

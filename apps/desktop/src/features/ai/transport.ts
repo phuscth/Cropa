@@ -105,6 +105,12 @@ export function createDesktopTransport(
             case 'delta':
               onEvent?.({ type: 'delta', text: event.text });
               break;
+            case 'thinking':
+              onEvent?.({ type: 'thinking', text: event.text });
+              break;
+            case 'output':
+              onEvent?.({ type: 'output', text: event.text });
+              break;
           }
         });
 

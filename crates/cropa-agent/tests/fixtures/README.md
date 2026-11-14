@@ -21,3 +21,6 @@ placeholders. Used by the transport contract tests.
 | `claude/json-schema-invalid.stderr.txt` | `schema.mjs claude invalid` | `--json-schema` that is not a JSON Schema: refused before any request, exit 1, nothing on stdout |
 | `claude/auth-status-logged-in.json` | `auth.mjs` | `claude auth status`, exit 0 |
 | `claude/auth-status-logged-out.json` | `auth.mjs` | Same with an empty `CLAUDE_CONFIG_DIR`, exit 1 |
+| `claude/stream-partial-thinking.jsonl` | node probe script, 2026-11-14 | Locked-down turn with `--include-partial-messages --thinking-display=summarized`, effort high, `--json-schema`: `stream_event` lines with `thinking_delta` chunks of summarized thinking and `input_json_delta` chunks of the structured answer, then the full messages and `result` |
+| `claude/stream-partial-text.jsonl` | node probe script, 2026-11-14 | Same flags without `--thinking-display`, effort medium: `text_delta` chunks for a short prose line, then `input_json_delta` chunks; no thinking |
+| `codex/exec-reasoning-summary.jsonl` | node probe script, 2026-11-14 | `-c model_reasoning_summary="auto"`, effort low: an `item.completed` reasoning item with a short markdown title, then the `agent_message`, then `turn.completed`; Codex sends each item whole, with no partial text |

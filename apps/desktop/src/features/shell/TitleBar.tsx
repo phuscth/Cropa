@@ -22,6 +22,7 @@ import { useTranslation } from 'react-i18next';
 
 import { commands, events, type MainView, type ThemePreference } from '../../lib/bindings.ts';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+import { toggleChatPanel, useChatPanelOpen } from '../chat/panel-state.ts';
 import { requestCaptureAfterPaint } from './capture.ts';
 import { useEditorActions } from './editor-actions.ts';
 import { SavePopover } from './SavePopover.tsx';
@@ -143,6 +144,14 @@ function RedoIcon() {
   );
 }
 
+function ChatIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M3.5 3h9A1.5 1.5 0 0 1 14 4.5v5a1.5 1.5 0 0 1-1.5 1.5H8l-3 2.5V11h-1.5A1.5 1.5 0 0 1 2 9.5v-5A1.5 1.5 0 0 1 3.5 3Z" />
+    </svg>
+  );
+}
+
 function GripIcon() {
   return (
     <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
@@ -182,6 +191,7 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
   const [theme, setTheme] = useState<ThemePreference>();
   const [maximized, setMaximized] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const chatOpen = useChatPanelOpen();
   // A closing menu hands focus back to its trigger. After an item ran, the item
   // may have moved focus itself (a popover, a dialog, another view), so the menu
   // must not take it back; closing with Escape or a click outside still returns it.
@@ -386,6 +396,19 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
       </div>
 
       <div className="mr-2 flex items-center gap-1">
+        {inEditor && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('chat.toggle')}
+            aria-pressed={chatOpen}
+            title={t('chat.toggleHint')}
+            className={chatOpen ? 'bg-accent text-foreground' : undefined}
+            onClick={toggleChatPanel}
+          >
+            <ChatIcon />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon-sm"

@@ -17,6 +17,8 @@ pub struct EditorImageData {
     pub image: String,
     /// Milliseconds since the Unix epoch; `None` when the capture time is unknown.
     pub captured_at: Option<f64>,
+    /// The capture's id in the history, when it is kept there. The chat is stored under it.
+    pub history_id: Option<String>,
 }
 
 /// The image the editor shows with its capture time, or `None` when it has none.
@@ -29,6 +31,7 @@ pub async fn get_editor_image(app: AppHandle) -> Result<Option<EditorImageData>,
             .map(|current| EditorImageData {
                 image: png_data_url(&current.png),
                 captured_at: current.captured_at,
+                history_id: current.history_id,
             })
     })
     .await
