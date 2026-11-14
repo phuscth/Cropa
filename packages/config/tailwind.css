@@ -295,11 +295,11 @@
   }
 }
 
-/* A tooltip under its button, coming down out of it. */
+/* A tooltip coming out of its button: down from it, or up from it with `--tooltip-from: 1`. */
 @keyframes tooltip-in {
   from {
     opacity: 0;
-    transform: translateY(calc(var(--motion-slide) * -1));
+    transform: translateY(calc(var(--motion-slide) * var(--tooltip-from, -1)));
   }
   to {
     opacity: 1;

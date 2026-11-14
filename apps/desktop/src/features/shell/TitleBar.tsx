@@ -21,7 +21,7 @@ import {
   type IconComponent,
 } from '@cropa/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import logoUrl from '../../../icon-src/icon.svg?url';
@@ -33,6 +33,8 @@ import { SavePopover } from './SavePopover.tsx';
 import { StartOverConfirm } from './StartOverConfirm.tsx';
 
 interface Props {
+  /** Whether the window is maximized, for the maximize/restore button. */
+  maximized: boolean;
   /** The view on screen. */
   view: MainView;
   onView: (view: MainView) => void;
@@ -128,10 +130,9 @@ function WindowButton({ label, onClick, danger = false, children }: WindowButton
  * The custom title bar of the main window: logo, the view buttons and Help,
  * the editor's quick actions in a drag area, then export and the window buttons.
  */
-export function TitleBar({ view, onView, onAbout, onError }: Props) {
+export function TitleBar({ maximized, view, onView, onAbout, onError }: Props) {
   const { t } = useTranslation();
   const { actions } = useEditorActions();
-  const [maximized, setMaximized] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const chatOpen = useChatPanelOpen();
   // A closing menu hands focus back to its trigger. After an item ran, the item
@@ -148,20 +149,6 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
   };
 
   const fail = useCallback((cause: unknown) => { onError(describeUnexpected(t, cause)); }, [onError, t]);
-
-  useEffect(() => {
-    const win = getCurrentWindow();
-    let stopped = false;
-    const sync = () => {
-      win.isMaximized().then((next) => { if (!stopped) setMaximized(next); }).catch(fail);
-    };
-    sync();
-    const unlisten = win.onResized(sync);
-    return () => {
-      stopped = true;
-      void unlisten.then((off) => { off(); });
-    };
-  }, [fail]);
 
   const inEditor = view === 'Editor';
   const loaded = inEditor && (actions?.hasImage ?? false);
@@ -216,12 +203,12 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
 
       {/* The free area drags; the buttons in its middle are not part of it. */}
       <div data-tauri-drag-region className="flex h-full min-w-0 flex-1 items-center justify-center">
-        <div className="flex items-center gap-1">
+        <div className="relative z-50 flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
             aria-label={t('editor.undo')}
-            title={`${t('editor.undo')} (Ctrl+Z)`}
+            tooltip={{ label: t('editor.undo'), keys: ['Ctrl', 'Z'] }}
             disabled={!canUndo}
             onClick={() => { actions?.undo(); }}
           >
@@ -231,7 +218,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
             variant="ghost"
             size="icon-sm"
             aria-label={t('editor.redo')}
-            title={`${t('editor.redo')} (Ctrl+Y)`}
+            tooltip={{ label: t('editor.redo'), keys: ['Ctrl', 'Y'] }}
             disabled={!canRedo}
             onClick={() => { actions?.redo(); }}
           >
@@ -244,14 +231,15 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
         </div>
       </div>
 
-      <div className="mr-2 flex items-center gap-1">
+      {/* Above the canvas, so the tooltips that drop below the title bar are not hidden under it. */}
+      <div className="relative z-50 mr-2 flex items-center gap-1">
         {inEditor && (
           <Button
             variant="ghost"
             size="icon-sm"
             aria-label={t('chat.toggle')}
             aria-pressed={chatOpen}
-            title={t('chat.toggleHint')}
+            tooltip={{ label: t('chat.toggleHint') }}
             className={chatOpen ? 'bg-accent text-foreground' : undefined}
             onClick={toggleChatPanel}
           >
@@ -262,7 +250,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
           variant="ghost"
           size="icon-sm"
           aria-label={t('editor.export.drag')}
-          title={t('editor.export.dragHint')}
+          tooltip={{ label: t('editor.export.dragHint') }}
           draggable={false}
           className="cursor-grab touch-none"
           disabled={!canExport}
@@ -274,7 +262,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
           variant="ghost"
           size="icon-sm"
           aria-label={t('editor.export.copy')}
-          title={`${t('editor.export.copy')} (Ctrl+C)`}
+          tooltip={{ label: t('editor.export.copy'), keys: ['Ctrl', 'C'] }}
           disabled={!canExport}
           onClick={() => { actions?.copy(); }}
         >
@@ -285,7 +273,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
             <Button
               size="icon-sm"
               aria-label={t('editor.export.save')}
-              title={t('editor.export.saveOptions')}
+              tooltip={{ label: t('editor.export.saveOptions') }}
               disabled={!loaded}
             >
               <SaveIcon />
