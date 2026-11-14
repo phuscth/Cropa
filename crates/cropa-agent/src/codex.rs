@@ -545,13 +545,31 @@ impl CodexStream {
 /// The id of the `model/list` request in the app-server conversation.
 const LIST_REQUEST_ID: u64 = 2;
 
-/// The arguments of the model-list call.
+/// The arguments of the model-list call. `app-server` has no
+/// `--ignore-user-config`, so it gets the same overrides and disabled features
+/// as a turn. The user's MCP servers and plugin hosts start only with a
+/// thread, and this conversation never starts one (see [`list_request`]).
 fn list_args() -> Vec<OsString> {
-    vec![OsString::from("app-server")]
+    let mut args: Vec<OsString> = [
+        "app-server",
+        "-c",
+        "project_doc_max_bytes=0",
+        "-c",
+        "web_search=\"disabled\"",
+    ]
+    .into_iter()
+    .map(OsString::from)
+    .collect();
+    for feature in DISABLED_FEATURES {
+        args.push("--disable".into());
+        args.push((*feature).into());
+    }
+    args
 }
 
 /// The three stdin lines of the conversation: `initialize`, `initialized`,
-/// `model/list`.
+/// `model/list`. Nothing else: no thread is started, so no turn is spent and
+/// no MCP server, plugin or tool of the user's configuration is launched.
 fn list_request() -> Vec<u8> {
     let lines = [
         json!({
@@ -874,13 +892,34 @@ mod tests {
     }
 
     #[test]
-    fn the_model_list_call_is_fixed() {
-        assert_eq!(list_args(), [OsString::from("app-server")]);
+    fn the_model_list_call_is_fixed_and_locked_down() {
+        let mut expected: Vec<String> = [
+            "app-server",
+            "-c",
+            "project_doc_max_bytes=0",
+            "-c",
+            "web_search=\"disabled\"",
+        ]
+        .map(str::to_owned)
+        .to_vec();
+        for feature in DISABLED_FEATURES {
+            expected.push("--disable".to_owned());
+            expected.push((*feature).to_owned());
+        }
+        let args: Vec<String> = list_args()
+            .iter()
+            .map(|arg| arg.to_str().unwrap().to_owned())
+            .collect();
+        assert_eq!(args, expected);
+        assert!(!args.iter().any(|arg| arg.contains("sign-out")));
+
         let text = String::from_utf8(list_request()).unwrap();
         let lines: Vec<Value> = text
             .lines()
             .map(|l| serde_json::from_str(l).unwrap())
             .collect();
+        // No `thread/start`: the user's MCP servers and plugins start only with a thread.
+        assert!(!text.contains("thread/"));
         assert_eq!(lines.len(), 3);
         assert_eq!(lines[0]["method"], "initialize");
         assert_eq!(lines[0]["params"]["clientInfo"]["name"], "cropa");
