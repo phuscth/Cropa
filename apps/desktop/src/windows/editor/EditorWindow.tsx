@@ -524,14 +524,13 @@ export function EditorView() {
             }}
           />
         )}
-        {pickerOpen && !loaded && !dragging && !importing && (
-          <ImagePicker
-            anchor={pickerAnchor}
-            onClose={closePicker}
-            onFile={(file) => { void importFile(file); }}
-            onError={setImportError}
-          />
-        )}
+        <ImagePicker
+          open={pickerOpen && !loaded && !dragging && !importing}
+          anchor={pickerAnchor}
+          onClose={closePicker}
+          onFile={(file) => { void importFile(file); }}
+          onError={setImportError}
+        />
         {notices}
         {/* The properties float just above the toolbar, so the two read as one group. */}
         <div className="pointer-events-none absolute inset-x-3 bottom-[60px] z-10 flex justify-center">
