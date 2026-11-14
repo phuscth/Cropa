@@ -12,7 +12,7 @@ export {
   DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.tsx';
-export { Card, CardRow, DetailsCard, DetailsRow } from './components/card.tsx';
+export { Card, CardRow } from './components/card.tsx';
 export { IconButton } from './components/icon-button.tsx';
 export { Input } from './components/input.tsx';
 export {
@@ -40,7 +40,6 @@ export {
 export { SelectorCard } from './components/selector-card.tsx';
 export { ModelPicker } from './components/model-picker.tsx';
 export type { ModelPickerModel, ModelPickerProps, ModelPickerProvider } from './components/model-picker.tsx';
-export { OptionList, OptionListItem } from './components/option-list.tsx';
 export { SegmentedControl, SegmentedControlItem } from './components/segmented-control.tsx';
 export { SidebarNav, type SidebarNavItem } from './components/sidebar-nav.tsx';
 export { Slider } from './components/slider.tsx';
