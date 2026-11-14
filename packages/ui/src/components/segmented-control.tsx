@@ -29,6 +29,7 @@ function SegmentedControl({
   value,
   onValueChange,
   size = 'default',
+  disabled,
   children,
   ...props
 }: SegmentedControlProps) {
@@ -80,6 +81,8 @@ function SegmentedControl({
       ref={rootRef}
       data-slot="segmented-control"
       data-size={size}
+      data-disabled={disabled ? '' : undefined}
+      disabled={disabled}
       type="single"
       value={value ?? ''}
       onValueChange={(next) => {
@@ -95,7 +98,8 @@ function SegmentedControl({
         aria-hidden="true"
         data-slot="segmented-control-indicator"
         className={cn(
-          'pointer-events-none absolute inset-y-[3px] left-0 rounded-[8px] bg-card shadow-soft dark:bg-foreground/15',
+          // The pill fades with the disabled items, so a disabled control does not look active.
+          'pointer-events-none absolute inset-y-[3px] left-0 rounded-[8px] bg-card shadow-soft group-data-[disabled]/segmented:opacity-50 dark:bg-foreground/15',
           placed && 'transition-[transform,width] duration-200 ease-enter',
         )}
         style={

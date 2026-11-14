@@ -27,25 +27,4 @@ function CardRow({ className, ...props }: ComponentProps<'div'>) {
   );
 }
 
-/** A flat group with a 1px border and label and value rows, for read-only details. */
-function DetailsCard({ className, ...props }: ComponentProps<'dl'>) {
-  return (
-    <dl
-      data-slot="details-card"
-      className={cn('flex flex-col gap-1.5 rounded-xl border p-3 text-[12px]', className)}
-      {...props}
-    />
-  );
-}
-
-/** One label and value row of a details card. */
-function DetailsRow({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="flex items-baseline justify-between gap-2">
-      <dt className="text-caption">{label}</dt>
-      <dd className="text-foreground tabular-nums">{value}</dd>
-    </div>
-  );
-}
-
-export { Card, CardRow, DetailsCard, DetailsRow };
+export { Card, CardRow };
