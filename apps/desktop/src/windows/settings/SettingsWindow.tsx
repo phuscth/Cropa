@@ -529,10 +529,7 @@ export function SettingsView() {
           {page(
             'about',
             <SettingsSection title={t('settings.about.title')}>
-              <SettingRow
-                label={version ? t('settings.about.version', { version }) : t('app.name')}
-                description={t('settings.about.iconCredit')}
-              >
+              <SettingRow label={version ? t('settings.about.version', { version }) : t('app.name')}>
                 <Button
                   variant="outline"
                   size="sm"

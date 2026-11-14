@@ -29,8 +29,8 @@ Copyright © 2010-2026 three.js authors. Licensed under the MIT License. The bui
 
 ## Solar Icons
 
-The Solar Icons Set is by 480 Design (https://www.figma.com/community/file/1166831539721848736). The artwork is licensed under Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/); the React components of @solar-icons/react are MIT, Copyright 2024 Hakim Saoudi. The only change to the icons is the line width (stroke 2.25 instead of 1.5); they are otherwise unmodified. The credit and this note are shown in Settings > About.
+The Solar Icons Set is by 480 Design (https://www.figma.com/community/file/1166831539721848736). The artwork is licensed under Creative Commons Attribution 4.0 (https://creativecommons.org/licenses/by/4.0/); the React components of @solar-icons/react are MIT, Copyright 2024 Hakim Saoudi. The only change to the icons is the line width (stroke 2.25 instead of 1.5); they are otherwise unmodified.
 
 ## Lobe Icons
 
-Lobe Icons by LobeHub (https://github.com/lobehub/lobe-icons), `@lobehub/icons-static-svg` 1.102.0. The Anthropic and OpenAI marks identify the AI providers in the model picker, Settings and onboarding. MIT, Copyright (c) 2023 LobeHub. The two SVG paths are copied unmodified into `packages/ui/src/provider-logos.tsx`. The marks are trademarks of Anthropic and OpenAI and are used only to name the provider the user runs. The credit is shown in Settings > About.
+Lobe Icons by LobeHub (https://github.com/lobehub/lobe-icons), `@lobehub/icons-static-svg` 1.102.0. The Anthropic and OpenAI marks identify the AI providers in the model picker, Settings and onboarding. MIT, Copyright (c) 2023 LobeHub. The two SVG paths are copied unmodified into `packages/ui/src/provider-logos.tsx`. The marks are trademarks of Anthropic and OpenAI and are used only to name the provider the user runs.

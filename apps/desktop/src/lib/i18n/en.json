@@ -391,8 +391,7 @@
     "about": {
       "title": "About",
       "version": "Cropa {{version}}",
-      "sponsor": "Support Cropa on GitHub Sponsors",
-      "iconCredit": "Icons: Solar Icons Set by 480 Design, CC BY 4.0 (creativecommons.org/licenses/by/4.0), line width adjusted. Provider marks: Lobe Icons by LobeHub, MIT."
+      "sponsor": "Support Cropa on GitHub Sponsors"
     }
   },
   "errors": {

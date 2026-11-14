@@ -391,8 +391,7 @@
     "about": {
       "title": "Giới thiệu",
       "version": "Cropa {{version}}",
-      "sponsor": "Ủng hộ Cropa trên GitHub Sponsors",
-      "iconCredit": "Biểu tượng: bộ Solar Icons của 480 Design, CC BY 4.0 (creativecommons.org/licenses/by/4.0), đã chỉnh độ dày nét. Logo nhà cung cấp: Lobe Icons của LobeHub, MIT."
+      "sponsor": "Ủng hộ Cropa trên GitHub Sponsors"
     }
   },
   "errors": {
