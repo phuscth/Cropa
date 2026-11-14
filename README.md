@@ -2,57 +2,40 @@
 
 **C**apture · **R**ender · **O**verlay · **P**olish · **A**I
 
-Open-source (MIT) screenshot tool that beautifies captures, with optional AI
-features. Windows only for now; macOS if sponsored. Status: **early development**,
-not released yet.
+Cropa is an open-source screenshot tool that turns a plain capture into an image
+ready to share: a background, a frame, a shadow and a few notes, in a couple of
+clicks. It runs on Windows and lives in the system tray. Everything but the
+optional AI features works offline.
 
-## Develop
+Status: **early development**, not released yet. macOS support depends on
+sponsorship.
 
-Requirements: Node 22+, pnpm 11, [rustup](https://rustup.rs) with the MSVC
-toolchain (the Rust version is pinned in `rust-toolchain.toml` and installed on
-first build), Visual Studio Build Tools with the C++ workload, WebView2
-(preinstalled on Windows 11).
+## What it does
 
-```bash
-pnpm i
-pnpm dev
-```
+- **Capture.** Press `Alt+Shift+S` (or use the tray menu) and drag a region. You
+  can also open, drop or paste an image you already have.
+- **Beautify.** Pick a background preset or build your own from solid colours,
+  linear, radial, conic and mesh gradients, or an image. Then adjust the frame
+  style, corners, shadow, padding and aspect ratio, including sizes made for
+  social platforms. Save the backgrounds you like as your own presets.
+- **Annotate.** Arrows, rectangles, text and numbered steps, plus blur and
+  pixelate to hide what should stay private.
+- **AI backgrounds (optional).** Describe a background in the chat and Cropa
+  asks the Codex or Claude Code CLI you already installed and signed in to. It
+  never bundles, installs or signs in to either one, and the code the AI writes
+  runs in a sandbox with no network access.
+- **Export.** Copy to the clipboard, save as PNG, JPEG or WebP up to 6K, or drag
+  the image straight into another app, a folder or a chat.
+- **History.** Recent captures stay a click away, and you can turn history off.
 
-Cropa starts in the system tray. Press `Alt+Shift+S` or use the tray menu.
-
-`pnpm i` also installs the git hooks from [lefthook.yml](lefthook.yml): `rustfmt`
-and a [gitleaks](https://github.com/gitleaks/gitleaks) secret scan on commit,
-lint on push. The secret scan runs when `gitleaks` is on your `PATH`.
-
-| Command | What it does |
-|---|---|
-| `pnpm dev` | Run the desktop app with hot reload |
-| `pnpm lint` / `pnpm typecheck` / `pnpm test` | ESLint, `tsc -b`, Vitest |
-| `cargo fmt --all --check` | Rust formatting |
-| `cargo clippy --workspace --all-targets -- -D warnings` | Rust lint |
-| `cargo test --workspace` | Rust tests (also checks `bindings.ts` is fresh) |
-| `pnpm tauri build` | NSIS installer in `target/release/bundle/nsis/` |
-| `pnpm bindings` | Regenerate `apps/desktop/src/lib/bindings.ts` from the Rust commands |
-| `pnpm check:licenses` | Block disallowed npm licences |
-
-## Layout
-
-```
-apps/desktop        Tauri 2 app (React + TS in src/, Rust in src-tauri/)
-packages/core       @cropa/core: schema, renderer, colour, export presets
-packages/ai         @cropa/ai: AI tasks, validation, evals
-packages/ui         @cropa/ui: shadcn/ui components
-packages/config     shared tsconfig, ESLint, Tailwind tokens
-crates/cropa-agent  drives the user's Codex / Claude Code CLI
-crates/cropa-gif    animated GIF writer
-crates/cropa-matte  background removal: applies the AI cut-out's alpha to the original
-tools/              bindings generator, npm licence check
-```
+Cropa sends no telemetry and needs no account. The interface is in English and
+Vietnamese.
 
 ## Contributing
 
-See [CONTRIBUTING.md](CONTRIBUTING.md). The rules for code, checks and tests,
-for people and coding agents alike, are in [AGENTS.md](AGENTS.md).
+See [CONTRIBUTING.md](CONTRIBUTING.md) for setup, commands and checks. The rules
+for code, checks and tests, for people and coding agents alike, are in
+[AGENTS.md](AGENTS.md).
 
 ## License
 
