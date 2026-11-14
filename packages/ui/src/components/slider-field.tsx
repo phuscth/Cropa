@@ -27,7 +27,7 @@ function SliderField({ className, label, valueText, value, min = 0, max = 100, .
     <SliderPrimitive.Root
       data-slot="slider-field"
       className={cn(
-        'relative flex h-[30px] w-full touch-none items-center rounded-full select-none has-[[role=slider]:focus-visible]:outline-2 has-[[role=slider]:focus-visible]:outline-offset-2 has-[[role=slider]:focus-visible]:outline-ring data-[disabled]:opacity-50',
+        'relative flex h-[30px] w-full touch-none items-center rounded-[10px] select-none has-[[role=slider]:focus-visible]:outline-2 has-[[role=slider]:focus-visible]:outline-offset-2 has-[[role=slider]:focus-visible]:outline-ring data-[disabled]:opacity-50',
         className,
       )}
       value={value}
@@ -37,7 +37,7 @@ function SliderField({ className, label, valueText, value, min = 0, max = 100, .
     >
       <SliderPrimitive.Track
         data-slot="slider-field-track"
-        className="absolute inset-0 overflow-hidden rounded-full bg-secondary"
+        className="absolute inset-0 overflow-hidden rounded-[10px] bg-secondary"
       >
         <span
           aria-hidden="true"
