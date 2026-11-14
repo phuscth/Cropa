@@ -1,5 +1,6 @@
 import { frameGeometry, outputSize, render, type Scene } from '@cropa/core';
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { cn } from '@cropa/ui';
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import type { PreviewGeometry } from './annotate/geometry.ts';
@@ -12,7 +13,7 @@ import {
   type CodeFrames,
   type CodeFrameSource,
 } from './code-frames.ts';
-import { onAiBackgroundReveal, revealSharp, settleIn } from './preview-motion.ts';
+import { onAiBackgroundReveal, revealSharp, settleIn, workingSweep } from './preview-motion.ts';
 import { createRedactionCache } from './redaction-cache.ts';
 import { renderEnv } from './render-env.ts';
 
@@ -23,7 +24,14 @@ interface Props {
   overlay?: (geometry: PreviewGeometry) => ReactNode;
   /** Space kept free under the image, in CSS px, for toolbars floating over the bottom of the canvas. */
   bottomInset?: number;
+  /** The AI is writing a background: light sweeps over the scene until the result shows. */
+  working?: boolean;
 }
+
+/** How long an applied AI background may take to draw its first frame before the reveal is dropped. */
+const REVEAL_WAIT_MS = 15_000;
+/** The veil's fade, in and out. */
+const VEIL_FADE_MS = 200;
 
 interface Box {
   width: number;
@@ -40,7 +48,7 @@ function fit(output: Box, available: Box): Box {
 }
 
 /** Draws the scene with the shared renderer, at most once per animation frame. */
-export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props) {
+export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0, working = false }: Props) {
   const { t } = useTranslation();
   const areaRef = useRef<HTMLDivElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -53,6 +61,15 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
   const redactions = useRef(createRedactionCache());
   // See the reveal effects below.
   const revealPending = useRef<{ from: string | undefined; at: number; target?: string | undefined } | null>(null);
+  // When the newest AI background was applied, from then until its first frame is drawn or the
+  // reveal is dropped: the canvas keeps the previous picture meanwhile. A time rather than a flag,
+  // so a second request during the wait is seen as new.
+  const [holdingSince, setHoldingSince] = useState<number | null>(null);
+  const holding = holdingSince !== null;
+  const dropReveal = useCallback(() => {
+    revealPending.current = null;
+    setHoldingSince(null);
+  }, []);
 
   // A code layer animates: its source runs in the sandbox and the preview draws one
   // bitmap pair per animation frame. Without a sandbox in this build, or after a
@@ -79,7 +96,10 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
     void (async () => {
       try {
         const source = await createCodeFrameSource(codeText);
-        if (!source) return;
+        if (!source) {
+          if (!cancelled()) dropReveal();
+          return;
+        }
         if (cancelled()) {
           source.dispose();
           return;
@@ -94,7 +114,7 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
         setLoaded({ source, text: codeText });
       } catch {
         console.error('The code layer could not be loaded');
-        revealPending.current = null;
+        if (!cancelled()) dropReveal();
         held.source?.dispose();
         held.source = null;
       }
@@ -106,7 +126,7 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
       closeCodeFrames(lastFrames.current);
       lastFrames.current = null;
     };
-  }, [codeText]);
+  }, [codeText, dropReveal]);
 
   // A new screenshot settles in; the first one does too, when the preview mounts.
   useEffect(() => {
@@ -119,26 +139,35 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
   }, [bitmap]);
 
   // An applied AI background is revealed from a blur, on the canvas element only. Its code loads
-  // asynchronously and the closest preset is drawn meanwhile, so the reveal waits for the first
-  // frame drawn from that code: `target` is the code text the scene moves to after the request, and
-  // only its first frame may play the reveal. Moving to other code, a source that fails to load, or
-  // 15 s without a frame drops the request.
+  // asynchronously, so the canvas keeps the picture it had until the first frame drawn from that
+  // code, which then plays the reveal: `target` is the code text the scene moved to with the
+  // request. The request comes in the same update as the scene it applies, so code that did not
+  // change, moving to other code, a source that fails to load, or 15 s without a frame drop it.
   const codeTextNow = useRef(codeText);
   useEffect(() => { codeTextNow.current = codeText; });
   useEffect(() => {
     const pending = revealPending.current;
-    if (!pending || codeText === pending.from) return;
-    if (performance.now() - pending.at > 15_000) revealPending.current = null;
-    else if (pending.target === undefined) revealPending.current = { ...pending, target: codeText };
-    else if (pending.target !== codeText) revealPending.current = null;
-  }, [codeText]);
+    if (!pending) return;
+    if (performance.now() - pending.at > REVEAL_WAIT_MS) dropReveal();
+    else if (pending.target === undefined) {
+      if (codeText === undefined || codeText === pending.from) dropReveal();
+      else revealPending.current = { ...pending, target: codeText };
+    } else if (pending.target !== codeText) dropReveal();
+  }, [codeText, holdingSince, dropReveal]);
   useEffect(
     () =>
       onAiBackgroundReveal(() => {
-        revealPending.current = { from: codeTextNow.current, at: performance.now() };
+        const at = performance.now();
+        revealPending.current = { from: codeTextNow.current, at };
+        setHoldingSince(at);
       }),
     [],
   );
+  useEffect(() => {
+    if (holdingSince === null) return;
+    const timer = setTimeout(dropReveal, REVEAL_WAIT_MS);
+    return () => { clearTimeout(timer); };
+  }, [holdingSince, dropReveal]);
 
   useLayoutEffect(() => {
     const element = areaRef.current;
@@ -182,10 +211,14 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
       : estimate;
   const backingW = Math.max(1, current.width);
   const backingH = Math.max(1, current.height);
+  const geometry: PreviewGeometry = { css, backing: { width: backingW, height: backingH } };
 
   useEffect(() => {
     if (area.width === 0 || live) return;
     const frame = requestAnimationFrame(() => {
+      // The applied AI background has no frame yet: drawing it now would show only the layers under
+      // its code. The previous picture stays until the code draws.
+      if (codeText !== undefined && revealPending.current?.target === codeText) return;
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx) return;
@@ -199,7 +232,7 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
       performance.measure('cropa:preview-render', { start, end: performance.now() });
     });
     return () => { cancelAnimationFrame(frame); };
-  }, [scene, env, backingW, backingH, area.width, live]);
+  }, [scene, env, backingW, backingH, area.width, live, codeText, holding]);
 
   useEffect(() => {
     if (area.width === 0 || !live) return;
@@ -226,8 +259,8 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
       performance.measure('cropa:preview-render', { start: began, end: performance.now() });
       const pending = revealPending.current;
       if (pending && frames && codeText === pending.target) {
-        revealPending.current = null;
-        if (performance.now() - pending.at < 15_000) revealSharp(canvas);
+        dropReveal();
+        if (performance.now() - pending.at < REVEAL_WAIT_MS) revealSharp(canvas);
       }
     };
 
@@ -235,7 +268,7 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
       if (stopped) return;
       stopped = true;
       console.error('The code layer stopped: a frame could not be rendered');
-      revealPending.current = null;
+      dropReveal();
       setLoaded(null);
     };
 
@@ -293,7 +326,7 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
       cancelAnimationFrame(raf);
       document.removeEventListener('visibilitychange', onVisibility);
     };
-  }, [scene, env, backingW, backingH, area.width, live, durationMs, palette, codeText]);
+  }, [scene, env, backingW, backingH, area.width, live, durationMs, palette, codeText, dropReveal]);
 
   return (
     <div
@@ -307,11 +340,68 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0 }: Props)
           role="img"
           data-testid="editor-preview"
           aria-label={t('editor.previewAlt')}
+          aria-busy={working || holding}
           className="checkerboard rounded-xl"
           style={{ width: css.width, height: css.height }}
         />
-        {overlay?.({ css, backing: { width: backingW, height: backingH } })}
+        <WorkingVeil on={working || holding} />
+        {overlay?.(geometry)}
       </div>
+    </div>
+  );
+}
+
+/**
+ * Plays over the whole scene while the AI works: a light veil with a band of light sweeping across
+ * it, in the canvas's own box and corners. It is page chrome over the canvas, so it never reaches
+ * an exported image. It fades in, and fades out once `on` turns off, staying mounted through the fade.
+ */
+function WorkingVeil({ on }: { on: boolean }) {
+  const bandRef = useRef<HTMLDivElement>(null);
+  const [mounted, setMounted] = useState(on);
+  if (on && !mounted) setMounted(true);
+  const [visible, setVisible] = useState(false);
+
+  useEffect(() => {
+    // One frame later both ways: the fade-in starts from a painted 0, and an `on` that turns off
+    // and back on at once (a result handing over to its reveal) does not blink.
+    if (on) {
+      const frame = requestAnimationFrame(() => { setVisible(true); });
+      return () => { cancelAnimationFrame(frame); };
+    }
+    const frame = requestAnimationFrame(() => { setVisible(false); });
+    const timer = setTimeout(() => { setMounted(false); }, VEIL_FADE_MS + 50);
+    return () => {
+      cancelAnimationFrame(frame);
+      clearTimeout(timer);
+    };
+  }, [on]);
+
+  useEffect(() => {
+    const band = bandRef.current;
+    if (!mounted || !band) return;
+    const sweep = workingSweep(band);
+    return () => { sweep?.cancel(); };
+  }, [mounted]);
+
+  if (!mounted) return null;
+  return (
+    <div
+      aria-hidden="true"
+      className={cn(
+        'pointer-events-none absolute inset-0 overflow-hidden rounded-xl bg-white/10 transition-opacity duration-200 ease-enter',
+        visible ? 'opacity-100' : 'opacity-0',
+      )}
+    >
+      <div
+        ref={bandRef}
+        className="absolute inset-y-0 left-0 w-2/5"
+        style={{
+          // `transform`, not Tailwind's `translate`, which would add to the sweep's own transform.
+          transform: 'translateX(-100%)',
+          background: 'linear-gradient(100deg, transparent 15%, rgb(255 255 255 / 0.3) 50%, transparent 85%)',
+        }}
+      />
     </div>
   );
 }

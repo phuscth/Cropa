@@ -125,12 +125,15 @@ export function EditorView() {
   });
   const chatOpen = useChatPanelOpen();
   const sidebarOpen = useEditorSidebarOpen();
+  // While the AI writes a background, the image is not exported: the result would replace it.
+  const aiWorking = chat.state.run !== null;
   const showProperties = annotate.tool !== 'select' || annotate.selected !== null;
   const exporter = useExport({
     scene: history.scene,
     bitmap: loaded?.bitmap,
     imageId: loaded?.imageId ?? 0,
     capturedAt: loaded?.capturedAt ?? null,
+    locked: aiWorking,
   });
   // An export error wins over the warning that a layer was left out.
   const exportProblem = exporter.error ?? exporter.warning;
@@ -318,6 +321,7 @@ export function EditorView() {
     publishEditorActions({
       hasImage,
       busy,
+      aiWorking,
       canUndo: history.canUndo,
       canRedo: history.canRedo,
       undo,
@@ -330,7 +334,7 @@ export function EditorView() {
       exportOptions,
       dragHandlers,
     });
-  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, canStartOver, startOver, copy, quickSaveChosen, saveAsChosen, exportOptions, dragHandlers]);
+  }, [hasImage, busy, aiWorking, history.canUndo, history.canRedo, undo, redo, canStartOver, startOver, copy, quickSaveChosen, saveAsChosen, exportOptions, dragHandlers]);
   useEffect(() => () => { publishEditorActions(null); }, []);
 
   // Opens a file like a capture: Rust keeps and shows it, and the image-changed event loads it.
@@ -515,6 +519,7 @@ export function EditorView() {
             scene={displayScene}
             bitmap={shownBitmap}
             bottomInset={showProperties ? 112 : 56}
+            working={aiWorking}
             overlay={(geometry) => {
               if (loaded) return <AnnotationOverlay annotate={annotate} scene={displayScene} geometry={geometry} />;
               const rect = shotRectCss(displayScene, geometry);

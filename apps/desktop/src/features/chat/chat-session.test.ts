@@ -54,7 +54,6 @@ describe('chat session', () => {
       start: (request) => {
         requests.push(request);
         return {
-          fallback: other,
           done: new Promise((resolve) => { resolvers.push(resolve); }),
           noWebgl: () => false,
         };
@@ -101,8 +100,6 @@ describe('chat session', () => {
     send(s);
     expect(s.session.getState().run).toMatchObject({ kind: 'generate', stage: 'started', prompt: 'rain', startedAt: 1500 });
     expect(s.requests[0]?.input.currentSource).toBeUndefined();
-    // The closest preset shows while the AI works.
-    expect(s.history().present.background).toBe(other);
 
     s.event({ type: 'attempt', attempt: 1 });
     s.transport('started');
@@ -341,21 +338,32 @@ describe('chat session', () => {
     expect(codeSourceOf(s.history().present.background)).toBe(srcA);
   });
 
-  it('keeps the preset that stayed on screen after a failure as a normal undo step', async () => {
-    const s = setup();
-    send(s);
-    await s.answer(failed('Timeout'));
-    expect(s.history().present.background).toBe(other);
-    expect(s.history().base).toBeNull();
-    expect(s.history().past.map((scene) => scene.background)).toEqual([preset.background]);
-    expect(s.messages().at(-1)).toMatchObject({ outcome: 'failed', error: 'Timeout', unchanged: false });
+  it('leaves the scene untouched from the start of a run until its result, and after a failure or a stop', async () => {
+    for (const background of [plain, withCode(srcA)]) {
+      const s = setup(background);
+      const before = s.history();
+      send(s);
+      s.event({ type: 'attempt', attempt: 1 });
+      s.transport('started');
+      s.transport('output', '{"source":"const meta = { durationMs: 4000 }; function back(ctx) { ctx.fillStyle = ');
+      s.event({ type: 'validating', attempt: 1 });
+      expect(s.history()).toBe(before);
+      await s.answer(failed('Timeout'));
+      expect(s.history()).toBe(before);
+      expect(s.messages().at(-1)).toMatchObject({ outcome: 'failed', error: 'Timeout', unchanged: true });
+
+      s.session.send('snow', ctx);
+      s.session.cancel();
+      await s.answer(failed('Cancelled'));
+      expect(s.history()).toBe(before);
+      expect(s.messages().at(-1)).toMatchObject({ outcome: 'cancelled', unchanged: true });
+    }
   });
 
   it('makes one undo step per result, and one per use of a past result', async () => {
     const s = setup();
     send(s);
     await s.answer(done(withCode(srcA)));
-    // The preset shown while waiting is not a step of its own.
     expect(s.history().past.map((scene) => scene.background)).toEqual([preset.background]);
     send(s, 'again');
     await s.answer(done(withCode(srcB)));

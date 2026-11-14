@@ -34,6 +34,8 @@ export interface EditorActions {
   hasImage: boolean;
   /** An export is running. */
   busy: boolean;
+  /** The AI is writing a background, so drag-out, copy and save wait for its result. */
+  aiWorking: boolean;
   canUndo: boolean;
   canRedo: boolean;
   undo: () => void;

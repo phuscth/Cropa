@@ -77,14 +77,6 @@ export function backgroundValidator(
 }
 
 /**
- * The background to show while the AI works: the closest preset, unless the scene already has
- * generated code, which then stays until the result arrives (and stays if the run fails).
- */
-export function backgroundWhileWaiting(current: BackgroundSpec, fallback: BackgroundSpec): BackgroundSpec {
-  return current.layers.some((layer) => layer.type === 'code') ? current : fallback;
-}
-
-/**
  * Puts the AI's `result` into `scene` only when its background is still `shown`, the one this
  * run left in place. Any edit made meanwhile (a colour, a blur, an undo) wins and the result is
  * dropped; the scene itself comes back, so no history entry is made.

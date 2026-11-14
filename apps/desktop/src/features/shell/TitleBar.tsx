@@ -189,8 +189,10 @@ export function TitleBar({ maximized, view, onView, onAbout, onError }: Props) {
   const inEditor = view === 'Editor';
   const loaded = inEditor && (actions?.hasImage ?? false);
   // A popover left open must not come back when the editor does.
-  if (!loaded && saveOpen) setSaveOpen(false);
-  const canExport = loaded && !(actions?.busy ?? false);
+  // While the AI writes a background nothing is exported, so the popover closes too.
+  const aiWorking = actions?.aiWorking ?? false;
+  if ((!loaded || aiWorking) && saveOpen) setSaveOpen(false);
+  const canExport = loaded && !(actions?.busy ?? false) && !aiWorking;
   const canUndo = loaded && (actions?.canUndo ?? false);
   const canRedo = loaded && (actions?.canRedo ?? false);
 
@@ -313,7 +315,7 @@ export function TitleBar({ maximized, view, onView, onAbout, onError }: Props) {
               className="data-[state=open]:bg-accent data-[state=open]:text-foreground"
               aria-label={t('editor.export.save')}
               tooltip={{ label: t('editor.export.saveOptions') }}
-              disabled={!loaded}
+              disabled={!loaded || aiWorking}
             >
               <SaveIcon />
             </Button>

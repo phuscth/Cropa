@@ -8,7 +8,6 @@ import {
   backgroundRequest,
   backgroundMockScript,
   backgroundValidator,
-  backgroundWhileWaiting,
   checkSize,
   codeSourceOf,
   presetNameFrom,
@@ -100,14 +99,8 @@ describe('backgroundValidator', () => {
   });
 });
 
-describe('backgroundWhileWaiting and applyGenerated', () => {
+describe('applyGenerated', () => {
   const generated = withCode();
-  const other = builtinPresets[1]?.background ?? preset.background;
-
-  it('shows the closest preset while waiting, but keeps generated code that is already there', () => {
-    expect(backgroundWhileWaiting(preset.background, other)).toBe(other);
-    expect(backgroundWhileWaiting(generated, other)).toBe(generated);
-  });
 
   it('applies the result when the background is still the one the run left', () => {
     const scene = { ...defaultScene({ width: 400, height: 300 }), background: preset.background };
