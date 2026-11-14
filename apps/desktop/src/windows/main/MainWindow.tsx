@@ -5,7 +5,7 @@ import { useTranslation } from 'react-i18next';
 
 import { selectSettingsSection } from '../../features/settings/sections.ts';
 import { TitleBar } from '../../features/shell/TitleBar.tsx';
-import { ViewActiveContext } from '../../features/shell/view-active.ts';
+import { ShowViewContext, ViewActiveContext } from '../../features/shell/view-active.ts';
 import { commands, events, type MainView } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeUnexpected, type UserError } from '../../lib/errors.ts';
@@ -142,11 +142,13 @@ export function MainWindow() {
           <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />
         </div>
       )}
-      <div className="flex min-h-0 flex-1">
-        {pane('Editor', <EditorView />, false)}
-        {visited.has('History') && pane('History', <HistoryView />)}
-        {visited.has('Settings') && pane('Settings', <SettingsView />)}
-      </div>
+      <ShowViewContext.Provider value={show}>
+        <div className="flex min-h-0 flex-1">
+          {pane('Editor', <EditorView />, false)}
+          {visited.has('History') && pane('History', <HistoryView />)}
+          {visited.has('Settings') && pane('Settings', <SettingsView />)}
+        </div>
+      </ShowViewContext.Provider>
     </div>
   );
 }
