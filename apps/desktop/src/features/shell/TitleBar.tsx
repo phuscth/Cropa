@@ -21,7 +21,7 @@ import {
   type IconComponent,
 } from '@cropa/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
+import { useCallback, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import logoUrl from '../../../icon-src/icon.svg?url';
@@ -32,6 +32,8 @@ import { useEditorActions } from './editor-actions.ts';
 import { SavePopover } from './SavePopover.tsx';
 
 interface Props {
+  /** Whether the window is maximized, for the maximize/restore button. */
+  maximized: boolean;
   /** The view on screen. */
   view: MainView;
   onView: (view: MainView) => void;
@@ -127,10 +129,9 @@ function WindowButton({ label, onClick, danger = false, children }: WindowButton
  * The custom title bar of the main window: logo, the view buttons and Help,
  * the editor's quick actions in a drag area, then export and the window buttons.
  */
-export function TitleBar({ view, onView, onAbout, onError }: Props) {
+export function TitleBar({ maximized, view, onView, onAbout, onError }: Props) {
   const { t } = useTranslation();
   const { actions } = useEditorActions();
-  const [maximized, setMaximized] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const chatOpen = useChatPanelOpen();
   // A closing menu hands focus back to its trigger. After an item ran, the item
@@ -147,20 +148,6 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
   };
 
   const fail = useCallback((cause: unknown) => { onError(describeUnexpected(t, cause)); }, [onError, t]);
-
-  useEffect(() => {
-    const win = getCurrentWindow();
-    let stopped = false;
-    const sync = () => {
-      win.isMaximized().then((next) => { if (!stopped) setMaximized(next); }).catch(fail);
-    };
-    sync();
-    const unlisten = win.onResized(sync);
-    return () => {
-      stopped = true;
-      void unlisten.then((off) => { off(); });
-    };
-  }, [fail]);
 
   const inEditor = view === 'Editor';
   const loaded = inEditor && (actions?.hasImage ?? false);

@@ -87,6 +87,11 @@ impl Platform for MacosPlatform {
         Err(PlatformError::Unsupported)
     }
 
+    fn drop_native_corners(&self, _window: OwnerWindow) -> Result<()> {
+        // A window without decorations has no rounded frame of its own here.
+        Ok(())
+    }
+
     fn drag_file(
         &self,
         _owner: Option<OwnerWindow>,

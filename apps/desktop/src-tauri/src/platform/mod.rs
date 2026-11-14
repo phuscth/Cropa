@@ -19,8 +19,8 @@ pub use image::RgbaImage;
 
 use std::path::{Path, PathBuf};
 
-/// An opaque native handle to the window a dialog belongs to (the HWND, as an
-/// integer, on Windows).
+/// An opaque native handle to one of Cropa's windows, such as the one a dialog
+/// belongs to (the HWND, as an integer, on Windows).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct OwnerWindow(isize);
 
@@ -192,6 +192,11 @@ pub trait Platform {
     /// the program ends, so the user can type into it and read its result.
     /// Returns once the window is open; does not wait for it.
     fn open_console(&self, program: &Path, args: &[&str]) -> Result<()>;
+    /// Stop the OS from rounding and outlining the corners of `window`, whose
+    /// page draws its own rounded edge on a transparent background. Windows 11
+    /// would otherwise clip it at a smaller radius and draw a border there;
+    /// Windows 10 does neither, so the call does nothing on it.
+    fn drop_native_corners(&self, window: OwnerWindow) -> Result<()>;
     /// Start an OS drag (copy only) of the file at `path`, also offering `png`
     /// as image data. Must be called on the UI thread while the left mouse
     /// button is held. Blocks, pumping messages, until the user drops or
