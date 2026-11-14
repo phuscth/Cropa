@@ -1,5 +1,5 @@
 import { AddIcon, cn } from '@cropa/ui';
-import { useEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type RefObject } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commands, events, type HistoryItem } from '../../lib/bindings.ts';
@@ -7,6 +7,11 @@ import { describeCommandError, describeUnexpected, type UserError } from '../../
 import { pickImageFile } from './import-image.ts';
 
 const MAX_RECENT = 20;
+
+/** Longer than the exit animation, for when `animationend` never fires (the view is hidden). */
+const EXIT_FALLBACK_MS = 260;
+
+type Phase = 'gone' | 'entering' | 'resting' | 'closing';
 
 interface Props {
   /** The button that opened the picker: a press on it does not count as outside. */
@@ -106,10 +111,70 @@ function RecentTile({ item, root, cache, busy, onOpen, onError }: RecentProps) {
 /**
  * The picker an empty editor opens: a tile that adds a file from the computer, then
  * the latest captures from the history. It is not modal; Escape or a press outside closes it.
+ *
+ * It slides down when `open` turns on and slides back up when it turns off, staying mounted until
+ * that exit ends so its recent list and thumbnails survive being reopened midway. Under reduced
+ * motion it only fades.
  */
-export function ImagePicker({ anchor, onClose, onFile, onError }: Props) {
-  const { t } = useTranslation();
+export function ImagePicker({ open, ...props }: Props & { open: boolean }) {
+  const [phase, setPhase] = useState<Phase>(open ? 'entering' : 'gone');
   const dialog = useRef<HTMLDivElement>(null);
+  const content = useRef<HTMLDivElement>(null);
+
+  // Before the paint that shows the new phase, while the old animation is still applied: hands the
+  // keyframes the picker's current opacity and offset, so a reversal starts where it is.
+  useLayoutEffect(() => {
+    const next = open ? 'entering' : 'closing';
+    if (open ? phase !== 'gone' && phase !== 'closing' : phase !== 'resting' && phase !== 'entering') return;
+    if (dialog.current && content.current) {
+      const style = getComputedStyle(content.current);
+      dialog.current.style.setProperty('--picker-opacity', style.opacity);
+      dialog.current.style.setProperty('--picker-y', `${String(new DOMMatrixReadOnly(style.transform).m42)}px`);
+    }
+    // The phase has to flip in this same pass, before paint, with the values just read.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setPhase(next);
+    // Only a change of `open` flips the phase; the phase it leaves is read, not watched.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (phase !== 'closing') return undefined;
+    const timer = setTimeout(() => { setPhase('gone'); }, EXIT_FALLBACK_MS);
+    return () => { clearTimeout(timer); };
+  }, [phase]);
+
+  if (phase === 'gone') return null;
+  return (
+    <PickerPanel
+      {...props}
+      phase={phase}
+      dialog={dialog}
+      content={content}
+      onAnimationEnd={(name) => {
+        if (name === 'picker-out') setPhase('gone');
+        else if (name === 'picker-in') {
+          dialog.current?.style.removeProperty('--picker-opacity');
+          dialog.current?.style.removeProperty('--picker-y');
+          // Resting once in, so showing the editor view again does not replay the entrance.
+          setPhase('resting');
+        }
+      }}
+    />
+  );
+}
+
+interface PanelProps extends Props {
+  phase: Exclude<Phase, 'gone'>;
+  dialog: RefObject<HTMLDivElement | null>;
+  content: RefObject<HTMLDivElement | null>;
+  onAnimationEnd: (name: string) => void;
+}
+
+function PickerPanel({ anchor, onClose, onFile, onError, phase, dialog, content, onAnimationEnd }: PanelProps) {
+  const { t } = useTranslation();
+  const closing = phase === 'closing';
+  const motion = phase === 'entering' ? 'animate-picker-in' : closing ? 'animate-picker-out' : '';
   const row = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const [recent, setRecent] = useState<HistoryItem[]>([]);
@@ -119,9 +184,10 @@ export function ImagePicker({ anchor, onClose, onFile, onError }: Props) {
   const latest = useRef({ onClose, onError });
   useEffect(() => { latest.current = { onClose, onError }; });
 
+  // On opening, and on reopening during the exit.
   useEffect(() => {
-    row.current?.querySelector('button')?.focus();
-  }, []);
+    if (!closing) row.current?.querySelector('button')?.focus();
+  }, [closing]);
 
   useEffect(() => {
     let alive = true;
@@ -155,6 +221,7 @@ export function ImagePicker({ anchor, onClose, onFile, onError }: Props) {
   }, []);
 
   useEffect(() => {
+    if (closing) return undefined;
     const onPointerDown = (event: PointerEvent) => {
       const target = event.target;
       if (!(target instanceof Node)) return;
@@ -174,7 +241,7 @@ export function ImagePicker({ anchor, onClose, onFile, onError }: Props) {
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('keydown', onKey);
     };
-  }, [anchor]);
+  }, [anchor, dialog, closing]);
 
   const move = (event: KeyboardEvent) => {
     const step = event.key === 'ArrowRight' ? 1 : event.key === 'ArrowLeft' ? -1 : 0;
@@ -210,41 +277,57 @@ export function ImagePicker({ anchor, onClose, onFile, onError }: Props) {
   };
 
   return (
+    // Closing, it takes no input: focus, presses and keys go to what is under it.
     <div
       ref={dialog}
       role="dialog"
       aria-label={t('editor.picker.title')}
-      className="absolute inset-x-0 top-0 z-30 flex h-[158px] animate-picker-in flex-col items-center justify-center gap-3"
+      inert={closing}
+      className="absolute inset-x-0 top-0 z-30 h-[158px]"
       onKeyDown={move}
+      onAnimationEnd={(event) => {
+        if (event.target === content.current) onAnimationEnd(event.animationName);
+      }}
     >
+      {/*
+       * A frosted band: blurred and tinted toward the canvas behind the title and tiles, both
+       * fading out together below them. It animates apart from the content because a fading
+       * ancestor would cut the blur off from what is behind it until the fade ended.
+       */}
       <div
         aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-[285px] bg-linear-to-b from-canvas/80 to-transparent"
+        className={cn(
+          'pointer-events-none absolute inset-x-0 top-0 -z-10 h-[285px] bg-canvas/65 backdrop-blur-xl',
+          '[mask-image:linear-gradient(to_bottom,#000_55%,rgb(0_0_0/0.45)_78%,transparent)]',
+          motion,
+        )}
       />
-      <h2 className="text-[17px] font-medium tracking-tight text-foreground">{t('editor.picker.title')}</h2>
-      <div ref={row} className="flex w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        <div className="mx-auto flex gap-3 px-6 py-1">
-          <Tile caption={t('editor.picker.add')}>
-            <button
-              type="button"
-              aria-label={t('editor.picker.add')}
-              className={cn(TILE, 'flex items-center justify-center text-foreground/60')}
-              onClick={() => { fileInput.current?.click(); }}
-            >
-              <AddIcon className="size-7" />
-            </button>
-          </Tile>
-          {recent.map((item) => (
-            <RecentTile
-              key={item.id}
-              item={item}
-              root={row}
-              cache={thumbnails}
-              busy={opening === item.id}
-              onOpen={open}
-              onError={onError}
-            />
-          ))}
+      <div ref={content} className={cn('flex h-full flex-col items-center justify-center gap-3', motion)}>
+        <h2 className="text-[17px] font-medium tracking-tight text-foreground">{t('editor.picker.title')}</h2>
+        <div ref={row} className="flex w-full overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="mx-auto flex gap-3 px-6 py-1">
+            <Tile caption={t('editor.picker.add')}>
+              <button
+                type="button"
+                aria-label={t('editor.picker.add')}
+                className={cn(TILE, 'flex items-center justify-center text-foreground/60')}
+                onClick={() => { fileInput.current?.click(); }}
+              >
+                <AddIcon className="size-7" />
+              </button>
+            </Tile>
+            {recent.map((item) => (
+              <RecentTile
+                key={item.id}
+                item={item}
+                root={row}
+                cache={thumbnails}
+                busy={opening === item.id}
+                onOpen={open}
+                onError={onError}
+              />
+            ))}
+          </div>
         </div>
       </div>
       <input

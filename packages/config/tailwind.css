@@ -185,6 +185,7 @@
   --animate-fade-in: fade-in 200ms var(--ease-enter);
   --animate-notice-in: notice-in 200ms var(--ease-enter);
   --animate-picker-in: picker-in 200ms var(--ease-enter);
+  --animate-picker-out: picker-out 160ms var(--ease-enter) forwards;
   --animate-confirm-in: confirm-in 200ms var(--ease-enter);
   --animate-confirm-out: confirm-out 160ms var(--ease-enter) forwards;
   --animate-tab-in: tab-in 200ms var(--ease-enter);
@@ -305,15 +306,29 @@
   }
 }
 
-/* A panel at the top of the canvas, sliding down into place. */
+/*
+ * A panel at the top of the canvas, sliding down into place and back up when it closes. Turned
+ * around midway, each starts from the opacity and offset the other left it at.
+ */
 @keyframes picker-in {
   from {
-    opacity: 0;
-    transform: translateY(calc(-1 * var(--motion-rise)));
+    opacity: var(--picker-opacity, 0);
+    transform: translateY(var(--picker-y, calc(-1 * var(--motion-rise))));
   }
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes picker-out {
+  from {
+    opacity: var(--picker-opacity, 1);
+    transform: translateY(var(--picker-y, 0px));
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--motion-rise)));
   }
 }
 
