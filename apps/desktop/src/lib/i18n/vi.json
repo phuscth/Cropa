@@ -103,6 +103,21 @@
       "insetCustom": "Tùy chọn",
       "insetColorPicker": "Chọn màu lề trong",
       "insetColorHex": "Mã hex của màu lề trong",
+      "style": "Kiểu",
+      "styles": {
+        "none": "Mặc định",
+        "glassLight": "Kính sáng",
+        "glassDark": "Kính tối",
+        "inset": "Viền trong",
+        "outline": "Viền mảnh",
+        "border": "Viền dày"
+      },
+      "fineTune": "Tinh chỉnh",
+      "cornerPreset": {
+        "sharp": "Vuông",
+        "curved": "Bo nhẹ",
+        "round": "Bo tròn"
+      },
       "corners": "Góc"
     },
     "aspect": {

@@ -301,13 +301,103 @@ export function setInsetColor(scene: Scene, color: string): Scene {
 export function setBorderWidth(scene: Scene, width: number, fallbackColor = '#ffffff'): Scene {
   const w = clamp(Math.round(width), 0, 512);
   if (w === 0) return withFrame(scene, { border: null });
-  return withFrame(scene, { border: { color: scene.frame.border?.color ?? fallbackColor, width: w } });
+  return withFrame(scene, { border: { width: w, color: scene.frame.border?.color ?? fallbackColor } });
 }
 
 /** Without a border, this adds a thin one scaled to the screenshot. */
 export function setBorderColor(scene: Scene, hex: string): Scene {
   const width = scene.frame.border?.width ?? Math.max(1, Math.round(longestSide(scene) * 0.002));
   return withFrame(scene, { border: { width, color: hex } });
+}
+
+export type FrameStyle = 'none' | 'glassLight' | 'glassDark' | 'inset' | 'outline' | 'border';
+
+export const FRAME_STYLES: readonly FrameStyle[] = [
+  'none',
+  'glassLight',
+  'glassDark',
+  'inset',
+  'outline',
+  'border',
+];
+
+/** The border, inset and inset colour of a style, scaled to the screenshot. */
+export function frameStyleFields(
+  style: FrameStyle,
+  size: { width: number; height: number },
+): Pick<Frame, 'border' | 'inset' | 'insetColor'> {
+  const m = Math.max(size.width, size.height);
+  const glass = Math.max(2, Math.round(m * 0.008));
+  switch (style) {
+    case 'none':
+      return { border: null, inset: 0, insetColor: 'auto' };
+    case 'glassLight':
+      return { border: { width: glass, color: '#ffffff66' }, inset: 0, insetColor: 'auto' };
+    case 'glassDark':
+      return { border: { width: glass, color: '#00000059' }, inset: 0, insetColor: 'auto' };
+    case 'inset':
+      return { border: null, inset: Math.max(4, Math.round(m * 0.02)), insetColor: 'auto' };
+    case 'outline':
+      return {
+        border: { width: Math.max(1, Math.round(m * 0.0015)), color: '#ffffff99' },
+        inset: 0,
+        insetColor: 'auto',
+      };
+    case 'border':
+      return {
+        border: { width: Math.max(3, Math.round(m * 0.006)), color: '#ffffff' },
+        inset: 0,
+        insetColor: 'auto',
+      };
+  }
+}
+
+/** The style whose border, inset and inset colour the scene has exactly, or null. */
+export function frameStyle(scene: Scene): FrameStyle | null {
+  const { border, inset, insetColor } = scene.frame;
+  return (
+    FRAME_STYLES.find((style) => {
+      const f = frameStyleFields(style, scene.screenshot);
+      return (
+        f.inset === inset &&
+        f.insetColor === insetColor &&
+        (f.border === null
+          ? border === null
+          : border !== null && f.border.width === border.width && f.border.color === border.color)
+      );
+    }) ?? null
+  );
+}
+
+export function setFrameStyle(scene: Scene, style: FrameStyle): Scene {
+  return withFrame(scene, frameStyleFields(style, scene.screenshot));
+}
+
+export type CornerPreset = 'sharp' | 'curved' | 'round';
+
+export const CORNER_PRESETS: readonly CornerPreset[] = ['sharp', 'curved', 'round'];
+
+/** Curved is the radius `defaultScene` draws; round is at least twice that, or 5% of the short side. */
+export function cornerRadius(
+  preset: CornerPreset,
+  size: { width: number; height: number },
+): number {
+  const curved = Math.max(4, Math.round(Math.max(size.width, size.height) * 0.01));
+  switch (preset) {
+    case 'sharp':
+      return 0;
+    case 'curved':
+      return curved;
+    case 'round':
+      return Math.max(curved * 2, Math.round(Math.min(size.width, size.height) * 0.05));
+  }
+}
+
+/** The preset the scene's radius equals, or null. */
+export function cornerPreset(scene: Scene): CornerPreset | null {
+  return (
+    CORNER_PRESETS.find((p) => cornerRadius(p, scene.screenshot) === scene.frame.radius) ?? null
+  );
 }
 
 export type ShadowLevel = 'none' | 'soft' | 'medium' | 'strong';
@@ -357,8 +447,10 @@ export function frameRanges(size: { width: number; height: number }) {
   const range = (max: number): [number, number] => [0, max];
   return {
     padding: range(Math.round(m * 0.25)),
-    radius: range(Math.max(8, Math.round(Math.min(size.width, size.height) * 0.1))),
-    inset: range(Math.round(m * 0.05)),
+    radius: range(
+      Math.max(8, Math.round(Math.min(size.width, size.height) * 0.1), cornerRadius('round', size)),
+    ),
+    inset: range(Math.max(8, Math.round(m * 0.05))),
     border: range(Math.max(4, Math.round(m * 0.01))),
   };
 }

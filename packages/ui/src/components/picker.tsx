@@ -75,7 +75,7 @@ function PickerPill({ className, ...props }: ComponentProps<typeof ToggleGroup.I
     <ToggleGroup.Item
       data-slot="picker-pill"
       className={cn(
-        'press focus-ring h-[34px] shrink-0 rounded-full bg-secondary px-4 text-control-sm whitespace-nowrap text-secondary-foreground hover:bg-secondary/70 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary',
+        'press focus-ring h-[34px] shrink-0 rounded-full bg-secondary px-4 text-control-sm whitespace-nowrap text-secondary-foreground hover:bg-secondary/70 dark:hover:bg-foreground/10 data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:hover:bg-primary dark:data-[state=on]:hover:bg-primary',
         className,
       )}
       {...props}
@@ -108,7 +108,7 @@ function PickerSection({ title, actions, onSeeAll, seeAllLabel, children }: Pick
             <button
               type="button"
               onClick={onSeeAll}
-              className="press focus-ring h-7 rounded-full bg-secondary px-3 text-[13px] leading-none font-medium tracking-[-0.2px] hover:bg-secondary/70"
+              className="press focus-ring h-7 rounded-full bg-secondary px-3 text-[13px] leading-none font-medium tracking-[-0.2px] hover:bg-secondary/70 dark:hover:bg-foreground/10"
             >
               {seeAllLabel}
             </button>
