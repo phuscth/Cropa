@@ -37,7 +37,7 @@ describe('chat session', () => {
     notice: { kind },
   });
   const flush = () => new Promise<void>((resolve) => { setTimeout(resolve, 0); });
-  const ctx: SendContext = { palette: [], provider: 'mock', effort: 'medium' };
+  const ctx: SendContext = { palette: [], provider: 'mock', model: null, effort: 'medium' };
 
   const plain = preset.background;
   function setup(background: BackgroundSpec = plain, historyId: string | null = '1700000000000') {
@@ -159,6 +159,23 @@ describe('chat session', () => {
     expect(codeSourceOf(s.history().present.background)).toBe(srcA);
     expect(s.save).toHaveBeenCalledTimes(1);
     expect(s.save).toHaveBeenCalledWith('1700000000000', s.messages());
+  });
+
+  it('sends each message with the provider and model it was given, and stores them in the reply', async () => {
+    const s = setup();
+    s.session.send('rain', { ...ctx, provider: 'codex', model: 'gpt-6.1-sol' });
+    expect(s.requests[0]).toMatchObject({ provider: 'codex', model: 'gpt-6.1-sol' });
+    expect(s.session.getState().run).toMatchObject({ provider: 'codex', model: 'gpt-6.1-sol' });
+    await s.answer(done(withCode(srcA)));
+    expect(s.messages().at(-1)).toMatchObject({ role: 'agent', provider: 'codex', model: 'gpt-6.1-sol' });
+
+    // A later message goes to whatever is chosen then, and no model means the CLI's default.
+    s.session.send('more wind', { ...ctx, provider: 'claude', model: null });
+    expect(s.requests[1]).toMatchObject({ provider: 'claude', model: null });
+    await s.answer(done(withCode(srcB)));
+    const reply = s.messages().at(-1);
+    expect(reply).toMatchObject({ role: 'agent', provider: 'claude' });
+    expect(reply).not.toHaveProperty('model');
   });
 
   it('keeps nothing on disk when the capture has no history id', async () => {

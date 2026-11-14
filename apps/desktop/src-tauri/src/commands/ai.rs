@@ -16,7 +16,7 @@ use std::time::{Duration, Instant};
 use base64::Engine;
 use cropa_agent::{
     AgentCli, AgentError, CLAUDE_ENABLED, CODEX_ENABLED, CancelToken, ClaudeCode, CodexExec,
-    Detection, Effort, Event, RunOutput, RunRequest, TurnDir,
+    Detection, Effort, Event, ModelInfo, RunOutput, RunRequest, TurnDir,
 };
 #[cfg(debug_assertions)]
 use cropa_agent::{Mock, MockScript};
@@ -29,7 +29,6 @@ use super::png_data_url;
 use crate::settings::AiEffort;
 
 const MAX_RUN_ID_CHARS: usize = 64;
-const MAX_MODEL_CHARS: usize = 64;
 const MAX_TEXT_BYTES: usize = 256 * 1024;
 const MAX_IMAGES: usize = 4;
 const MAX_IMAGE_BYTES: usize = 20 * 1024 * 1024;
@@ -330,13 +329,10 @@ fn validate_run_id(run_id: &str) -> Result<(), AiError> {
 }
 
 fn validate_model(model: Option<&str>) -> Result<(), AiError> {
-    let Some(model) = model else { return Ok(()) };
-    let ok = (1..=MAX_MODEL_CHARS).contains(&model.len())
-        && !model.starts_with('-')
-        && model
-            .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b':' | b'-'));
-    if ok { Ok(()) } else { Err(invalid("model")) }
+    match model {
+        Some(model) if !cropa_agent::valid_model_name(model) => Err(invalid("model")),
+        _ => Ok(()),
+    }
 }
 
 fn validate_text(request: &AiRequest) -> Result<(), AiError> {
@@ -580,6 +576,60 @@ pub async fn ai_cancel(app: AppHandle, run_id: String) -> Result<(), AiError> {
         token.cancel();
     }
     Ok(())
+}
+
+/// A model a provider's CLI offers.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AiModel {
+    /// The value to send as `model`.
+    pub id: String,
+    pub name: String,
+    pub description: String,
+    /// The model the CLI uses when no model is sent.
+    pub is_default: bool,
+    /// The CLI announces it as newly available.
+    pub is_new: bool,
+}
+
+impl From<ModelInfo> for AiModel {
+    fn from(info: ModelInfo) -> Self {
+        Self {
+            id: info.id,
+            name: info.display_name,
+            description: info.description,
+            is_default: info.is_default,
+            is_new: info.is_new,
+        }
+    }
+}
+
+/// The models a provider's CLI offers, without spending a turn. The CLI runs on
+/// a blocking thread; an unknown or switched-off provider is `Unsupported`.
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_list_models(provider: String) -> Result<Vec<AiModel>, AiError> {
+    let agent = provider_for(&provider, None).ok_or(AiError::Unsupported)?;
+    let started = Instant::now();
+    let result =
+        tauri::async_runtime::spawn_blocking(move || agent.list_models(&CancelToken::new()))
+            .await
+            .unwrap_or_else(|_| {
+                Err(AgentError::Protocol(
+                    "the model list stopped unexpectedly".to_owned(),
+                ))
+            })
+            .map(|models| models.into_iter().map(AiModel::from).collect::<Vec<_>>())
+            .map_err(AiError::from);
+    log::info!(
+        "ai models on {provider}: {} after {} ms",
+        result.as_ref().map_or_else(
+            |e| e.name().to_owned(),
+            |models| format!("{} models", models.len())
+        ),
+        started.elapsed().as_millis()
+    );
+    result
 }
 
 /// Detects one provider on a blocking thread: it spawns the CLI to ask for

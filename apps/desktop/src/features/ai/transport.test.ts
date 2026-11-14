@@ -47,7 +47,7 @@ describe('the desktop transport', () => {
   it('sends the request to the provider with the images as bare base64', async () => {
     const { deps, calls } = harness(() => ok({}));
     const mock: AiMockScript_Deserialize = { delayMs: 0, events: [], result: {}, error: null };
-    const transport = createDesktopTransport('mock', deps, mock);
+    const transport = createDesktopTransport({ provider: 'mock', model: null }, deps, mock);
     await transport.run(
       { ...REQUEST, images: ['data:image/png;base64,AAAA', 'BBBB'], wantImage: true },
       {},
@@ -71,9 +71,19 @@ describe('the desktop transport', () => {
     ]);
   });
 
+  it('sends the chosen model with the run, and the provider of the transport', async () => {
+    const { deps, calls } = harness(() => ok({}));
+    await createDesktopTransport({ provider: 'claude', model: 'opus' }, deps).run(REQUEST, {});
+    await createDesktopTransport({ provider: 'codex', model: 'gpt-6.1-sol' }, deps).run(REQUEST, {});
+    expect(calls.map((c) => [c.provider, (c.request as { model: string | null }).model])).toEqual([
+      ['claude', 'opus'],
+      ['codex', 'gpt-6.1-sol'],
+    ]);
+  });
+
   it('sends the effort the task asked for, and low when it asked for none', async () => {
     const { deps, calls } = harness(() => ok({}));
-    const transport = createDesktopTransport('codex', deps);
+    const transport = createDesktopTransport({ provider: 'codex', model: null }, deps);
     for (const effort of ['medium', 'high'] as const) await transport.run({ ...REQUEST, effort }, {});
     await transport.run(REQUEST, {});
     expect(calls.map((c) => (c.request as { effort: string }).effort)).toEqual(['medium', 'high', 'low']);
@@ -89,7 +99,7 @@ describe('the desktop transport', () => {
       return ok({});
     });
     const seen: unknown[] = [];
-    await createDesktopTransport('codex', deps).run(REQUEST, { onEvent: (e) => seen.push(e) });
+    await createDesktopTransport({ provider: 'codex', model: null }, deps).run(REQUEST, { onEvent: (e) => seen.push(e) });
     expect(seen).toEqual([
       { type: 'started' },
       { type: 'delta', text: 'hi' },
@@ -100,12 +110,12 @@ describe('the desktop transport', () => {
 
   it('returns the JSON and image, leaving out what the run did not produce', async () => {
     const full = harness(() => ok({ a: 1 }, 'data:image/png;base64,Zm9v'));
-    expect(await createDesktopTransport('codex', full.deps).run(REQUEST, {})).toEqual({
+    expect(await createDesktopTransport({ provider: 'codex', model: null }, full.deps).run(REQUEST, {})).toEqual({
       json: { a: 1 },
       image: 'data:image/png;base64,Zm9v',
     });
     const empty = harness(() => ok());
-    const output = await createDesktopTransport('codex', empty.deps).run(REQUEST, {});
+    const output = await createDesktopTransport({ provider: 'codex', model: null }, empty.deps).run(REQUEST, {});
     expect(output).toEqual({});
     expect('json' in output).toBe(false);
     expect('image' in output).toBe(false);
@@ -115,7 +125,7 @@ describe('the desktop transport', () => {
     'turns a %s failure into an AgentError of the same kind',
     async (kind) => {
       const { deps } = harness(() => ({ status: 'error', error: { kind } as AiError }));
-      await expect(createDesktopTransport('codex', deps).run(REQUEST, {})).rejects.toMatchObject({
+      await expect(createDesktopTransport({ provider: 'codex', model: null }, deps).run(REQUEST, {})).rejects.toMatchObject({
         name: 'AgentError',
         kind,
       });
@@ -124,7 +134,7 @@ describe('the desktop transport', () => {
 
   it('keeps the detail of a protocol failure', async () => {
     const { deps } = harness(() => ({ status: 'error', error: { kind: 'Protocol', detail: 'bad' } }));
-    await expect(createDesktopTransport('codex', deps).run(REQUEST, {})).rejects.toMatchObject({
+    await expect(createDesktopTransport({ provider: 'codex', model: null }, deps).run(REQUEST, {})).rejects.toMatchObject({
       kind: 'Protocol',
       message: 'bad',
     });
@@ -136,7 +146,7 @@ describe('the desktop transport', () => {
       { kind: 'RunIdInUse' },
     ] as AiError[]) {
       const { deps } = harness(() => ({ status: 'error', error }));
-      await expect(createDesktopTransport('codex', deps).run(REQUEST, {})).rejects.toMatchObject({
+      await expect(createDesktopTransport({ provider: 'codex', model: null }, deps).run(REQUEST, {})).rejects.toMatchObject({
         kind: 'Protocol',
       });
     }
@@ -144,7 +154,7 @@ describe('the desktop transport', () => {
 
   it('treats a rejected invoke as a protocol failure', async () => {
     const { deps } = harness(() => Promise.reject(new Error('not allowed')));
-    const failure: unknown = await createDesktopTransport('codex', deps)
+    const failure: unknown = await createDesktopTransport({ provider: 'codex', model: null }, deps)
       .run(REQUEST, {})
       .catch((e: unknown) => e);
     expect(failure).toBeInstanceOf(AgentError);
@@ -155,7 +165,7 @@ describe('the desktop transport', () => {
     let answer: (result: RunResult) => void = () => undefined;
     const { deps, cancelled } = harness(() => new Promise<RunResult>((r) => { answer = r; }));
     const controller = new AbortController();
-    const running = createDesktopTransport('codex', deps).run(REQUEST, { signal: controller.signal });
+    const running = createDesktopTransport({ provider: 'codex', model: null }, deps).run(REQUEST, { signal: controller.signal });
     controller.abort();
     await expect(running).rejects.toMatchObject({ kind: 'Cancelled' });
     expect(cancelled).toEqual(['run-1']);
@@ -165,7 +175,7 @@ describe('the desktop transport', () => {
   it('does not start a run when the signal is already aborted', async () => {
     const { deps, calls } = harness(() => ok({}));
     const signal = AbortSignal.abort();
-    await expect(createDesktopTransport('codex', deps).run(REQUEST, { signal })).rejects.toMatchObject({
+    await expect(createDesktopTransport({ provider: 'codex', model: null }, deps).run(REQUEST, { signal })).rejects.toMatchObject({
       kind: 'Cancelled',
     });
     expect(calls).toEqual([]);
@@ -176,7 +186,7 @@ describe('the desktop transport', () => {
     const { done } = runTask(
       paletteNameTask,
       { colors: ['#1e3a8a'] },
-      { transport: createDesktopTransport('mock', deps), provider: { name: 'mock', capabilities: [] } },
+      { transport: createDesktopTransport({ provider: 'mock', model: null }, deps), provider: { name: 'mock', capabilities: [] } },
     );
     const outcome = await done;
     expect(outcome.source).toBe('ai');

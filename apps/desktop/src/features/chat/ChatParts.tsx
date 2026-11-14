@@ -7,6 +7,7 @@ import type { AiProvider } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import type { UserError } from '../../lib/errors.ts';
 import { describeAiError } from '../ai/errors.ts';
+import { modelLabel, type ModelNames } from '../ai/models.ts';
 import { providerName } from '../ai/providers.ts';
 import { codeSourceOf, PRESET_NAME_MAX, presetNameFrom } from './ai-background.ts';
 import {
@@ -183,10 +184,23 @@ export function UserBubble({ text }: { text: string }) {
 
 const proseClass = 'px-1.5 text-[15px] leading-[26px] font-normal break-words whitespace-pre-wrap text-foreground/85';
 
-function AgentHeader({ provider, effort }: { provider: string | null | undefined; effort: string | null | undefined }) {
+function AgentHeader({
+  provider,
+  model,
+  effort,
+  models,
+}: {
+  provider: string | null | undefined;
+  /** The model the reply used; none means the CLI's default. */
+  model: string | null | undefined;
+  effort: string | null | undefined;
+  /** The models each provider offers, to turn an id into its name. */
+  models: ModelNames;
+}) {
   const { t } = useTranslation();
   const parts = [
     provider ? providerName(t, provider as AiProvider) : undefined,
+    provider ? modelLabel(models, provider as AiProvider, model, t('chat.model.default')) : undefined,
     effort ? t(`chat.effort.${effort}`) : undefined,
   ].filter((part): part is string => part !== undefined);
   return (
@@ -198,7 +212,7 @@ function AgentHeader({ provider, effort }: { provider: string | null | undefined
 }
 
 /** The reply being written: its thinking, its code, and where it stands. */
-export function RunningReply({ run, onStop }: { run: ChatRun; onStop: () => void }) {
+export function RunningReply({ run, models, onStop }: { run: ChatRun; models: ModelNames; onStop: () => void }) {
   const { t } = useTranslation();
   const source = partialSource(run.output);
   const stage = t(
@@ -213,7 +227,7 @@ export function RunningReply({ run, onStop }: { run: ChatRun; onStop: () => void
   return (
     // Not announced chunk by chunk: the finished reply is.
     <div aria-live="off" aria-busy="true" className="flex w-full flex-col gap-2">
-      <AgentHeader provider={run.provider} effort={run.effort} />
+      <AgentHeader provider={run.provider} model={run.model} effort={run.effort} models={models} />
       {/* Closed until the user opens it, so streamed thinking and code don't fill the list. */}
       <WorkLog
         autoOpen={false}
@@ -267,6 +281,7 @@ export function AgentReply({
   latestApplied,
   busy,
   actions,
+  models,
 }: {
   message: ChatMessage;
   index: number;
@@ -277,6 +292,7 @@ export function AgentReply({
   /** A run is in flight, so nothing here can start another. */
   busy: boolean;
   actions: ReplyActions;
+  models: ModelNames;
 }) {
   const { t } = useTranslation();
   const [naming, setNaming] = useState<string | null>(null);
@@ -313,7 +329,7 @@ export function AgentReply({
 
   return (
     <div className="flex w-full flex-col gap-2">
-      <AgentHeader provider={message.provider} effort={message.effort} />
+      <AgentHeader provider={message.provider} model={message.model} effort={message.effort} models={models} />
       {showLog && (
         <WorkLog label={logLabel} autoOpen={false}>
           {message.thinking && <ThinkingStep text={message.thinking} streaming={false} />}

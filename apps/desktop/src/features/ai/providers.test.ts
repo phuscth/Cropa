@@ -53,8 +53,8 @@ describe('listProviders', () => {
   ];
 
   it('offers the mock provider only in development builds', () => {
-    expect(listProviders(found, false).map((p) => p.provider)).toEqual(['codex', 'claude']);
-    expect(listProviders(found, true).map((p) => p.provider)).toEqual(['codex', 'claude', 'mock']);
+    expect(listProviders(found, false).map((p) => p.provider)).toEqual(['claude', 'codex']);
+    expect(listProviders(found, true).map((p) => p.provider)).toEqual(['claude', 'codex', 'mock']);
   });
 
   it('skips a provider the backend did not report', () => {

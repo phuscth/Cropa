@@ -5,6 +5,7 @@
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
 use base64::Engine;
 use serde::Deserialize;
@@ -12,11 +13,13 @@ use serde_json::{Value, json};
 
 use crate::Provider;
 use crate::adapter::{
-    ISOLATION_NOTE, Probe, Version, adapter_env, check_model, classify, detect, missing_final,
-    read_png, scratch_dir,
+    ISOLATION_NOTE, LIST_TIMEOUT, Probe, Version, adapter_env, check_model, classify, detect,
+    missing_final, read_png, sanitize_models, scratch_dir,
 };
 use crate::cancel::CancelToken;
-use crate::cli::{AgentCli, AgentError, Detection, Effort, Event, RunOutput, RunRequest};
+use crate::cli::{
+    AgentCli, AgentError, Detection, Effort, Event, ModelInfo, RunOutput, RunRequest,
+};
 use crate::path_search::find_executable;
 use crate::runner::{Finished, LineFlow, ProcessError, ProcessSpec, run_process};
 
@@ -121,6 +124,130 @@ fn build_args(
         args.push(format!("--model={model}").into());
     }
     Ok(args)
+}
+
+/// The `request_id` of the model-list request, echoed in its response.
+const MODELS_REQUEST_ID: &str = "cropa-models";
+
+/// The arguments of the model-list call: the same lock-down as a turn, with no
+/// prompt, schema or system file.
+fn list_args() -> Vec<OsString> {
+    [
+        "-p",
+        "--input-format",
+        "stream-json",
+        "--output-format",
+        "stream-json",
+        "--verbose",
+        "--setting-sources",
+        "",
+        "--tools",
+        "",
+        "--strict-mcp-config",
+        "--disable-slash-commands",
+        "--no-session-persistence",
+        "--safe-mode",
+    ]
+    .into_iter()
+    .map(OsString::from)
+    .collect()
+}
+
+/// The one stdin line that asks the CLI to describe itself.
+fn list_request() -> Vec<u8> {
+    let mut line = json!({
+        "type": "control_request",
+        "request_id": MODELS_REQUEST_ID,
+        "request": { "subtype": "initialize" },
+    })
+    .to_string();
+    line.push('\n');
+    line.into_bytes()
+}
+
+/// Only the fields of a model entry that Cropa uses; the rest of the response
+/// (the account among it) is never read.
+#[derive(Deserialize)]
+struct ModelEntry {
+    value: String,
+    #[serde(default, rename = "resolvedModel")]
+    resolved_model: String,
+    #[serde(default, rename = "displayName")]
+    display_name: String,
+    #[serde(default)]
+    description: String,
+}
+
+#[derive(Deserialize)]
+struct InitializeResponse {
+    models: Vec<ModelEntry>,
+}
+
+/// The CLI's own `default` entry is an alias: it is skipped, and the first real
+/// model it resolves to is marked as the default.
+fn models_from(response: InitializeResponse) -> Vec<ModelInfo> {
+    let default_target = response
+        .models
+        .iter()
+        .find(|entry| entry.value == "default")
+        .map(|entry| entry.resolved_model.clone())
+        .filter(|target| !target.is_empty());
+    let mut default_marked = false;
+    response
+        .models
+        .into_iter()
+        .filter(|entry| entry.value != "default")
+        .map(|entry| {
+            let is_default = !default_marked
+                && default_target
+                    .as_deref()
+                    .is_some_and(|target| target == entry.resolved_model);
+            default_marked |= is_default;
+            ModelInfo {
+                id: entry.value,
+                display_name: entry.display_name,
+                description: entry.description,
+                is_default,
+                is_new: false,
+            }
+        })
+        .collect()
+}
+
+/// Reads one stdout line of the model-list call. The answer is the
+/// `control_response` carrying this call's request id.
+fn read_models_line(
+    line: &Value,
+    answer: &mut Option<Result<Vec<ModelInfo>, AgentError>>,
+) -> LineFlow {
+    if line["type"] != "control_response" || line["response"]["request_id"] != MODELS_REQUEST_ID {
+        return LineFlow::Continue;
+    }
+    *answer = Some(if line["response"]["subtype"] == "success" {
+        serde_json::from_value::<InitializeResponse>(line["response"]["response"].clone())
+            .map(models_from)
+            .map_err(|_| AgentError::Protocol("the model list was not understood".to_owned()))
+    } else {
+        Err(AgentError::Protocol(
+            "the CLI refused the model list".to_owned(),
+        ))
+    });
+    LineFlow::Stop
+}
+
+/// The model list, or why there is none when the process ended first.
+fn models_result(
+    answer: Option<Result<Vec<ModelInfo>, AgentError>>,
+    process: Result<Finished, ProcessError>,
+) -> Result<Vec<ModelInfo>, AgentError> {
+    match answer {
+        Some(result) => result,
+        None => Err(missing_final(
+            process,
+            &[],
+            "the CLI ended without a model list",
+        )),
+    }
 }
 
 /// Windows refuses a command line over 32,767 characters, so the schema, which
@@ -437,6 +564,34 @@ impl AgentCli for ClaudeCode {
         detect(self.find(), &PROBE)
     }
 
+    fn list_models(&self, cancel: &CancelToken) -> Result<Vec<ModelInfo>, AgentError> {
+        let executable = self.find().ok_or(AgentError::NotInstalled)?;
+        let dir = scratch_dir()?;
+        let spec = ProcessSpec {
+            program: executable,
+            args: list_args(),
+            env: adapter_env(&[LOGIN_ENV]),
+            stdin: Some(list_request()),
+            keep_stdin_open: false,
+            timeout: LIST_TIMEOUT,
+        };
+        let started = Instant::now();
+        let mut answer = None;
+        let process = run_process(&spec, dir.path(), cancel, &mut |line| {
+            read_models_line(&line, &mut answer)
+        });
+        let result = models_result(answer, process).map(sanitize_models);
+        log::debug!(
+            "claude models: {} after {} ms",
+            result.as_ref().map_or_else(
+                |e| format!("{e:?}"),
+                |models| format!("{} models", models.len())
+            ),
+            started.elapsed().as_millis()
+        );
+        result
+    }
+
     fn run(
         &self,
         req: RunRequest,
@@ -469,6 +624,7 @@ impl AgentCli for ClaudeCode {
             )?,
             env: adapter_env(&[LOGIN_ENV]),
             stdin: Some(user_message(&req.prompt, &images)),
+            keep_stdin_open: false,
             timeout: req.timeout,
         };
         let mut stream = ClaudeStream::default();
@@ -692,6 +848,83 @@ mod tests {
         assert_eq!(summary["subtype"], "success");
         assert!(summary.get("session_id").is_none());
         assert!(!summary.to_string().contains("00000000-0000"));
+    }
+
+    const MODELS: &str = include_str!("../tests/fixtures/claude/initialize-models.jsonl");
+
+    /// Feeds lines like the runner does and returns the model list.
+    fn list_from(
+        lines: &str,
+        process: Result<Finished, ProcessError>,
+    ) -> Result<Vec<ModelInfo>, AgentError> {
+        let mut answer = None;
+        for line in lines.lines().filter(|l| !l.trim().is_empty()) {
+            let value: Value = serde_json::from_str(line).expect("line is JSON");
+            if read_models_line(&value, &mut answer) == LineFlow::Stop {
+                break;
+            }
+        }
+        models_result(answer, process).map(crate::adapter::sanitize_models)
+    }
+
+    #[test]
+    fn the_model_list_keeps_the_real_models_and_marks_the_clis_default() {
+        let models = list_from(MODELS, Ok(Finished::default())).unwrap();
+        assert_eq!(models.len(), 13);
+        assert_eq!(models[0].id, "opus");
+        assert_eq!(models[0].display_name, "Opus 5.5");
+        assert!(models[0].is_default);
+        assert_eq!(models.iter().filter(|m| m.is_default).count(), 1);
+        assert!(models.iter().all(|m| m.id != "default" && !m.is_new));
+        for id in ["fable", "sonnet", "haiku", "claude-opus-4-8"] {
+            assert!(models.iter().any(|m| m.id == id), "{id}");
+        }
+    }
+
+    #[test]
+    fn a_refused_model_list_is_a_protocol_error() {
+        let line = r#"{"type":"control_response","response":{"subtype":"error","request_id":"cropa-models","error":"no"}}"#;
+        assert_eq!(
+            list_from(line, Ok(Finished::default())).unwrap_err(),
+            AgentError::Protocol("the CLI refused the model list".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_response_for_another_request_is_not_the_answer() {
+        let line = r#"{"type":"control_response","response":{"subtype":"success","request_id":"other","response":{"models":[]}}}"#;
+        assert_eq!(
+            list_from(line, Ok(Finished::default())).unwrap_err(),
+            AgentError::Protocol("the CLI ended without a model list".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_model_list_that_never_comes_keeps_the_login_cause() {
+        let lines = r#"{"type":"system","subtype":"init"}"#;
+        assert_eq!(
+            list_from(lines, exit("Not logged in. Please run /login")).unwrap_err(),
+            AgentError::NotLoggedIn
+        );
+        assert_eq!(
+            list_from(lines, Ok(Finished::default())).unwrap_err(),
+            AgentError::Protocol("the CLI ended without a model list".to_owned())
+        );
+    }
+
+    #[test]
+    fn the_model_list_call_is_fixed_and_carries_no_prompt() {
+        let args = list_args();
+        assert_eq!(args[0], OsString::from("-p"));
+        assert!(
+            args.iter()
+                .all(|a| !a.to_string_lossy().starts_with("--model"))
+        );
+        assert!(!args.iter().any(|a| a == "--system-prompt-file"));
+        let request: Value = serde_json::from_slice(&list_request()).unwrap();
+        assert_eq!(request["type"], "control_request");
+        assert_eq!(request["request"]["subtype"], "initialize");
+        assert_eq!(request["request_id"], MODELS_REQUEST_ID);
     }
 
     #[test]

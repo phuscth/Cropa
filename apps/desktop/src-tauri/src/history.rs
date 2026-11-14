@@ -720,7 +720,7 @@ mod tests {
         assert!(history.save_chat(&id, convo()).unwrap());
         assert_eq!(history.chat(&id).unwrap(), convo());
 
-        fs::write(history.chat_path(&id), r#"{"version":2,"messages":[]}"#).unwrap();
+        fs::write(history.chat_path(&id), r#"{"version":3,"messages":[]}"#).unwrap();
         assert!(matches!(history.chat(&id), Err(ChatError::TooNew)));
     }
 

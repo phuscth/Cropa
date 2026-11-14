@@ -8,6 +8,7 @@ import {
   SelectValue,
   Switch,
 } from '@cropa/ui';
+import type { TFunction } from 'i18next';
 import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -15,6 +16,7 @@ import {
   commands,
   type AiErrorKind as MockErrorKind,
   type AiMockScript_Deserialize,
+  type AiProvider,
   type CommandError,
   type Settings,
 } from '../../lib/bindings.ts';
@@ -22,12 +24,11 @@ import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 import { SettingRow, SettingsSection } from '../settings/SettingsLayout.tsx';
 import { aiAccess } from './access.ts';
-import { AiGate } from './AiGate.tsx';
-import { AiOnboarding } from './AiOnboarding.tsx';
-import { detectProviders } from './detect.ts';
+import { AiProviderList } from './AiProviderList.tsx';
 import { describeAiError } from './errors.ts';
 import { capabilitiesOf, providerName } from './providers.ts';
 import { createDesktopTransport } from './transport.ts';
+import { useDetection } from './use-ai-providers.ts';
 
 const TEST_COLORS = ['#1e3a8a', '#f59e0b', '#f8fafc'];
 const TEST_TIMEOUT_MS = 60_000;
@@ -58,40 +59,55 @@ function mockScript(choice: string): AiMockScript_Deserialize {
 }
 
 type TestState =
-  | { kind: 'idle' }
   | { kind: 'running' }
   | { kind: 'passed'; name: string; mood: string; seconds: string }
   | { kind: 'failed'; error: UserError };
+
+/** Runs the palette-naming task through a provider with its default model; undefined when cancelled. */
+async function testProvider(
+  provider: AiProvider,
+  capabilities: Capability[],
+  script: AiMockScript_Deserialize | null,
+  signal: AbortSignal,
+  t: TFunction,
+): Promise<TestState | undefined> {
+  const started = performance.now();
+  const outcome = await runTask(
+    paletteNameTask,
+    { colors: TEST_COLORS },
+    {
+      transport: createDesktopTransport({ provider, model: null }, {}, script),
+      provider: { name: provider, capabilities },
+      signal,
+      timeoutMs: TEST_TIMEOUT_MS,
+    },
+  ).done;
+  const seconds = ((performance.now() - started) / 1000).toFixed(1);
+  if (outcome.source === 'ai') return { kind: 'passed', ...outcome.result, seconds };
+  if (signal.aborted) return undefined;
+  return { kind: 'failed', error: describeAiError(t, outcome.notice?.kind ?? 'Protocol', providerName(t, provider)) };
+}
 
 interface Props {
   settings: Settings | undefined;
   onSettings: (settings: Settings) => void;
 }
 
-/** Settings → AI: the provider, sending images, a connection test and what AI use means. */
+/** Settings → AI: each provider and what it needs, a connection test per provider, sending images and what AI use means. */
 export function AiSettingsSection({ settings, onSettings }: Props) {
   const { t } = useTranslation();
   const access = aiAccess(settings);
-  const [choosing, setChoosing] = useState(false);
+  const { listed, rechecking, recheck } = useDetection();
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<UserError>();
-  const [test, setTest] = useState<TestState>({ kind: 'idle' });
+  // The last result of each provider's test; one test runs at a time.
+  const [tests, setTests] = useState<Partial<Record<AiProvider, TestState | undefined>>>({});
   const [mockChoice, setMockChoice] = useState('success');
   const controller = useRef<AbortController>(undefined);
+  const testRunning = Object.values(tests).some((test) => test?.kind === 'running');
 
-  const provider = access.provider;
-  const testRunning = test.kind === 'running';
-
-  // The provider changed: close the change panel and forget the last test result.
-  const [seenProvider, setSeenProvider] = useState(provider);
-  if (seenProvider !== provider) {
-    setSeenProvider(provider);
-    setChoosing(false);
-    setTest({ kind: 'idle' });
-  }
-
-  // A running test is cancelled when the provider changes or this section unmounts.
-  useEffect(() => () => { controller.current?.abort(); }, [provider]);
+  // A running test is cancelled when this section unmounts.
+  useEffect(() => () => { controller.current?.abort(); }, []);
 
   // Closing the window only hides it, so cancel a running test when it is hidden.
   useEffect(() => {
@@ -120,44 +136,18 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
     }
   };
 
-  const name = provider ? providerName(t, provider) : '';
+  const setTest = (provider: AiProvider, test: TestState | undefined) => {
+    setTests((before) => ({ ...before, [provider]: test }));
+  };
 
-  const runTest = async () => {
-    if (!provider) return;
+  const runTest = async (provider: AiProvider) => {
+    const found = listed?.find((item) => item.provider === provider);
+    if (!found) return;
     const abort = new AbortController();
     controller.current = abort;
-    setTest({ kind: 'running' });
-
-    let capabilities: Capability[] = [];
-    try {
-      const found = await detectProviders();
-      const detection = found.find((d) => d.provider === provider);
-      if (detection) capabilities = capabilitiesOf(detection);
-    } catch {
-      // The run itself reports what is wrong.
-    }
+    setTest(provider, { kind: 'running' });
     const script = import.meta.env.DEV && provider === 'mock' ? mockScript(mockChoice) : null;
-    const started = performance.now();
-    const outcome = await runTask(
-      paletteNameTask,
-      { colors: TEST_COLORS },
-      {
-        transport: createDesktopTransport(provider, {}, script),
-        provider: { name: provider, capabilities },
-        signal: abort.signal,
-        timeoutMs: TEST_TIMEOUT_MS,
-      },
-    ).done;
-    const seconds = ((performance.now() - started) / 1000).toFixed(1);
-
-    if (outcome.source === 'ai') {
-      setTest({ kind: 'passed', ...outcome.result, seconds });
-    } else if (abort.signal.aborted) {
-      setTest({ kind: 'idle' });
-    } else {
-      const kind = outcome.notice?.kind ?? 'Protocol';
-      setTest({ kind: 'failed', error: describeAiError(t, kind, name) });
-    }
+    setTest(provider, await testProvider(provider, capabilitiesOf(found.detection), script, abort.signal, t));
   };
 
   return (
@@ -168,43 +158,70 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
         </div>
       )}
 
-      <SettingRow
-        label={t('ai.settings.provider')}
-        description={provider ? name : t('ai.settings.notSetUp')}
-        stacked={choosing}
-      >
-        {choosing ? (
-          <AiOnboarding
-            mode="change"
-            onSaved={(next) => {
-              setChoosing(false);
-              onSettings(next);
-            }}
-            onCancel={() => { setChoosing(false); }}
-          />
-        ) : (
-          <>
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={busy || testRunning}
-              onClick={() => { setChoosing(true); }}
-            >
-              {provider ? t('ai.settings.change') : t('ai.settings.setUp')}
-            </Button>
-            {provider && (
+      <div className="px-5 py-4">
+        <AiProviderList
+          listed={listed}
+          recheck={recheck}
+          rechecking={rechecking}
+          disabled={testRunning}
+          actions={({ provider }, status) =>
+            status === 'ready' && (
               <Button
-                variant="outline"
+                variant="secondary"
                 size="sm"
-                disabled={busy || testRunning}
-                onClick={() => { void save(() => commands.setAiProvider(null)); }}
+                disabled={testRunning || busy}
+                onClick={() => { void runTest(provider); }}
               >
-                {t('ai.settings.turnOff')}
+                {t('ai.test.button')}
               </Button>
-            )}
-          </>
-        )}
-      </SettingRow>
+            )
+          }
+          below={({ provider }) => {
+            const test = tests[provider];
+            const mock = import.meta.env.DEV && provider === 'mock';
+            if (!test && !mock) return null;
+            return (
+              <div className="flex flex-col items-start gap-2 pl-8">
+                {mock && (
+                  <div className="flex items-center gap-3 text-sm text-muted-foreground">
+                    <span id="ai-mock-result">{t('ai.test.mockResult')}</span>
+                    <Select value={mockChoice} disabled={testRunning} onValueChange={setMockChoice}>
+                      <SelectTrigger aria-labelledby="ai-mock-result" className="w-64">
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="success">{t('ai.test.mockSuccess')}</SelectItem>
+                        <SelectItem value="malformed">{t('ai.test.mockMalformed')}</SelectItem>
+                        {MOCK_FAILURES.map(([kind]) => (
+                          <SelectItem key={kind} value={kind}>
+                            {t(`aiErrors.${kind}.what`, { provider: providerName(t, provider) })}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                {test?.kind === 'running' && (
+                  <div className="flex items-center gap-3">
+                    <span role="status" className="text-sm text-muted-foreground">
+                      {t('ai.test.running')}
+                    </span>
+                    <Button variant="outline" size="sm" onClick={() => { controller.current?.abort(); }}>
+                      {t('ai.test.cancel')}
+                    </Button>
+                  </div>
+                )}
+                {test?.kind === 'passed' && (
+                  <p role="status" className="text-sm">
+                    {t('ai.test.passed', test)}
+                  </p>
+                )}
+                {test?.kind === 'failed' && <ErrorNotice error={test.error} />}
+              </div>
+            );
+          }}
+        />
+      </div>
 
       <SettingRow
         label={t('ai.settings.allowImages')}
@@ -220,66 +237,6 @@ export function AiSettingsSection({ settings, onSettings }: Props) {
           />
         )}
       </SettingRow>
-
-      <div className="px-5 py-4">
-        <AiGate
-          access={access}
-          onSetUp={() => { setChoosing(true); }}
-        >
-          {(enabled) => (
-            <div className="flex flex-col items-start gap-3">
-              {import.meta.env.DEV && provider === 'mock' && (
-                <div className="flex items-center gap-3 text-sm text-muted-foreground">
-                  <span id="ai-mock-result">{t('ai.test.mockResult')}</span>
-                  <Select
-                    value={mockChoice}
-                    disabled={test.kind === 'running'}
-                    onValueChange={setMockChoice}
-                  >
-                    <SelectTrigger aria-labelledby="ai-mock-result" className="w-64">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="success">{t('ai.test.mockSuccess')}</SelectItem>
-                      <SelectItem value="malformed">{t('ai.test.mockMalformed')}</SelectItem>
-                      {MOCK_FAILURES.map(([kind]) => (
-                        <SelectItem key={kind} value={kind}>
-                          {t(`aiErrors.${kind}.what`, { provider: name })}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              {test.kind === 'running' ? (
-                <div className="flex items-center gap-3">
-                  <span role="status" className="text-sm text-muted-foreground">
-                    {t('ai.test.running')}
-                  </span>
-                  <Button variant="outline" size="sm" onClick={() => { controller.current?.abort(); }}>
-                    {t('ai.test.cancel')}
-                  </Button>
-                </div>
-              ) : (
-                <Button
-                  variant="secondary"
-                  size="sm"
-                  disabled={!enabled || busy}
-                  onClick={() => { void runTest(); }}
-                >
-                  {t('ai.test.button')}
-                </Button>
-              )}
-              {test.kind === 'passed' && (
-                <p role="status" className="text-sm">
-                  {t('ai.test.passed', test)}
-                </p>
-              )}
-              {test.kind === 'failed' && <ErrorNotice error={test.error} />}
-            </div>
-          )}
-        </AiGate>
-      </div>
 
       <p className="px-5 py-4 text-sm text-muted-foreground">{t('ai.settings.privacy')}</p>
     </SettingsSection>

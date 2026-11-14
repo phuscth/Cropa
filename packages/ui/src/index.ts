@@ -37,11 +37,14 @@ export {
   PickerSection,
 } from './components/picker.tsx';
 export { SelectorCard } from './components/selector-card.tsx';
+export { ModelPicker } from './components/model-picker.tsx';
+export type { ModelPickerModel, ModelPickerProps, ModelPickerProvider } from './components/model-picker.tsx';
 export { OptionList, OptionListItem } from './components/option-list.tsx';
 export { SegmentedControl, SegmentedControlItem } from './components/segmented-control.tsx';
 export { Slider } from './components/slider.tsx';
 export { SliderField } from './components/slider-field.tsx';
 export { Switch } from './components/switch.tsx';
 export { Tile, TileGroup } from './components/tile-group.tsx';
+export { AnthropicLogo, OpenAILogo } from './provider-logos.tsx';
 export { cn } from './lib/utils.ts';
 export * from './icons.tsx';

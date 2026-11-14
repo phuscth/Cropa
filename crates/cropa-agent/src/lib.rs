@@ -20,9 +20,10 @@ mod path_search;
 mod runner;
 mod turn_dir;
 
+pub use adapter::valid_model_name;
 pub use cancel::CancelToken;
 pub use claude::{ClaudeCode, ENABLED as CLAUDE_ENABLED};
-pub use cli::{AgentCli, AgentError, Detection, Effort, Event, RunOutput, RunRequest};
+pub use cli::{AgentCli, AgentError, Detection, Effort, Event, ModelInfo, RunOutput, RunRequest};
 pub use codex::{CodexExec, ENABLED as CODEX_ENABLED};
 pub use env::{BASE_ENV_ALLOWLIST, base_env, filter_env};
 pub use mock::{Mock, MockScript};

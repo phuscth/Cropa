@@ -3,7 +3,7 @@
 use std::time::{Duration, Instant};
 
 use crate::cancel::CancelToken;
-use crate::cli::{AgentCli, AgentError, Detection, Event, RunOutput, RunRequest};
+use crate::cli::{AgentCli, AgentError, Detection, Event, ModelInfo, RunOutput, RunRequest};
 
 /// What a mock run does. `delay` is spread evenly: the run waits one slice
 /// before each event and one more before the outcome, so the whole run takes
@@ -48,6 +48,25 @@ impl AgentCli for Mock {
             image_in: true,
             image_out: false,
         }
+    }
+
+    fn list_models(&self, _cancel: &CancelToken) -> Result<Vec<ModelInfo>, AgentError> {
+        Ok(vec![
+            ModelInfo {
+                id: "mock-fast".to_owned(),
+                display_name: "Mock Fast".to_owned(),
+                description: "A scripted model.".to_owned(),
+                is_default: true,
+                is_new: false,
+            },
+            ModelInfo {
+                id: "mock-slow".to_owned(),
+                display_name: "Mock Slow".to_owned(),
+                description: "A scripted model.".to_owned(),
+                is_default: false,
+                is_new: true,
+            },
+        ])
     }
 
     fn run(

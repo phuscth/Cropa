@@ -1,27 +1,51 @@
 import { useEffect, useState } from 'react';
 
 import { useViewActive } from '../shell/view-active.ts';
-import { commands, type AiEffort, type AiProvider, type Settings } from '../../lib/bindings.ts';
+import {
+  commands,
+  type AiEffort,
+  type AiProvider,
+  type FavoriteModel,
+  type Settings,
+} from '../../lib/bindings.ts';
 
-/** Whether AI features may run: no provider chosen yet means locked. */
+/** What the settings say about AI. Whether a provider can run comes from detection, not from here. */
 export interface AiAccess {
-  state: 'loading' | 'locked' | 'ready';
-  provider: AiProvider | null;
+  state: 'loading' | 'ready';
   allowImages: boolean;
   /** The effort the user last chose for AI tasks; low until they choose. */
   effort: AiEffort;
+  /** The provider and model of the last message the user sent; null until they chose one. */
+  lastProvider: AiProvider | null;
+  lastModel: string | null;
+  /** The models starred in the picker, in the order they were starred. */
+  favorites: FavoriteModel[];
 }
 
 export function aiAccess(settings: Settings | undefined): AiAccess {
-  if (!settings) return { state: 'loading', provider: null, allowImages: false, effort: 'low' };
-  const provider = settings.ai.provider ?? null;
-  const allowImages = settings.ai.allowImages ?? false;
-  return { state: provider ? 'ready' : 'locked', provider, allowImages, effort: settings.ai.effort ?? 'low' };
+  if (!settings) {
+    return {
+      state: 'loading',
+      allowImages: false,
+      effort: 'low',
+      lastProvider: null,
+      lastModel: null,
+      favorites: [],
+    };
+  }
+  const { ai } = settings;
+  return {
+    state: 'ready',
+    allowImages: ai.allowImages ?? false,
+    effort: ai.effort ?? 'low',
+    lastProvider: ai.lastProvider ?? null,
+    lastModel: ai.lastModel ?? null,
+    favorites: ai.favoriteModels ?? [],
+  };
 }
 
 /**
- * The AI access of this window. The provider is chosen in the Settings view, so
- * the settings are read again whenever the window gains the focus and whenever
+ * The AI settings of this window, read again whenever the window gains the focus and whenever
  * this view comes to the front. The window needs `allow-get-settings`.
  */
 export function useAiAccess(): AiAccess {

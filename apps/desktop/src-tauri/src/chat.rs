@@ -20,7 +20,7 @@ use specta::Type;
 
 use crate::settings::AiEffort;
 
-pub const CURRENT_VERSION: u32 = 1;
+pub const CURRENT_VERSION: u32 = 2;
 pub const MAX_MESSAGES: usize = 100;
 pub const MAX_FILE_BYTES: usize = 512 * 1024;
 const MAX_ID_LEN: usize = 64;
@@ -71,6 +71,9 @@ pub struct ChatMessage {
     pub mode: Option<ChatMode>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
+    /// The model an agent reply ran on; none means the CLI's default.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub effort: Option<AiEffort>,
     /// The reasoning summary the CLI showed.
@@ -125,16 +128,26 @@ impl MigrateError {
     }
 }
 
-/// Bring any known on-disk version up to [`CURRENT_VERSION`]. Only version 1 exists.
+/// Bring any known on-disk version up to [`CURRENT_VERSION`].
 pub fn migrate(value: serde_json::Value) -> Result<ChatFile, MigrateError> {
     let version = value
         .get("version")
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => Ok(serde_json::from_value(value)?),
+        1 => Ok(serde_json::from_value(v1_to_v2(value))?),
+        2 => Ok(serde_json::from_value(value)?),
         other => Err(MigrateError::TooNew(other)),
     }
+}
+
+/// Version 2 records the model of a reply. A version 1 reply has none, which
+/// reads as the CLI's default: nothing else changes.
+fn v1_to_v2(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(file) = value.as_object_mut() {
+        file.insert("version".into(), 2.into());
+    }
+    value
 }
 
 #[derive(Debug, thiserror::Error)]
@@ -191,6 +204,13 @@ pub fn validate(message: &ChatMessage) -> Result<(), ChatError> {
                 return Err(ChatError::Invalid("outcome"));
             }
         }
+    }
+    if message
+        .model
+        .as_deref()
+        .is_some_and(|model| !cropa_agent::valid_model_name(model))
+    {
+        return Err(ChatError::Invalid("model"));
     }
     if message
         .thinking
@@ -251,6 +271,7 @@ pub(crate) mod tests {
             text: text.to_owned(),
             mode: Some(ChatMode::Generate),
             provider: None,
+            model: None,
             effort: None,
             thinking: None,
             outcome: None,
@@ -266,6 +287,7 @@ pub(crate) mod tests {
             role: ChatRole::Agent,
             mode: None,
             provider: Some("claude".to_owned()),
+            model: Some("opus".to_owned()),
             effort: Some(AiEffort::Low),
             outcome: Some(ChatOutcome::Applied),
             elapsed_ms: Some(1200),
@@ -275,14 +297,35 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn version_one_reads_a_newer_version_is_refused_and_no_version_is_an_error() {
-        let file = json!({"version": 1, "messages": [{"id": "a", "role": "user", "at": 1.0,
+    fn a_version_1_file_reads_as_version_2_and_its_replies_have_no_model() {
+        let file = json!({"version": 1, "messages": [
+            {"id": "a", "role": "user", "at": 1.0, "text": "hi", "mode": "refine"},
+            {"id": "b", "role": "agent", "at": 2.0, "text": "ok", "provider": "codex",
+             "effort": "high", "outcome": "applied", "elapsedMs": 900,
+             "background": {"type": "code"}}
+        ]});
+        let read = migrate(file).unwrap();
+        assert_eq!(read.version, CURRENT_VERSION);
+        assert_eq!(read.messages[0].mode, Some(ChatMode::Refine));
+        let reply = &read.messages[1];
+        assert_eq!(reply.model, None);
+        assert_eq!(reply.provider.as_deref(), Some("codex"));
+        assert_eq!(reply.effort, Some(AiEffort::High));
+        assert_eq!(reply.outcome, Some(ChatOutcome::Applied));
+        assert_eq!(reply.elapsed_ms, Some(900));
+        assert_eq!(reply.background, Some(json!({"type": "code"})));
+        assert!(validate(reply).is_ok());
+    }
+
+    #[test]
+    fn a_newer_version_is_refused_and_no_version_is_an_error() {
+        let file = json!({"version": 2, "messages": [{"id": "a", "role": "user", "at": 1.0,
             "text": "hi", "mode": "refine"}]});
         let read = migrate(file).unwrap();
         assert_eq!(read.messages[0].mode, Some(ChatMode::Refine));
         assert!(matches!(
-            migrate(json!({"version": 2, "messages": []})),
-            Err(MigrateError::TooNew(2))
+            migrate(json!({"version": 3, "messages": []})),
+            Err(MigrateError::TooNew(3))
         ));
         assert!(matches!(
             migrate(json!({"messages": []})),
@@ -349,6 +392,14 @@ pub(crate) mod tests {
             Err(ChatError::Invalid("background"))
         ));
         assert!(validate(&agent("a1", "ok")).is_ok());
+        for bad in ["--config", "a b", ""] {
+            let mut reply = agent("a1", "ok");
+            reply.model = Some(bad.to_owned());
+            assert!(matches!(validate(&reply), Err(ChatError::Invalid("model"))));
+        }
+        let mut default_model = agent("a1", "ok");
+        default_model.model = None;
+        assert!(validate(&default_model).is_ok());
         // The error names the field, never what was in it.
         let error = validate(&user("u1", &long)).unwrap_err().to_string();
         assert!(!error.contains("xxx"));

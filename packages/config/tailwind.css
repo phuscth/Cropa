@@ -189,10 +189,13 @@
   --animate-confirm-out: confirm-out 160ms var(--ease-enter) forwards;
   --animate-tab-in: tab-in 200ms var(--ease-enter);
   --animate-tooltip-in: tooltip-in 150ms var(--ease-enter);
+  --animate-model-picker-in: model-picker-in 150ms var(--ease-enter);
+  --animate-model-picker-out: model-picker-out 150ms var(--ease-enter) forwards;
 
   /* Movement distances, zeroed under reduced motion so only the fades remain. */
   --motion-scale-from: 0.96;
   --motion-pop-from: 0.9;
+  --motion-zoom-from: 0.95;
   --motion-rise: 8px;
   --motion-slide: 6px;
 }
@@ -239,6 +242,29 @@
   to {
     opacity: 0;
     transform: scale(var(--motion-pop-from));
+  }
+}
+
+/* The model picker rising from its trigger below it, and sinking back. */
+@keyframes model-picker-in {
+  from {
+    opacity: 0;
+    transform: translateY(var(--motion-rise)) scale(var(--motion-zoom-from));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes model-picker-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: translateY(var(--motion-rise)) scale(var(--motion-zoom-from));
   }
 }
 
@@ -311,6 +337,7 @@
   :root {
     --motion-scale-from: 1;
     --motion-pop-from: 1;
+    --motion-zoom-from: 1;
     --motion-rise: 0px;
     --motion-slide: 0px;
     --press-scale: 1;

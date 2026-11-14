@@ -6,16 +6,20 @@
 
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
+use std::time::Instant;
 
-use serde_json::{Map, Value};
+use serde::Deserialize;
+use serde_json::{Map, Value, json};
 
 use crate::Provider;
 use crate::adapter::{
-    ISOLATION_NOTE, Probe, Version, adapter_env, check_model, classify, detect, missing_final,
-    read_png, scratch_dir,
+    ISOLATION_NOTE, LIST_TIMEOUT, Probe, Version, adapter_env, check_model, classify, detect,
+    missing_final, read_png, sanitize_models, scratch_dir,
 };
 use crate::cancel::CancelToken;
-use crate::cli::{AgentCli, AgentError, Detection, Effort, Event, RunOutput, RunRequest};
+use crate::cli::{
+    AgentCli, AgentError, Detection, Effort, Event, ModelInfo, RunOutput, RunRequest,
+};
 use crate::path_search::find_executable;
 use crate::runner::{Finished, LineFlow, ProcessError, ProcessSpec, run_process};
 
@@ -538,9 +542,153 @@ impl CodexStream {
     }
 }
 
+/// The id of the `model/list` request in the app-server conversation.
+const LIST_REQUEST_ID: u64 = 2;
+
+/// The arguments of the model-list call.
+fn list_args() -> Vec<OsString> {
+    vec![OsString::from("app-server")]
+}
+
+/// The three stdin lines of the conversation: `initialize`, `initialized`,
+/// `model/list`.
+fn list_request() -> Vec<u8> {
+    let lines = [
+        json!({
+            "id": 1,
+            "method": "initialize",
+            "params": { "clientInfo": { "name": "cropa", "version": env!("CARGO_PKG_VERSION") } },
+        }),
+        json!({ "method": "initialized" }),
+        json!({ "id": LIST_REQUEST_ID, "method": "model/list", "params": {} }),
+    ];
+    let mut text = String::new();
+    for line in lines {
+        text.push_str(&line.to_string());
+        text.push('\n');
+    }
+    text.into_bytes()
+}
+
+/// Only the fields of a model entry that Cropa uses.
+#[derive(Deserialize)]
+struct ModelEntry {
+    id: String,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default, rename = "displayName")]
+    display_name: String,
+    #[serde(default)]
+    description: String,
+    #[serde(default)]
+    hidden: bool,
+    #[serde(default, rename = "isDefault")]
+    is_default: bool,
+    #[serde(default, rename = "availabilityNux")]
+    availability_nux: Option<Value>,
+}
+
+#[derive(Deserialize)]
+struct ModelList {
+    data: Vec<ModelEntry>,
+}
+
+fn models_from(list: ModelList) -> Vec<ModelInfo> {
+    list.data
+        .into_iter()
+        .filter(|entry| !entry.hidden)
+        .map(|entry| ModelInfo {
+            id: entry.model.unwrap_or(entry.id),
+            display_name: entry.display_name,
+            description: entry.description,
+            is_default: entry.is_default,
+            is_new: entry.availability_nux.is_some_and(|nux| !nux.is_null()),
+        })
+        .collect()
+}
+
+/// Reads one stdout line of the model-list call. Notifications (lines with a
+/// `method`) are ignored; the answer is the line with the list request's id.
+fn read_models_line(
+    line: &Value,
+    answer: &mut Option<Result<Vec<ModelInfo>, AgentError>>,
+) -> LineFlow {
+    if line.get("method").is_some() {
+        return LineFlow::Continue;
+    }
+    match line["id"].as_u64() {
+        Some(1) if line.get("error").is_some() => {
+            *answer = Some(Err(AgentError::Protocol(
+                "the CLI refused to start".to_owned(),
+            )));
+            LineFlow::Stop
+        }
+        Some(LIST_REQUEST_ID) => {
+            *answer = Some(if line.get("error").is_some() {
+                Err(AgentError::Protocol(
+                    "the CLI refused the model list".to_owned(),
+                ))
+            } else {
+                serde_json::from_value::<ModelList>(line["result"].clone())
+                    .map(models_from)
+                    .map_err(|_| {
+                        AgentError::Protocol("the model list was not understood".to_owned())
+                    })
+            });
+            LineFlow::Stop
+        }
+        _ => LineFlow::Continue,
+    }
+}
+
+/// The model list, or why there is none when the process ended first.
+fn models_result(
+    answer: Option<Result<Vec<ModelInfo>, AgentError>>,
+    process: Result<Finished, ProcessError>,
+) -> Result<Vec<ModelInfo>, AgentError> {
+    match answer {
+        Some(result) => result,
+        None => Err(missing_final(
+            process,
+            &[],
+            "the CLI ended without a model list",
+        )),
+    }
+}
+
 impl AgentCli for CodexExec {
     fn detect(&self) -> Detection {
         detect(self.find(), &PROBE)
+    }
+
+    fn list_models(&self, cancel: &CancelToken) -> Result<Vec<ModelInfo>, AgentError> {
+        let executable = self.find().ok_or(AgentError::NotInstalled)?;
+        let dir = scratch_dir()?;
+        // The server quits when its input closes, so the pipe stays open until
+        // the answer arrives.
+        let spec = ProcessSpec {
+            program: executable,
+            args: list_args(),
+            env: adapter_env(&[LOGIN_ENV]),
+            stdin: Some(list_request()),
+            keep_stdin_open: true,
+            timeout: LIST_TIMEOUT,
+        };
+        let started = Instant::now();
+        let mut answer = None;
+        let process = run_process(&spec, dir.path(), cancel, &mut |line| {
+            read_models_line(&line, &mut answer)
+        });
+        let result = models_result(answer, process).map(sanitize_models);
+        log::debug!(
+            "codex models: {} after {} ms",
+            result.as_ref().map_or_else(
+                |e| format!("{e:?}"),
+                |models| format!("{} models", models.len())
+            ),
+            started.elapsed().as_millis()
+        );
+        result
     }
 
     fn run(
@@ -587,6 +735,7 @@ impl AgentCli for CodexExec {
             ),
             env: adapter_env(&[LOGIN_ENV]),
             stdin: Some(stdin_text(&req.system, &req.prompt)),
+            keep_stdin_open: false,
             timeout: req.timeout,
         };
         let mut stream = CodexStream::new(req.schema.is_some());
@@ -652,6 +801,92 @@ mod tests {
     #[allow(clippy::unnecessary_wraps)]
     fn ok() -> Result<Finished, ProcessError> {
         Ok(Finished::default())
+    }
+
+    const MODELS: &str = include_str!("../tests/fixtures/codex/app-server-model-list.jsonl");
+
+    /// Feeds lines like the runner does and returns the model list.
+    fn list_from(
+        lines: &str,
+        process: Result<Finished, ProcessError>,
+    ) -> Result<Vec<ModelInfo>, AgentError> {
+        let mut answer = None;
+        for line in lines.lines().filter(|l| !l.trim().is_empty()) {
+            let value: Value = serde_json::from_str(line).expect("line is JSON");
+            if read_models_line(&value, &mut answer) == LineFlow::Stop {
+                break;
+            }
+        }
+        models_result(answer, process).map(sanitize_models)
+    }
+
+    #[test]
+    fn the_model_list_skips_notifications_and_marks_the_default_and_the_new() {
+        let models = list_from(MODELS, ok()).unwrap();
+        assert_eq!(models.len(), 8);
+        assert_eq!(models[0].id, "gpt-6.1-sol");
+        assert_eq!(models[0].display_name, "GPT-6.1-Sol");
+        assert!(models[0].is_default && models[0].is_new);
+        assert!(models[1..].iter().all(|m| !m.is_default && !m.is_new));
+    }
+
+    #[test]
+    fn hidden_models_are_left_out_of_the_list() {
+        let line = r#"{"id":2,"result":{"data":[{"id":"a","model":"a-model","displayName":"A","hidden":true},{"id":"b","displayName":"B","hidden":false}]}}"#;
+        let models = list_from(line, ok()).unwrap();
+        assert_eq!(models.len(), 1);
+        assert_eq!(models[0].id, "b");
+    }
+
+    #[test]
+    fn an_error_answer_is_a_protocol_error() {
+        let line = r#"{"id":2,"error":{"code":-32601,"message":"no"}}"#;
+        assert_eq!(
+            list_from(line, ok()).unwrap_err(),
+            AgentError::Protocol("the CLI refused the model list".to_owned())
+        );
+        let line = r#"{"id":1,"error":{"code":-1,"message":"no"}}"#;
+        assert_eq!(
+            list_from(line, ok()).unwrap_err(),
+            AgentError::Protocol("the CLI refused to start".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_model_list_that_never_comes_is_an_error() {
+        let lines = r#"{"id":1,"result":{}}
+{"method":"account/updated","params":{}}"#;
+        assert_eq!(
+            list_from(lines, ok()).unwrap_err(),
+            AgentError::Protocol("the CLI ended without a model list".to_owned())
+        );
+        assert_eq!(
+            list_from(
+                lines,
+                Err(ProcessError::Exit {
+                    code: Some(1),
+                    stderr_tail: "Not logged in".to_owned()
+                })
+            )
+            .unwrap_err(),
+            AgentError::NotLoggedIn
+        );
+    }
+
+    #[test]
+    fn the_model_list_call_is_fixed() {
+        assert_eq!(list_args(), [OsString::from("app-server")]);
+        let text = String::from_utf8(list_request()).unwrap();
+        let lines: Vec<Value> = text
+            .lines()
+            .map(|l| serde_json::from_str(l).unwrap())
+            .collect();
+        assert_eq!(lines.len(), 3);
+        assert_eq!(lines[0]["method"], "initialize");
+        assert_eq!(lines[0]["params"]["clientInfo"]["name"], "cropa");
+        assert_eq!(lines[1], json!({ "method": "initialized" }));
+        assert_eq!(lines[2]["method"], "model/list");
+        assert_eq!(lines[2]["id"], 2);
     }
 
     #[test]

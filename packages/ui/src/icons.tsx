@@ -32,6 +32,9 @@ import { UndoRightRoundIcon as SolarRedo } from '@solar-icons/react/linear/undo-
 import { UploadMinimalisticIcon as SolarUpload } from '@solar-icons/react/linear/upload-minimalistic';
 import { WaterdropIcon as SolarWaterdrop } from '@solar-icons/react/linear/waterdrop';
 import { CropMinimalisticIcon as SolarCrop } from '@solar-icons/react/linear/crop-minimalistic';
+import { MagnifierIcon as SolarSearch } from '@solar-icons/react/linear/magnifier';
+import { StarIcon as SolarStar } from '@solar-icons/react/linear/star';
+import { StarIcon as SolarStarFilled } from '@solar-icons/react/bold/star';
 import type { Icon } from '@solar-icons/react/lib/types';
 
 export type IconComponent = Icon;
@@ -78,5 +81,9 @@ export const ChatIcon = linear(SolarChat, 'ChatIcon');
 export const StopIcon = linear(SolarStopCircle, 'StopIcon');
 export const SparklesIcon = linear(SolarStars, 'SparklesIcon');
 export const CheckCircleIcon = linear(SolarCheckCircle, 'CheckCircleIcon');
+export const StarIcon = linear(SolarStar, 'StarIcon');
+// The filled star keeps Solar's solid artwork, so it takes no stroke override.
+export const StarFilledIcon = SolarStarFilled;
+export const SearchIcon = linear(SolarSearch, 'SearchIcon');
 export const CodeIcon = linear(SolarCode, 'CodeIcon');
 

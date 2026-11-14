@@ -21,6 +21,7 @@ fn spec(args: &[&str], timeout: Duration) -> ProcessSpec {
         args: args.iter().map(OsString::from).collect(),
         env: base_env(),
         stdin: None,
+        keep_stdin_open: false,
         timeout,
     }
 }
@@ -233,6 +234,34 @@ fn stdin_is_written_once_and_closed() {
     let (result, lines) = run(&process, &CancelToken::new());
     result.unwrap();
     assert_eq!(lines, [json!({ "len": data.len() })]);
+}
+
+#[test]
+fn stdin_is_held_open_only_when_asked() {
+    let mut process = spec(&["eof-probe"], Duration::from_secs(10));
+    process.stdin = Some(b"hello\n".to_vec());
+    let (result, lines) = run(&process, &CancelToken::new());
+    result.unwrap();
+    assert_eq!(lines, [json!({ "stdin": "closed" })]);
+
+    process.keep_stdin_open = true;
+    let (result, lines) = run(&process, &CancelToken::new());
+    result.unwrap();
+    assert_eq!(lines, [json!({ "stdin": "open" })]);
+}
+
+#[test]
+fn a_held_stdin_does_not_delay_stop() {
+    let mut process = spec(&["grandchild"], Duration::from_secs(60));
+    process.stdin = Some(b"hello\n".to_vec());
+    process.keep_stdin_open = true;
+    let dir = TurnDir::new().unwrap();
+    let start = Instant::now();
+    run_process(&process, dir.path(), &CancelToken::new(), &mut |_| {
+        LineFlow::Stop
+    })
+    .unwrap();
+    assert!(start.elapsed() < Duration::from_secs(10));
 }
 
 #[test]

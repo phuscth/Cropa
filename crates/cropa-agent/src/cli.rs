@@ -99,8 +99,25 @@ pub enum Event {
     OutputDelta { text: String },
 }
 
+/// A model the CLI offers, as it reports it.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ModelInfo {
+    /// The value for `--model`; passes `valid_model_name`.
+    pub id: String,
+    pub display_name: String,
+    pub description: String,
+    /// The model the CLI uses when no `--model` is given.
+    pub is_default: bool,
+    /// The CLI announces it as newly available.
+    pub is_new: bool,
+}
+
 pub trait AgentCli: Send + Sync {
     fn detect(&self) -> Detection;
+
+    /// Asks the CLI which models it offers, without spending a turn. Blocks
+    /// the calling thread.
+    fn list_models(&self, cancel: &CancelToken) -> Result<Vec<ModelInfo>, AgentError>;
 
     /// Runs one turn, blocking the calling thread. `on_event` is called on
     /// that same thread.
