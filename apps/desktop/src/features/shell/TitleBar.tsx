@@ -215,12 +215,12 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
 
       {/* The free area drags; the buttons in its middle are not part of it. */}
       <div data-tauri-drag-region className="flex h-full min-w-0 flex-1 items-center justify-center">
-        <div className="flex items-center gap-1">
+        <div className="relative z-50 flex items-center gap-1">
           <Button
             variant="ghost"
             size="icon-sm"
             aria-label={t('editor.undo')}
-            title={`${t('editor.undo')} (Ctrl+Z)`}
+            tooltip={{ label: t('editor.undo'), keys: ['Ctrl', 'Z'] }}
             disabled={!canUndo}
             onClick={() => { actions?.undo(); }}
           >
@@ -230,7 +230,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
             variant="ghost"
             size="icon-sm"
             aria-label={t('editor.redo')}
-            title={`${t('editor.redo')} (Ctrl+Y)`}
+            tooltip={{ label: t('editor.redo'), keys: ['Ctrl', 'Y'] }}
             disabled={!canRedo}
             onClick={() => { actions?.redo(); }}
           >
@@ -239,14 +239,15 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
         </div>
       </div>
 
-      <div className="mr-2 flex items-center gap-1">
+      {/* Above the canvas, so the tooltips that drop below the title bar are not hidden under it. */}
+      <div className="relative z-50 mr-2 flex items-center gap-1">
         {inEditor && (
           <Button
             variant="ghost"
             size="icon-sm"
             aria-label={t('chat.toggle')}
             aria-pressed={chatOpen}
-            title={t('chat.toggleHint')}
+            tooltip={{ label: t('chat.toggleHint') }}
             className={chatOpen ? 'bg-accent text-foreground' : undefined}
             onClick={toggleChatPanel}
           >
@@ -257,7 +258,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
           variant="ghost"
           size="icon-sm"
           aria-label={t('editor.export.drag')}
-          title={t('editor.export.dragHint')}
+          tooltip={{ label: t('editor.export.dragHint') }}
           draggable={false}
           className="cursor-grab touch-none"
           disabled={!canExport}
@@ -269,7 +270,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
           variant="ghost"
           size="icon-sm"
           aria-label={t('editor.export.copy')}
-          title={`${t('editor.export.copy')} (Ctrl+C)`}
+          tooltip={{ label: t('editor.export.copy'), keys: ['Ctrl', 'C'] }}
           disabled={!canExport}
           onClick={() => { actions?.copy(); }}
         >
@@ -280,7 +281,7 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
             <Button
               size="icon-sm"
               aria-label={t('editor.export.save')}
-              title={t('editor.export.saveOptions')}
+              tooltip={{ label: t('editor.export.saveOptions') }}
               disabled={!loaded}
             >
               <SaveIcon />
