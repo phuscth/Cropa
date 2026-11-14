@@ -1,6 +1,6 @@
 # Cropa
 
-Commands and setup are in [README](README.md#develop), checks and PR rules in [CONTRIBUTING](CONTRIBUTING.md).
+Setup, commands, checks and PR rules are in [CONTRIBUTING](CONTRIBUTING.md).
 
 ## Rules
 
