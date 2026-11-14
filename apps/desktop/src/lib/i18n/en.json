@@ -129,16 +129,12 @@
       "scale": "Scale",
       "scaleFixed": "Platform sizes always export at 1x ({{width}} × {{height}} px)",
       "saved": "Saved {{fileName}}",
-      "drag": "Drag",
+      "drag": "Drag image out",
       "dragHold": "Hold the mouse button down while you drag the image out",
       "dragHint": "Drag the image into another app, a folder or a chat",
       "copied": "Copied to the clipboard",
       "openFolder": "Open folder",
-      "title": "Export",
-      "saveAsOptions": "These apply to Save as",
-      "saveQuick": "Save PNG at 2×",
-      "saveAsFormat": "Save as format",
-      "saveAsScale": "Save as scale"
+      "saveOptions": "Save options (Ctrl+S saves right away)"
     },
     "presets": {
       "saveCurrent": "Save current background",
@@ -212,18 +208,16 @@
     "panel": {
       "label": "Editor settings",
       "tabs": "Settings group",
-      "background": "Background",
+      "mockup": "Mockup",
       "frame": "Frame",
       "presetOpen": "Choose a preset, current: {{name}}"
     },
     "details": {
       "image": "Image",
-      "saveAs": "Save as",
+      "output": "Output",
       "size": "{{width}} × {{height}} px"
     },
     "layout": {
-      "title": "Layout",
-      "label": "Layout and export",
       "spacing": "Spacing"
     }
   },

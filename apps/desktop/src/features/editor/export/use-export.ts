@@ -1,5 +1,5 @@
 import type { Scene } from '@cropa/core';
-import { type PointerEvent, useCallback, useEffect, useRef, useState } from 'react';
+import { type PointerEvent, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { commands, type CommandError, type ExportFormat, type SavedFile } from '../../../lib/bindings.ts';
@@ -122,14 +122,14 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
   }, []);
 
   const quickSave = useCallback(
-    () =>
+    (format: ExportFormat, scale: ExportScale) =>
       run(async (current) => {
-        const dataUrl = await render(current, 'png', 2);
+        const dataUrl = await render(current, format, scale);
         if (dataUrl === undefined) return;
         const outcome = unwrap(
           await commands.quickSave(
             dataUrl,
-            'png',
+            format,
             current.capturedAt,
             sessionFileFor(sessionFile.current, current.imageId),
           ),
@@ -233,13 +233,16 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     [unwrap],
   );
 
-  const dragHandlers = {
-    onPointerDown: onDragPointerDown,
-    onPointerMove: onDragPointerMove,
-    onPointerUp: onDragPointerEnd,
-    onPointerCancel: onDragPointerEnd,
-    onLostPointerCapture: onDragPointerEnd,
-  };
+  const dragHandlers = useMemo(
+    () => ({
+      onPointerDown: onDragPointerDown,
+      onPointerMove: onDragPointerMove,
+      onPointerUp: onDragPointerEnd,
+      onPointerCancel: onDragPointerEnd,
+      onLostPointerCapture: onDragPointerEnd,
+    }),
+    [onDragPointerDown, onDragPointerMove, onDragPointerEnd],
+  );
 
   return { busy, notice, error, warning, dismissWarning, quickSave, saveAs, copy, reveal, dragHandlers, dismissNotice, dismissError };
 }

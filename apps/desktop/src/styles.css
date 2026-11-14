@@ -4,3 +4,13 @@
 
 /* Tailwind only scans this app by default; include the shared components. */
 @source '../../../packages/ui/src';
+
+/* Scrollbars are hidden everywhere; wheel, touchpad and keyboard scrolling still work. */
+@layer base {
+  * {
+    scrollbar-width: none;
+  }
+  *::-webkit-scrollbar {
+    display: none;
+  }
+}

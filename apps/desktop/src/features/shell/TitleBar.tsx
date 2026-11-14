@@ -12,6 +12,8 @@ import {
   MenubarSubContent,
   MenubarSubTrigger,
   MenubarTrigger,
+  Popover,
+  PopoverTrigger,
   cn,
 } from '@cropa/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -22,6 +24,7 @@ import { commands, events, type MainView, type ThemePreference } from '../../lib
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 import { requestCaptureAfterPaint } from './capture.ts';
 import { useEditorActions } from './editor-actions.ts';
+import { SavePopover } from './SavePopover.tsx';
 
 interface Props {
   /** The view on screen. */
@@ -140,6 +143,36 @@ function RedoIcon() {
   );
 }
 
+function GripIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
+      <circle cx="5.5" cy="3.5" r="1.25" />
+      <circle cx="10.5" cy="3.5" r="1.25" />
+      <circle cx="5.5" cy="8" r="1.25" />
+      <circle cx="10.5" cy="8" r="1.25" />
+      <circle cx="5.5" cy="12.5" r="1.25" />
+      <circle cx="10.5" cy="12.5" r="1.25" />
+    </svg>
+  );
+}
+
+function CopyIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <rect x="5.5" y="5.5" width="8" height="8" rx="2" />
+      <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" />
+    </svg>
+  );
+}
+
+function SaveIcon() {
+  return (
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M8 2v7.5M5 6.5l3 3 3-3" />
+      <path d="M2.5 10.5v1A1.5 1.5 0 0 0 4 13h8a1.5 1.5 0 0 0 1.5-1.5v-1" />
+    </svg>
+  );
+}
 
 /** The custom title bar of the main window: logo, menus, a drag area and the window buttons. */
 export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Props) {
@@ -148,6 +181,7 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
   const [shortcut, setShortcut] = useState<string>();
   const [theme, setTheme] = useState<ThemePreference>();
   const [maximized, setMaximized] = useState(false);
+  const [saveOpen, setSaveOpen] = useState(false);
   // A closing menu hands focus back to its trigger. After an item ran, the item
   // may have moved focus itself (a popover, a dialog, another view), so the menu
   // must not take it back; closing with Escape or a click outside still returns it.
@@ -352,19 +386,52 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
       <div className="mr-2 flex items-center gap-1">
         <Button
           variant="ghost"
+          size="icon-sm"
+          aria-label={t('editor.export.drag')}
+          title={t('editor.export.dragHint')}
+          draggable={false}
+          className="cursor-grab touch-none"
+          disabled={!canExport}
+          {...actions?.dragHandlers}
+        >
+          <GripIcon />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={t('editor.export.copy')}
           title={`${t('editor.export.copy')} (Ctrl+C)`}
           disabled={!canExport}
           onClick={() => { actions?.copy(); }}
         >
-          {t('editor.export.copy')}
+          <CopyIcon />
         </Button>
-        <Button
-          title={`${t('editor.export.saveQuick')} (Ctrl+S)`}
-          disabled={!canExport}
-          onClick={() => { actions?.quickSave(); }}
-        >
-          {t('editor.export.save')}
-        </Button>
+        <Popover open={saveOpen && loaded} onOpenChange={setSaveOpen}>
+          <PopoverTrigger asChild>
+            <Button
+              size="icon-sm"
+              aria-label={t('editor.export.save')}
+              title={t('editor.export.saveOptions')}
+              disabled={!canExport}
+            >
+              <SaveIcon />
+            </Button>
+          </PopoverTrigger>
+          {actions && (
+            <SavePopover
+              options={actions.exportOptions}
+              busy={actions.busy}
+              onSave={() => {
+                setSaveOpen(false);
+                actions.quickSave();
+              }}
+              onSaveAs={() => {
+                setSaveOpen(false);
+                actions.saveAs();
+              }}
+            />
+          )}
+        </Popover>
       </div>
 
       <div className="flex h-11">
