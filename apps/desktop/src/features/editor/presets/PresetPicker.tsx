@@ -65,7 +65,6 @@ import {
   sameBackground,
   withoutMissingImages,
 } from '../scene-edits.ts';
-import { registerPresetExport } from '../../shell/editor-actions.ts';
 import type { SceneHistory } from '../use-scene-history.ts';
 import { imagePresets } from './image-presets.ts';
 import {
@@ -79,8 +78,6 @@ import { presetThumbnail } from './thumbnails.ts';
 
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'edit'>;
-  /** Called before a preset file is exported, so the status line is on screen. */
-  onExport?: () => void;
 }
 
 type Mode =
@@ -172,7 +169,7 @@ function nextCard(from: HTMLElement, cards: readonly HTMLElement[], direction: D
  * The current preset as a selector card in the panel; it opens a dropdown with every
  * preset in categories, and the actions to save, import, rename, export and delete.
  */
-export function PresetPicker({ history, onExport }: Props) {
+export function PresetPicker({ history }: Props) {
   const { t, i18n } = useTranslation();
   const { scene, edit } = history;
   const [open, setOpen] = useState(false);
@@ -378,15 +375,6 @@ export function PresetPicker({ history, onExport }: Props) {
   }, [devPresets, language, library.presets, t]);
 
   const current = entries.find((entry) => sameBackground(scene.background, entry.background));
-
-  // The File menu exports the background on screen, under the name of the preset it matches.
-  const exportCurrent = () => {
-    onExport?.();
-    void exportFile({ name: current?.name ?? t('editor.presets.currentName'), background: scene.background });
-  };
-  const exportCurrentRef = useRef(exportCurrent);
-  useEffect(() => { exportCurrentRef.current = exportCurrent; });
-  useEffect(() => registerPresetExport(() => { exportCurrentRef.current(); }), []);
 
   const captionOf = (background: BackgroundSpec) =>
     isAiPreset(background)

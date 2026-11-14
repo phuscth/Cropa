@@ -43,8 +43,7 @@ function startupErrorKind(
   }
 }
 
-/** `settingsVersion` goes up when another part of the app changed a setting shown here. */
-export function SettingsView({ settingsVersion = 0 }: { settingsVersion?: number }) {
+export function SettingsView() {
   const active = useViewActive();
   const { t } = useTranslation();
   const [settings, setSettings] = useState<Settings>();
@@ -101,14 +100,6 @@ export function SettingsView({ settingsVersion = 0 }: { settingsVersion?: number
     window.addEventListener('focus', reload);
     return () => { window.removeEventListener('focus', reload); };
   }, [active]);
-
-  useEffect(() => {
-    if (settingsVersion === 0) return;
-    commands
-      .getSettings()
-      .then(setSettings)
-      .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
-  }, [settingsVersion, t]);
 
   /** Run a command that returns a typed Result, mapping errors to the 3-part notice. */
   const run = useCallback(

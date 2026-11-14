@@ -31,7 +31,7 @@ use crate::state::AppState;
 pub enum CaptureSource {
     Hotkey,
     Tray,
-    /// The File menu of the main window.
+    /// The capture button of the main window's empty editor.
     Menu,
 }
 

@@ -26,8 +26,8 @@ export interface ExportOptions {
 }
 
 /**
- * What the editor can do right now, published for the title bar's menus. The
- * editor owns the actions; the menus only call them.
+ * What the editor can do right now, published for the title bar's buttons. The
+ * editor owns the actions; the title bar only calls them.
  */
 export interface EditorActions {
   /** An image is loaded, so copy, save and export apply. */
@@ -50,18 +50,15 @@ export interface EditorActions {
 type Listener = () => void;
 
 let actions: EditorActions | null = null;
-/** Saves the current background as a preset file; set while the presets section is mounted. */
-let exportPreset: (() => void) | null = null;
-let snapshot: EditorSnapshot = { actions, exportPreset };
+let snapshot: EditorSnapshot = { actions };
 const listeners = new Set<Listener>();
 
 interface EditorSnapshot {
   actions: EditorActions | null;
-  exportPreset: (() => void) | null;
 }
 
 function emit() {
-  snapshot = { actions, exportPreset };
+  snapshot = { actions };
   for (const listener of listeners) listener();
 }
 
@@ -69,18 +66,6 @@ function emit() {
 export function publishEditorActions(next: EditorActions | null): void {
   actions = next;
   emit();
-}
-
-/** Called by the presets section; returns the cleanup. */
-export function registerPresetExport(run: () => void): () => void {
-  exportPreset = run;
-  emit();
-  return () => {
-    if (exportPreset === run) {
-      exportPreset = null;
-      emit();
-    }
-  };
 }
 
 function subscribe(listener: Listener): () => void {

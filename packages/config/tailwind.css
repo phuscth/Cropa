@@ -184,6 +184,7 @@
   --animate-fade-in: fade-in 200ms var(--ease-enter);
   --animate-notice-in: notice-in 200ms var(--ease-enter);
   --animate-tab-in: tab-in 200ms var(--ease-enter);
+  --animate-tooltip-in: tooltip-in 150ms var(--ease-enter);
 
   /* Movement distances, zeroed under reduced motion so only the fades remain. */
   --motion-scale-from: 0.96;
@@ -238,6 +239,18 @@
   from {
     opacity: 0;
     transform: translateX(var(--tab-from, 0px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A tooltip under its button, coming down out of it. */
+@keyframes tooltip-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(var(--motion-slide) * -1));
   }
   to {
     opacity: 1;
