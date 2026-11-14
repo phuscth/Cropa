@@ -2,7 +2,6 @@ import { cn } from '@cropa/ui';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
 
 import { ABOUT_SECTION_ID } from '../../features/settings/SettingsLayout.tsx';
-import { AppRail } from '../../features/shell/AppRail.tsx';
 import { TitleBar } from '../../features/shell/TitleBar.tsx';
 import { ViewActiveContext } from '../../features/shell/view-active.ts';
 import { commands, events, type MainView } from '../../lib/bindings.ts';
@@ -13,19 +12,17 @@ import { HistoryView } from '../history/HistoryWindow.tsx';
 import { SettingsView } from '../settings/SettingsWindow.tsx';
 
 /**
- * The one window of the app: a title bar across the top, then the rail on the
- * left and the editor, history and settings views on the right. A view is mounted on its first visit and then
- * only hidden, so the editor keeps its image, scene and undo history while
- * another view is open.
+ * The one window of the app: a title bar across the top with the buttons that
+ * switch between the editor, history and settings views, and the view under it.
+ * A view is mounted on its first visit and then only hidden, so the editor
+ * keeps its image, scene and undo history while another view is open.
  */
 export function MainWindow() {
   const [view, setView] = useState<MainView>('Editor');
   const [visited, setVisited] = useState<ReadonlySet<MainView>>(() => new Set<MainView>(['Editor']));
 
-  // One notice for what the title bar's menus and window buttons could not do.
+  // One notice for what the title bar's buttons could not do.
   const [error, setError] = useState<UserError>();
-  // Goes up when the title bar changes a setting that the settings view shows.
-  const [settingsVersion, setSettingsVersion] = useState(0);
 
   const show = useCallback((next: MainView) => {
     setView(next);
@@ -74,7 +71,7 @@ export function MainWindow() {
         hidden={view !== which}
         className={cn(
           'flex min-w-0 flex-1 animate-fade-in',
-          panel && 'm-1.5 ml-0 overflow-hidden rounded-2xl bg-panel',
+          panel && 'm-1.5 overflow-hidden rounded-2xl bg-panel',
         )}
       >
         {children}
@@ -89,18 +86,16 @@ export function MainWindow() {
         onView={show}
         onAbout={showAbout}
         onError={setError}
-        onThemeChanged={() => { setSettingsVersion((version) => version + 1); }}
       />
       {error && (
-        <div className="fixed bottom-4 left-24 z-50 w-96">
+        <div className="fixed bottom-4 left-4 z-50 w-96">
           <ErrorNotice error={error} onDismiss={() => { setError(undefined); }} />
         </div>
       )}
       <div className="flex min-h-0 flex-1">
-        <AppRail current={view} onSelect={show} />
         {pane('Editor', <EditorView />, false)}
         {visited.has('History') && pane('History', <HistoryView />)}
-        {visited.has('Settings') && pane('Settings', <SettingsView settingsVersion={settingsVersion} />)}
+        {visited.has('Settings') && pane('Settings', <SettingsView />)}
       </div>
     </div>
   );

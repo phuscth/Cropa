@@ -8,21 +8,8 @@ export {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.tsx';
-export {
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarRadioGroup,
-  MenubarRadioItem,
-  MenubarSeparator,
-  MenubarShortcut,
-  MenubarSub,
-  MenubarSubContent,
-  MenubarSubTrigger,
-  MenubarTrigger,
-} from './components/menubar.tsx';
 export { Card, CardRow, DetailsCard, DetailsRow } from './components/card.tsx';
+export { IconButton } from './components/icon-button.tsx';
 export { Input } from './components/input.tsx';
 export {
   Popover,
@@ -37,7 +24,6 @@ export {
   SelectTrigger,
   SelectValue,
 } from './components/select.tsx';
-export { NavRail, NavRailItem } from './components/nav-rail.tsx';
 export {
   PickerCard,
   PickerContent,

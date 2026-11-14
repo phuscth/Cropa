@@ -256,7 +256,7 @@ export function EditorSidebar({ history, edgeColor }: Props) {
           style={slideFrom}
           className="flex animate-tab-in flex-col gap-5"
         >
-          <PresetPicker history={history} onExport={() => { setTab('frame'); }} />
+          <PresetPicker history={history} />
           <CollapsibleSection
             title={t('editor.background.customize')}
             open={customizeOpen}

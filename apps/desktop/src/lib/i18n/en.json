@@ -255,8 +255,8 @@
     },
     "unchanged": "Your current background is unchanged."
   },
-  "rail": {
-    "label": "Cropa",
+  "nav": {
+    "label": "Views",
     "editor": "Editor",
     "history": "History",
     "settings": "Settings"
@@ -740,22 +740,8 @@
     }
   },
   "menu": {
-    "label": "Application menu",
-    "copyImage": "Copy image",
     "file": {
-      "title": "File",
-      "captureRegion": "Capture region",
-      "save": "Save",
-      "saveAs": "Save as…",
-      "exportPreset": "Export preset…",
-      "closeWindow": "Close window"
-    },
-    "edit": {
-      "title": "Edit"
-    },
-    "view": {
-      "title": "View",
-      "theme": "Theme"
+      "captureRegion": "Capture region"
     },
     "help": {
       "title": "Help",

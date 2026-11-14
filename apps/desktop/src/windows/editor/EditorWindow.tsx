@@ -317,7 +317,7 @@ export function EditorView() {
   );
 
   return (
-    <main className="flex min-w-0 flex-1 gap-1.5 p-1.5 pl-0">
+    <main className="flex min-w-0 flex-1 gap-1.5 p-1.5">
       {loaded ? (
         <>
           <EditorSidebar history={history} edgeColor={loaded.edge} />

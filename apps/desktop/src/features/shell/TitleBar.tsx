@@ -3,34 +3,31 @@ import {
   ChatIcon,
   CopyIcon,
   DragOutIcon,
-  Menubar,
-  MenubarContent,
-  MenubarItem,
-  MenubarMenu,
-  MenubarRadioGroup,
-  MenubarRadioItem,
-  MenubarSeparator,
-  MenubarShortcut,
-  MenubarSub,
-  MenubarSubContent,
-  MenubarSubTrigger,
-  MenubarTrigger,
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+  EditorIcon,
+  HelpIcon,
+  HistoryIcon,
+  IconButton,
   Popover,
   PopoverTrigger,
   RedoIcon,
   SaveIcon,
+  SettingsIcon,
   UndoIcon,
   cn,
+  type IconComponent,
 } from '@cropa/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import logoUrl from '../../../icon-src/icon.svg?url';
-import { commands, events, type MainView, type ThemePreference } from '../../lib/bindings.ts';
+import { commands, type MainView } from '../../lib/bindings.ts';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 import { toggleChatPanel, useChatPanelOpen } from '../chat/panel-state.ts';
-import { requestCaptureAfterPaint } from './capture.ts';
 import { useEditorActions } from './editor-actions.ts';
 import { SavePopover } from './SavePopover.tsx';
 
@@ -42,16 +39,13 @@ interface Props {
   onAbout: () => void;
   /** Reports a failed command or window call to the shell's notice. */
   onError: (error: UserError) => void;
-  /** The theme was changed here, so other views showing it should read it again. */
-  onThemeChanged: () => void;
 }
 
-const VIEW_LABELS: Record<MainView, string> = {
-  Editor: 'rail.editor',
-  History: 'rail.history',
-  Settings: 'rail.settings',
-};
-const THEMES: readonly ThemePreference[] = ['system', 'light', 'dark'];
+const VIEWS: readonly { view: MainView; label: string; Icon: IconComponent }[] = [
+  { view: 'Editor', label: 'nav.editor', Icon: EditorIcon },
+  { view: 'History', label: 'nav.history', Icon: HistoryIcon },
+  { view: 'Settings', label: 'nav.settings', Icon: SettingsIcon },
+];
 
 /** The Cropa logo, the same master the app icon is generated from (`apps/desktop/icon-src/icon.svg`). */
 function Logo() {
@@ -129,12 +123,13 @@ function WindowButton({ label, onClick, danger = false, children }: WindowButton
   );
 }
 
-/** The custom title bar of the main window: logo, menus, a drag area and the window buttons. */
-export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Props) {
+/**
+ * The custom title bar of the main window: logo, the view buttons and Help,
+ * the editor's quick actions in a drag area, then export and the window buttons.
+ */
+export function TitleBar({ view, onView, onAbout, onError }: Props) {
   const { t } = useTranslation();
-  const { actions, exportPreset } = useEditorActions();
-  const [shortcut, setShortcut] = useState<string>();
-  const [theme, setTheme] = useState<ThemePreference>();
+  const { actions } = useEditorActions();
   const [maximized, setMaximized] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
   const chatOpen = useChatPanelOpen();
@@ -151,18 +146,7 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
     picked.current = false;
   };
 
-  useEffect(() => {
-    void commands.getShortcutStatus().then((status) => { setShortcut(status.accelerator); });
-    const unlisten = events.shortcutStatus.listen((event) => { setShortcut(event.payload.accelerator); });
-    return () => { void unlisten.then((off) => { off(); }); };
-  }, []);
-
   const fail = useCallback((cause: unknown) => { onError(describeUnexpected(t, cause)); }, [onError, t]);
-
-  const loadTheme = useCallback(() => {
-    commands.getSettings().then((settings) => { setTheme(settings.theme); }).catch(fail);
-  }, [fail]);
-  useEffect(loadTheme, [loadTheme]);
 
   useEffect(() => {
     const win = getCurrentWindow();
@@ -177,25 +161,6 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
       void unlisten.then((off) => { off(); });
     };
   }, [fail]);
-
-  const chooseTheme = (value: string) => {
-    const next = value as ThemePreference;
-    commands
-      .setTheme(next)
-      .then((result) => {
-        if (result.status === 'ok') {
-          setTheme(next);
-          onThemeChanged();
-        } else {
-          onError(describeCommandError(t, result.error));
-        }
-      })
-      .catch(fail);
-  };
-
-  const captureRegion = () => {
-    requestCaptureAfterPaint().catch(fail);
-  };
 
   const inEditor = view === 'Editor';
   const loaded = inEditor && (actions?.hasImage ?? false);
@@ -221,99 +186,32 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
       data-tauri-drag-region
       className="flex h-11 shrink-0 items-center bg-sidebar select-none"
     >
-      <div data-tauri-drag-region className="flex h-11 w-[68px] items-center justify-center">
+      <div data-tauri-drag-region className="flex h-11 w-12 items-center justify-center">
         <Logo />
       </div>
-      <Menubar aria-label={t('menu.label')} onValueChange={(open) => { if (open) loadTheme(); }}>
-        <MenubarMenu>
-          <MenubarTrigger>{t('menu.file.title')}</MenubarTrigger>
-          <MenubarContent className="min-w-64" onCloseAutoFocus={keepFocus}>
-            <MenubarItem onSelect={pick(captureRegion)}>
-              {t('menu.file.captureRegion')}
-              {shortcut && <MenubarShortcut>{shortcut}</MenubarShortcut>}
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem disabled={!canExport} onSelect={pick(() => { actions?.copy(); })}>
-              {t('menu.copyImage')}
-              <MenubarShortcut>Ctrl+C</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem disabled={!canExport} onSelect={pick(() => { actions?.quickSave(); })}>
-              {t('menu.file.save')}
-              <MenubarShortcut>Ctrl+S</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem disabled={!canExport} onSelect={pick(() => { actions?.saveAs(); })}>
-              {t('menu.file.saveAs')}
-              <MenubarShortcut>Ctrl+Shift+S</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem
-              disabled={!loaded || exportPreset === null}
-              onSelect={pick(() => { exportPreset?.(); })}
-            >
-              {t('menu.file.exportPreset')}
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem onSelect={pick(() => { run(win.close()); })}>
-              {t('menu.file.closeWindow')}
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-
-        <MenubarMenu>
-          <MenubarTrigger>{t('menu.edit.title')}</MenubarTrigger>
-          <MenubarContent className="min-w-56" onCloseAutoFocus={keepFocus}>
-            <MenubarItem disabled={!canUndo} onSelect={pick(() => { actions?.undo(); })}>
-              {t('editor.undo')}
-              <MenubarShortcut>Ctrl+Z</MenubarShortcut>
-            </MenubarItem>
-            <MenubarItem disabled={!canRedo} onSelect={pick(() => { actions?.redo(); })}>
-              {t('editor.redo')}
-              <MenubarShortcut>Ctrl+Y</MenubarShortcut>
-            </MenubarItem>
-            <MenubarSeparator />
-            <MenubarItem disabled={!canExport} onSelect={pick(() => { actions?.copy(); })}>
-              {t('menu.copyImage')}
-              <MenubarShortcut>Ctrl+C</MenubarShortcut>
-            </MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-
-        <MenubarMenu>
-          <MenubarTrigger>{t('menu.view.title')}</MenubarTrigger>
-          <MenubarContent className="min-w-56" onCloseAutoFocus={keepFocus}>
-            <MenubarRadioGroup
-              value={view}
-              onValueChange={pick((next: string) => { onView(next as MainView); })}
-            >
-              {(Object.keys(VIEW_LABELS) as MainView[]).map((name) => (
-                <MenubarRadioItem key={name} value={name}>
-                  {t(VIEW_LABELS[name])}
-                </MenubarRadioItem>
-              ))}
-            </MenubarRadioGroup>
-            <MenubarSeparator />
-            <MenubarSub>
-              <MenubarSubTrigger>{t('menu.view.theme')}</MenubarSubTrigger>
-              <MenubarSubContent>
-                <MenubarRadioGroup value={theme ?? ''} onValueChange={pick(chooseTheme)}>
-                  {THEMES.map((value) => (
-                    <MenubarRadioItem key={value} value={value}>
-                      {t(`settings.theme.${value}`)}
-                    </MenubarRadioItem>
-                  ))}
-                </MenubarRadioGroup>
-              </MenubarSubContent>
-            </MenubarSub>
-          </MenubarContent>
-        </MenubarMenu>
-
-        <MenubarMenu>
-          <MenubarTrigger>{t('menu.help.title')}</MenubarTrigger>
-          <MenubarContent className="min-w-56" onCloseAutoFocus={keepFocus}>
-            <MenubarItem onSelect={pick(onAbout)}>{t('menu.help.about')}</MenubarItem>
-            <MenubarItem onSelect={pick(openSupport)}>{t('menu.help.support')}</MenubarItem>
-          </MenubarContent>
-        </MenubarMenu>
-      </Menubar>
+      {/* Above the views, so the tooltips stay on top even while a pressed button scales and becomes its own layer. */}
+      <div data-tauri-drag-region className="relative z-50 flex h-full items-center gap-1">
+        <nav aria-label={t('nav.label')} className="flex items-center gap-1">
+          {VIEWS.map(({ view: name, label, Icon }) => (
+            <IconButton
+              key={name}
+              icon={<Icon />}
+              label={t(label)}
+              active={view === name}
+              onClick={() => { onView(name); }}
+            />
+          ))}
+        </nav>
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <IconButton icon={<HelpIcon />} label={t('menu.help.title')} />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="start" className="min-w-56" onCloseAutoFocus={keepFocus}>
+            <DropdownMenuItem onSelect={pick(onAbout)}>{t('menu.help.about')}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={pick(openSupport)}>{t('menu.help.support')}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      </div>
 
       {/* The free area drags; the buttons in its middle are not part of it. */}
       <div data-tauri-drag-region className="flex h-full min-w-0 flex-1 items-center justify-center">

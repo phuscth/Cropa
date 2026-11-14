@@ -255,8 +255,8 @@
     },
     "unchanged": "Nền hiện tại của bạn không thay đổi."
   },
-  "rail": {
-    "label": "Cropa",
+  "nav": {
+    "label": "Chế độ xem",
     "editor": "Trình chỉnh sửa",
     "history": "Lịch sử",
     "settings": "Cài đặt"
@@ -740,22 +740,8 @@
     }
   },
   "menu": {
-    "label": "Menu ứng dụng",
-    "copyImage": "Sao chép ảnh",
     "file": {
-      "title": "Tệp",
-      "captureRegion": "Chụp vùng",
-      "save": "Lưu",
-      "saveAs": "Lưu thành…",
-      "exportPreset": "Xuất preset…",
-      "closeWindow": "Đóng cửa sổ"
-    },
-    "edit": {
-      "title": "Chỉnh sửa"
-    },
-    "view": {
-      "title": "Xem",
-      "theme": "Giao diện"
+      "captureRegion": "Chụp vùng"
     },
     "help": {
       "title": "Trợ giúp",
