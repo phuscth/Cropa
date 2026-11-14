@@ -162,6 +162,10 @@ export const commands = {
 	 *  state and creates no window, so it may be a synchronous command.
 	 */
 	getMainView: () => __TAURI_INVOKE<MainView>("get_main_view"),
+	/**  The settings page to show when the settings view loads. */
+	getSettingsSection: () => __TAURI_INVOKE<SettingsSection>("get_settings_section"),
+	/**  Record the settings page the user chose, so a reopened window shows it again. */
+	setSettingsSection: (section: SettingsSection) => __TAURI_INVOKE<void>("set_settings_section", { section }),
 	/**
 	 *  Start a region capture, as the capture shortcut and the tray do. It returns
 	 *  at once: the capture runs on its own thread.
@@ -552,6 +556,9 @@ export type SavedFile = {
  *  (see `commands::settings::get_autostart`).
  */
 export type Settings = Settings_Serialize | Settings_Deserialize;
+
+/**  A page of the settings view. */
+export type SettingsSection = "capture" | "appearance" | "general" | "ai" | "about";
 
 /**
  *  Start-at-login is not stored here: Windows is the only source of truth for it

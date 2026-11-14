@@ -60,6 +60,8 @@ interface RunOptions {
   resetError?: boolean;
   /** A retry the user did not start: it only touches the notice for a PrtScn refusal or success. */
   automatic?: boolean;
+  /** The page a failure is shown on; by default the page that is open. */
+  page?: SettingsSectionId;
   onError?: (error: CommandError) => void;
 }
 
@@ -84,7 +86,6 @@ export function SettingsView() {
   // Read from Windows, not from settings.json: the user can change it in Task Manager.
   const [autostart, setAutostart] = useState<boolean>();
   const [version, setVersion] = useState<string>();
-  const [error, setError] = useState<UserError>();
   const [busy, setBusy] = useState(false);
   const [saved, setSaved] = useState(false);
   // PrtScn was chosen but Windows or another app still holds the key.
@@ -101,7 +102,25 @@ export function SettingsView() {
   if (shownSection !== section) {
     setDirection(SETTINGS_SECTIONS.indexOf(section) > SETTINGS_SECTIONS.indexOf(shownSection) ? 1 : -1);
     setShownSection(section);
+    // The confirmation belongs to the page where the user acted.
+    setSaved(false);
   }
+  const sectionRef = useRef(section);
+  useLayoutEffect(() => {
+    sectionRef.current = section;
+  }, [section]);
+
+  // A notice shows on the page it is about: a failed load on every page, a failed action on the
+  // page where the user acted.
+  const [failure, setFailure] = useState<{ error: UserError; page: SettingsSectionId | 'all' }>();
+  const setError = useCallback(
+    (next: UserError | undefined, page: SettingsSectionId | 'all' = sectionRef.current) => {
+      setFailure(next && { error: next, page });
+    },
+    [],
+  );
+  const error =
+    failure && (failure.page === 'all' || failure.page === section) ? failure.error : undefined;
   // A new page starts at its top, not where the last one was scrolled to.
   const contentRef = useRef<HTMLElement>(null);
   useLayoutEffect(() => {
@@ -114,9 +133,9 @@ export function SettingsView() {
         setSettings(s);
         setStatus(st);
         if (auto.status === 'ok') setAutostart(auto.data);
-        else setError(describeCommandError(t, auto.error));
+        else setError(describeCommandError(t, auto.error), 'all');
       })
-      .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
+      .catch((cause: unknown) => { setError(describeUnexpected(t, cause), 'all'); });
     const unlistenStatus = events.shortcutStatus.listen((event) => { setStatus(event.payload); });
     // The first-launch question can be answered while this window is open.
     const unlistenAutostart = events.autostartChanged.listen((event) => {
@@ -126,13 +145,13 @@ export function SettingsView() {
       void unlistenStatus.then((off) => { off(); });
       void unlistenAutostart.then((off) => { off(); });
     };
-  }, [t]);
+  }, [t, setError]);
 
   useEffect(() => {
     getVersion()
       .then(setVersion)
-      .catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
-  }, [t]);
+      .catch((cause: unknown) => { setError(describeUnexpected(t, cause), 'all'); });
+  }, [t, setError]);
 
   // The save folder can change from the editor, so read the settings again when
   // this view comes to the front and when the window regains the focus.
@@ -153,7 +172,7 @@ export function SettingsView() {
     async <T,>(
       call: () => Promise<{ status: 'ok'; data: T } | { status: 'error'; error: CommandError }>,
       vars: Record<string, string> = {},
-      { resetError = true, automatic = false, onError }: RunOptions = {},
+      { resetError = true, automatic = false, onError, page }: RunOptions = {},
     ): Promise<T | undefined> => {
       busyRef.current = true;
       setBusy(true);
@@ -165,7 +184,7 @@ export function SettingsView() {
           onError?.(result.error);
           // An automatic retry must not replace a notice the user is reading.
           if (!automatic || result.error.kind === 'PrintScreenInUse') {
-            setError(describeCommandError(t, result.error, vars));
+            setError(describeCommandError(t, result.error, vars), page);
           }
           return undefined;
         }
@@ -173,14 +192,14 @@ export function SettingsView() {
         setSaved(true);
         return result.data;
       } catch (cause) {
-        if (!automatic) setError(describeUnexpected(t, cause));
+        if (!automatic) setError(describeUnexpected(t, cause), page);
         return undefined;
       } finally {
         busyRef.current = false;
         setBusy(false);
       }
     },
-    [t],
+    [t, setError],
   );
 
   const changeShortcut = async (accelerator: string) => {
@@ -203,6 +222,8 @@ export function SettingsView() {
       const next = await run(() => commands.setCaptureShortcut(PRINT_SCREEN), {}, {
         resetError: mode === 'user',
         automatic: mode === 'automatic',
+        // A retry runs when the window regains the focus, whatever page is open.
+        page: 'capture',
         onError: (e) => { outcome.refused = e.kind === 'PrintScreenInUse'; },
       });
       if (next) {
@@ -256,9 +277,9 @@ export function SettingsView() {
     if (next !== undefined) setAutostart(next);
   };
 
-  // A shortcut that failed at startup is reported even before the user acts.
+  // A shortcut that failed at startup is reported even before the user acts, on the page that fixes it.
   const startupConflict =
-    status && !status.registered && status.error && !error
+    section === 'capture' && status && !status.registered && status.error && !error
       ? describeCommandError(t, { kind: startupErrorKind(status.error) }, { shortcut: status.accelerator })
       : undefined;
   const notice = error ?? startupConflict;
