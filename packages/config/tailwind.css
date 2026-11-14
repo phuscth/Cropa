@@ -185,6 +185,7 @@
   --animate-fade-in: fade-in 200ms var(--ease-enter);
   --animate-notice-in: notice-in 200ms var(--ease-enter);
   --animate-picker-in: picker-in 200ms var(--ease-enter);
+  --animate-picker-out: picker-out 160ms var(--ease-enter) forwards;
   --animate-confirm-in: confirm-in 200ms var(--ease-enter);
   --animate-confirm-out: confirm-out 160ms var(--ease-enter) forwards;
   --animate-tab-in: tab-in 200ms var(--ease-enter);
@@ -193,10 +194,10 @@
   --animate-model-picker-in: model-picker-in 150ms var(--ease-enter);
   --animate-model-picker-out: model-picker-out 150ms var(--ease-enter) forwards;
   --animate-view-in: view-in 240ms var(--ease-enter);
-  --animate-chat-space-in: chat-space-in 220ms var(--ease-enter);
-  --animate-chat-space-out: chat-space-out 220ms var(--ease-enter) forwards;
-  --animate-chat-in: chat-in 220ms var(--ease-enter);
-  --animate-chat-out: chat-out 220ms var(--ease-enter) forwards;
+  --animate-dock-space-in: dock-space-in 220ms var(--ease-enter);
+  --animate-dock-space-out: dock-space-out 220ms var(--ease-enter) forwards;
+  --animate-dock-in: dock-in 220ms var(--ease-enter);
+  --animate-dock-out: dock-out 220ms var(--ease-enter) forwards;
 
   /* Movement distances, zeroed under reduced motion so only the fades remain. */
   --motion-scale-from: 0.96;
@@ -305,15 +306,29 @@
   }
 }
 
-/* A panel at the top of the canvas, sliding down into place. */
+/*
+ * A panel at the top of the canvas, sliding down into place and back up when it closes. Turned
+ * around midway, each starts from the opacity and offset the other left it at.
+ */
 @keyframes picker-in {
   from {
-    opacity: 0;
-    transform: translateY(calc(-1 * var(--motion-rise)));
+    opacity: var(--picker-opacity, 0);
+    transform: translateY(var(--picker-y, calc(-1 * var(--motion-rise))));
   }
   to {
     opacity: 1;
     transform: none;
+  }
+}
+
+@keyframes picker-out {
+  from {
+    opacity: var(--picker-opacity, 1);
+    transform: translateY(var(--picker-y, 0px));
+  }
+  to {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--motion-rise)));
   }
 }
 
@@ -365,30 +380,30 @@
   }
 }
 
-/* The chat panel's space: 340 px panel plus the 6 px gap that separates it from the canvas. */
-@keyframes chat-space-in {
+/* A side panel's space: `--dock-width` is the panel plus the gap that separates it from the canvas. */
+@keyframes dock-space-in {
   from {
     width: var(--dock-from, 0px);
   }
   to {
-    width: 346px;
+    width: var(--dock-width);
   }
 }
 
-@keyframes chat-space-out {
+@keyframes dock-space-out {
   from {
-    width: var(--dock-from, 346px);
+    width: var(--dock-from, var(--dock-width));
   }
   to {
     width: 0;
   }
 }
 
-/* The chat panel itself, sliding in from the window's right edge. */
-@keyframes chat-in {
+/* The panel itself, sliding in from its window edge: `--dock-side` is 1 for the right, -1 for the left. */
+@keyframes dock-in {
   from {
     opacity: var(--panel-opacity, 0);
-    transform: translateX(var(--panel-x, var(--motion-panel)));
+    transform: translateX(var(--panel-x, calc(var(--motion-panel) * var(--dock-side, 1))));
   }
   to {
     opacity: 1;
@@ -396,14 +411,14 @@
   }
 }
 
-@keyframes chat-out {
+@keyframes dock-out {
   from {
     opacity: var(--panel-opacity, 1);
     transform: translateX(var(--panel-x, 0px));
   }
   to {
     opacity: 0;
-    transform: translateX(var(--motion-panel));
+    transform: translateX(calc(var(--motion-panel) * var(--dock-side, 1)));
   }
 }
 

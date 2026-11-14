@@ -25,6 +25,8 @@ import { AgentReply, RunningReply, UserBubble, type ReplyActions } from './ChatP
 import { reachedCanvas } from './chat-session.ts';
 import type { ChatController } from './use-background-chat.ts';
 
+/** The panel's width in px; the dock that holds it needs the same number. */
+export const CHAT_PANEL_WIDTH = 340;
 const EFFORTS: readonly AiEffort[] = ['low', 'medium', 'high'];
 const MAX_MESSAGE_CHARS = 500;
 /** The list follows new content while it is within this many pixels of the bottom. */
@@ -188,7 +190,8 @@ export function ChatPanel({ chat, onClose }: { chat: ChatController; onClose: ()
   return (
     <aside
       aria-label={t('chat.title')}
-      className="flex w-[340px] shrink-0 flex-col overflow-hidden rounded-2xl bg-panel"
+      style={{ width: CHAT_PANEL_WIDTH }}
+      className="flex shrink-0 flex-col overflow-hidden rounded-2xl bg-panel"
     >
       <header className="flex h-12 shrink-0 items-center justify-between pr-2 pl-4">
         <h2 className="text-tab">{t('chat.title')}</h2>

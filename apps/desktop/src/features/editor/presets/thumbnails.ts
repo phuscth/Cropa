@@ -15,7 +15,7 @@ import { withoutMissingImages } from '../scene-edits.ts';
 
 const SOURCE = { width: 160, height: 100 } as const;
 const THUMB = { width: 128, height: 96 } as const;
-/** Preset cards are about 196px wide, so their previews are drawn larger. */
+/** Preset card previews are about 164px wide, so they are drawn at about twice that. */
 const PRESET_THUMB = { width: 336, height: 252 } as const;
 
 let placeholder: ImageBitmap | undefined;

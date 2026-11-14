@@ -3,8 +3,9 @@ import { Button, cn, CloseIcon } from '@cropa/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ChatPanel } from '../../features/chat/ChatPanel.tsx';
-import { ChatDock } from '../../features/chat/ChatDock.tsx';
+import { CHAT_PANEL_WIDTH, ChatPanel } from '../../features/chat/ChatPanel.tsx';
+import { PanelDock } from '../../features/editor/PanelDock.tsx';
+import { toggleEditorSidebar, useEditorSidebarOpen } from '../../features/editor/panel-state.ts';
 import { useChatPanelOpen, setChatPanelOpen } from '../../features/chat/panel-state.ts';
 import { useBackgroundChat } from '../../features/chat/use-background-chat.ts';
 import { AnnotationOverlay } from '../../features/editor/annotate/AnnotationOverlay.tsx';
@@ -15,7 +16,7 @@ import { screenshotPalette } from '../../features/editor/code-frames.ts';
 import { requestCaptureAfterPaint } from '../../features/shell/capture.ts';
 import { publishEditorActions, type ExportOptions } from '../../features/shell/editor-actions.ts';
 import { useViewActive } from '../../features/shell/view-active.ts';
-import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
+import { EditorSidebar, SIDEBAR_WIDTH } from '../../features/editor/EditorSidebar.tsx';
 import { EXPORT_SIZES, exportPlan, type ExportSize } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { EmptyCanvas } from '../../features/editor/EmptyCanvas.tsx';
@@ -123,6 +124,7 @@ export function EditorView() {
     historyId: loaded?.historyId ?? null,
   });
   const chatOpen = useChatPanelOpen();
+  const sidebarOpen = useEditorSidebarOpen();
   // While the AI writes a background, the image is not exported: the result would replace it.
   const aiWorking = chat.state.run !== null;
   const showProperties = annotate.tool !== 'select' || annotate.selected !== null;
@@ -273,6 +275,11 @@ export function EditorView() {
         // Leave Ctrl+C alone while text is selected.
         if (window.getSelection()?.isCollapsed === false) return;
         if (hasImage) void copy();
+      } else if (is('b') && !event.shiftKey) {
+        // Not on a key repeat, and not from inside an open popper layer: hiding the panel would
+        // remove the layer's trigger and strand the layer.
+        if (event.repeat || (event.target instanceof Element && event.target.closest('[data-radix-popper-content-wrapper]'))) return;
+        toggleEditorSidebar();
       } else return;
       event.preventDefault();
     };
@@ -503,7 +510,9 @@ export function EditorView() {
 
   return (
     <main className="flex min-w-0 flex-1 gap-1.5 p-1.5">
-      <EditorSidebar history={history} edgeColor={loaded?.edge ?? null} />
+      <PanelDock open={sidebarOpen} side="left" width={SIDEBAR_WIDTH} keepMounted>
+        <EditorSidebar history={history} edgeColor={loaded?.edge ?? null} />
+      </PanelDock>
       <section className="relative flex min-w-0 flex-1 overflow-hidden rounded-2xl bg-canvas">
         {shownBitmap && (
           <ScenePreview
@@ -529,14 +538,13 @@ export function EditorView() {
             }}
           />
         )}
-        {pickerOpen && !loaded && !dragging && !importing && (
-          <ImagePicker
-            anchor={pickerAnchor}
-            onClose={closePicker}
-            onFile={(file) => { void importFile(file); }}
-            onError={setImportError}
-          />
-        )}
+        <ImagePicker
+          open={pickerOpen && !loaded && !dragging && !importing}
+          anchor={pickerAnchor}
+          onClose={closePicker}
+          onFile={(file) => { void importFile(file); }}
+          onError={setImportError}
+        />
         {notices}
         {/* The properties float just above the toolbar, so the two read as one group. */}
         <div className="pointer-events-none absolute inset-x-3 bottom-[60px] z-10 flex justify-center">
@@ -552,9 +560,9 @@ export function EditorView() {
           )}
         />
       </section>
-      <ChatDock open={chatOpen}>
+      <PanelDock open={chatOpen} side="right" width={CHAT_PANEL_WIDTH}>
         <ChatPanel chat={chat} onClose={() => { setChatPanelOpen(false); }} />
-      </ChatDock>
+      </PanelDock>
     </main>
   );
 }
