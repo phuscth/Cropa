@@ -223,7 +223,8 @@ export function ChatPanel({ chat, onClose }: { chat: ChatController; onClose: ()
         {run && (
           <>
             <UserBubble text={run.prompt} />
-            <RunningReply run={run} onStop={chat.stop} />
+            {/* Keyed by run, so each run's log starts closed whatever the last one was. */}
+            <RunningReply key={run.startedAt} run={run} onStop={chat.stop} />
           </>
         )}
       </div>

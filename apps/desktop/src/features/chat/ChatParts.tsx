@@ -214,8 +214,9 @@ export function RunningReply({ run, onStop }: { run: ChatRun; onStop: () => void
     // Not announced chunk by chunk: the finished reply is.
     <div aria-live="off" aria-busy="true" className="flex w-full flex-col gap-2">
       <AgentHeader provider={run.provider} effort={run.effort} />
+      {/* Closed until the user opens it, so streamed thinking and code don't fill the list. */}
       <WorkLog
-        autoOpen
+        autoOpen={false}
         label={
           <>
             {t('chat.log.working')} <Elapsed key={run.startedAt} startedAt={run.startedAt} />
