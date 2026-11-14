@@ -138,10 +138,10 @@ function ModelPicker({
           data-slot="model-picker-trigger"
           disabled={disabled}
           aria-label={labels.trigger}
-          className="focus-ring group flex h-8 items-center gap-1.5 rounded-lg px-2 text-[12px] font-medium text-foreground transition-colors duration-150 ease-enter hover:bg-secondary disabled:pointer-events-none disabled:opacity-50"
+          className="focus-ring group flex h-8 min-w-0 items-center gap-1.5 rounded-lg px-2 text-[12px] font-medium text-foreground transition-colors duration-150 ease-enter hover:bg-secondary disabled:pointer-events-none disabled:opacity-50"
         >
           <span className="flex size-4 shrink-0 items-center justify-center text-[16px]">{triggerLogo}</span>
-          <span className="max-w-[140px] truncate">{triggerLabel}</span>
+          <span className="min-w-0 max-w-[140px] truncate">{triggerLabel}</span>
           <ChevronDownIcon className="size-3.5 shrink-0 transition-transform duration-150 ease-enter group-data-[state=open]:rotate-180" />
         </button>
       </PopoverPrimitive.Trigger>

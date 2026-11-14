@@ -88,24 +88,28 @@ function Composer({ chat }: { chat: ChatController }) {
                 className="block max-h-40 min-h-[60px] w-full resize-none overflow-y-auto border-0 bg-transparent px-4 pt-4 pb-2.5 text-[14px] leading-5 font-normal outline-none [field-sizing:content] placeholder:text-tertiary-foreground disabled:opacity-50"
               />
               <div className="flex items-center gap-1 px-3 pb-3">
+                {/* Icon only: the row is narrow, and the model name, effort and send must all fit beside it. */}
                 {refining && (
                   <Button
                     variant="ghost"
-                    className="h-8 gap-1.5 rounded-[10px] px-2 text-tiny"
+                    size="icon-sm"
+                    className="shrink-0 rounded-[10px]"
+                    aria-label={t('chat.startOver')}
+                    tooltip={{ label: t('chat.startOver'), side: 'top', align: 'start' }}
                     disabled={running}
                     onClick={chat.startOver}
                   >
-                    <RestartIcon className="size-3.5" />
-                    {t('chat.startOver')}
+                    <RestartIcon className="size-4" />
                   </Button>
                 )}
-                <div className="ml-auto flex items-center gap-1">
+                {/* `min-w-0` lets the model name truncate instead of pushing send out of the composer. */}
+                <div className="ml-auto flex min-w-0 items-center gap-1">
                   <ModelPickerControl chat={chat} disabled={running} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="ghost"
-                        className="h-8 gap-1 rounded-[10px] px-2 text-tiny"
+                        className="h-8 shrink-0 gap-1 rounded-[10px] px-2 text-tiny"
                         aria-label={t('chat.effort.picker', { level })}
                         disabled={!enabled || running}
                       >
@@ -130,7 +134,7 @@ function Composer({ chat }: { chat: ChatController }) {
                   </DropdownMenu>
                   <Button
                     size="icon-sm"
-                    className="rounded-full"
+                    className="shrink-0 rounded-full"
                     aria-label={t(running ? 'chat.stop' : 'chat.send')}
                     tooltip={{
                       label: t(running ? 'chat.stop' : 'chat.send'),
