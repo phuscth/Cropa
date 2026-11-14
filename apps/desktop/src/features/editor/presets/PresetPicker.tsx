@@ -480,7 +480,7 @@ export function PresetPicker({ history }: Props) {
                 <Button
                   variant="secondary"
                   size="icon"
-                  className="absolute right-[22px] bottom-[22px] size-7 rounded-full bg-card/90 opacity-0 group-focus-within/card:opacity-100 group-hover/card:opacity-100 data-[state=open]:opacity-100"
+                  className="absolute right-6 bottom-6 size-7 rounded-full bg-card/90 opacity-0 group-focus-within/card:opacity-100 group-hover/card:opacity-100 data-[state=open]:opacity-100"
                   aria-label={t('editor.presets.more', { name: saved.name })}
                 >
                   <MoreIcon />
