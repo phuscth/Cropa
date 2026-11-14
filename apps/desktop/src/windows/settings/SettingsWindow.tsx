@@ -99,11 +99,21 @@ export function SettingsView() {
   // A later page enters from below, an earlier one from above.
   const [shownSection, setShownSection] = useState(section);
   const [direction, setDirection] = useState(1);
+  // Whether a page entering animates: only after one is picked inside the view.
+  const [pageMoves, setPageMoves] = useState(false);
   if (shownSection !== section) {
     setDirection(SETTINGS_SECTIONS.indexOf(section) > SETTINGS_SECTIONS.indexOf(shownSection) ? 1 : -1);
     setShownSection(section);
     // The confirmation belongs to the page where the user acted.
     setSaved(false);
+    setPageMoves(true);
+  }
+  // When the whole view slides in, the page comes with it instead of moving on its own. Checked
+  // after the page change, so Help > About, which does both at once, only slides the view.
+  const [wasActive, setWasActive] = useState(active);
+  if (wasActive !== active) {
+    setWasActive(active);
+    if (active) setPageMoves(false);
   }
   const sectionRef = useRef(section);
   useLayoutEffect(() => {
@@ -318,7 +328,11 @@ export function SettingsView() {
   } as CSSProperties;
   // Every page stays mounted, so a test running in the AI page survives a visit to another page.
   const page = (id: SettingsSectionId, children: ReactNode) => (
-    <div hidden={section !== id} style={slideFrom} className="animate-section-in">
+    <div
+      hidden={section !== id}
+      style={pageMoves ? slideFrom : undefined}
+      className={pageMoves ? 'animate-section-in' : undefined}
+    >
       {children}
     </div>
   );
