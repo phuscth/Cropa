@@ -48,6 +48,7 @@ export {
   PickerSection,
 } from './components/picker.tsx';
 export { SelectorCard } from './components/selector-card.tsx';
+export { OptionList, OptionListItem } from './components/option-list.tsx';
 export { SegmentedControl, SegmentedControlItem } from './components/segmented-control.tsx';
 export { Slider } from './components/slider.tsx';
 export { SliderField } from './components/slider-field.tsx';

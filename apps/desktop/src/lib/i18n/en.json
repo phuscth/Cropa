@@ -126,8 +126,9 @@
       "save": "Save",
       "saveAs": "Save as…",
       "format": "Format",
-      "scale": "Scale",
-      "scaleFixed": "Platform sizes always export at 1x ({{width}} × {{height}} px)",
+      "size": "Size",
+      "sizeFixed": "Platform sizes always export at their own size ({{width}} × {{height}} px)",
+      "sizeValue": "{{width}} × {{height}}",
       "saved": "Saved {{fileName}}",
       "drag": "Drag image out",
       "dragHold": "Hold the mouse button down while you drag the image out",
@@ -454,7 +455,7 @@
     "ExportRender": {
       "what": "Couldn't create the image.",
       "why": "The image could not be drawn or encoded ({{detail}}).",
-      "next": "Try a smaller scale or padding, or close other apps to free memory, then try again."
+      "next": "Try a smaller export size or padding, or close other apps to free memory, then try again."
     },
     "ExportFormatUnsupported": {
       "what": "Couldn't create the {{format}} image.",

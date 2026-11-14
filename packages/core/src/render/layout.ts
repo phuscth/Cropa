@@ -51,7 +51,7 @@ export function computeLayout(scene: Scene): Layout {
 /** Where the frame lands on a canvas of a given size. */
 export interface Placement {
   layout: Layout;
-  /** Uniform scale from scene units to canvas pixels. */
+  /** Scale from scene units to canvas pixels; the smaller axis scale when the two differ by under a pixel. */
   s: number;
   /** Offset of the frame's top-left corner on the canvas. */
   ox: number;
@@ -61,13 +61,30 @@ export interface Placement {
 }
 
 /**
- * Scales the frame uniformly to fit a `cw` x `ch` canvas and centres it. The
- * screenshot is rounded to whole canvas pixels, so a 1x export with integer
- * padding copies the pixels exactly.
+ * Places the frame on a `cw` x `ch` canvas. Normally it is scaled uniformly to fit and
+ * centred. When the canvas is the layout scaled and rounded per side (an export sized by
+ * `outputSizeAtLongEdge`, off the layout's aspect by under a pixel), each axis is mapped on its
+ * own instead, so the layout's edges land on the canvas edges and no strip of background is
+ * left. The screenshot is rounded to whole canvas pixels, so a 1x export with integer padding
+ * copies the pixels exactly.
  */
 export function placeFrame(scene: Scene, cw: number, ch: number): Placement {
   const layout = computeLayout(scene);
-  const s = Math.min(cw / layout.w, ch / layout.h);
+  const sx = cw / layout.w;
+  const sy = ch / layout.h;
+  const sMax = Math.max(sx, sy);
+  const s = Math.min(sx, sy);
+  if (Math.abs(cw - layout.w * sMax) < 1 && Math.abs(ch - layout.h * sMax) < 1) {
+    const x = Math.round(layout.shot.x * sx);
+    const y = Math.round(layout.shot.y * sy);
+    const shot = {
+      x,
+      y,
+      w: Math.max(1, Math.round((layout.shot.x + layout.shot.w) * sx) - x),
+      h: Math.max(1, Math.round((layout.shot.y + layout.shot.h) * sy) - y),
+    };
+    return { layout, s, ox: 0, oy: 0, shot };
+  }
   const ox = (cw - layout.w * s) / 2;
   const oy = (ch - layout.h * s) / 2;
   const shot = {
@@ -154,4 +171,21 @@ export function outputSize(scene: Scene, scale = 1): { width: number; height: nu
     width: Math.max(1, Math.round(width * scale)),
     height: Math.max(1, Math.round(height * scale)),
   };
+}
+
+/**
+ * Pixel size of an export whose longer side is exactly `longEdge`. The shorter side
+ * follows the frame's real aspect ratio (the layout, not the rounded 1x size), rounded once,
+ * so float error never turns 2560 into 2559. Ignores `output.width`: a fixed width is the
+ * caller's to keep.
+ */
+export function outputSizeAtLongEdge(
+  scene: Scene,
+  longEdge: number,
+): { width: number; height: number } {
+  const layout = computeLayout(scene);
+  if (layout.w >= layout.h) {
+    return { width: longEdge, height: Math.max(1, Math.round((longEdge * layout.h) / layout.w)) };
+  }
+  return { width: Math.max(1, Math.round((longEdge * layout.w) / layout.h)), height: longEdge };
 }

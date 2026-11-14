@@ -14,7 +14,7 @@ export {
 } from './schema/json-schema.ts';
 
 export { render } from './render/render.ts';
-export { frameGeometry, outputSize, screenshotRect } from './render/layout.ts';
+export { frameGeometry, outputSize, outputSizeAtLongEdge, screenshotRect } from './render/layout.ts';
 export type { FrameGeometry } from './render/layout.ts';
 export { ANNOTATION_DEFAULTS, ANNOTATION_FONT } from './render/annotations.ts';
 export { annotationBounds, hitTest } from './render/hit-test.ts';

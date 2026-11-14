@@ -17,7 +17,13 @@ import { defaultScene } from '../schema/scene.ts';
 import type { Scene } from '../schema/scene.ts';
 import type { BackgroundLayer, CodeLayer } from '../schema/background.ts';
 import type { RenderEnv } from './canvas.ts';
-import { computeLayout, frameGeometry, outputSize, screenshotRect } from './layout.ts';
+import {
+  computeLayout,
+  frameGeometry,
+  outputSize,
+  outputSizeAtLongEdge,
+  screenshotRect,
+} from './layout.ts';
 import { isRedaction, redactScreenshot } from './redact.ts';
 import { render } from './render.ts';
 
@@ -185,6 +191,75 @@ describe('outputSize', () => {
 
   it('multiplies by the scale', () => {
     expect(outputSize(sceneWith({}), 2)).toEqual({ width: 400, height: 280 });
+  });
+});
+
+describe('outputSizeAtLongEdge', () => {
+  it('gives an exact long edge and the real aspect for a 16:9 scene', () => {
+    const scene = sceneWith({ output: { aspectRatio: [16, 9] } });
+    expect(outputSizeAtLongEdge(scene, 2560)).toEqual({ width: 2560, height: 1440 });
+    expect(outputSizeAtLongEdge(scene, 3840)).toEqual({ width: 3840, height: 2160 });
+  });
+
+  it('puts the long edge on the height of a portrait scene', () => {
+    expect(outputSizeAtLongEdge(sceneWith({ output: { aspectRatio: [9, 16] } }), 2560)).toEqual({
+      width: 1440,
+      height: 2560,
+    });
+  });
+
+  it('gives a square for 1:1', () => {
+    expect(outputSizeAtLongEdge(sceneWith({ output: { aspectRatio: [1, 1] } }), 2560)).toEqual({
+      width: 2560,
+      height: 2560,
+    });
+  });
+
+  describe('edge to edge', () => {
+    const flat = (width: number, height: number): Scene => {
+      const base = defaultScene({ width, height });
+      return {
+        ...base,
+        frame: { ...base.frame, padding: 0, inset: 0, border: null, radius: 0, shadows: [] },
+        background: { ...base.background, layers: [{ type: 'solid', color: '#6366f1' }] },
+      };
+    };
+
+    it.each([
+      [1093, 615],
+      [1366, 768],
+      [801, 333],
+      [5000, 200],
+    ])('lets a %i x %i screenshot fill the canvas at every K size', (width, height) => {
+      for (const longEdge of [2560, 3840, 6144]) {
+        const scene = flat(width, height);
+        const size = outputSizeAtLongEdge(scene, longEdge);
+        expect(screenshotRect(scene, size.width, size.height)).toEqual({
+          x: 0,
+          y: 0,
+          w: size.width,
+          h: size.height,
+        });
+      }
+    });
+
+    it('draws screenshot pixels, not background, in the last column and row', () => {
+      const scene = flat(1093, 615);
+      const size = outputSizeAtLongEdge(scene, 2560);
+      const shot = createCanvas(1093, 615);
+      const sctx = shot.getContext('2d');
+      sctx.fillStyle = '#22c55e';
+      sctx.fillRect(0, 0, 1093, 615);
+      const canvas = createCanvas(size.width, size.height);
+      render(scene, 0, canvas.getContext('2d'), { ...env, screenshot: shot });
+      const data = pixels(canvas);
+      const green = [0x22, 0xc5, 0x5e, 255];
+      const at = (x: number, y: number) => Array.from(data.slice((y * size.width + x) * 4, (y * size.width + x) * 4 + 4));
+      expect(at(size.width - 1, size.height - 1)).toEqual(green);
+      expect(at(size.width - 1, 0)).toEqual(green);
+      expect(at(0, size.height - 1)).toEqual(green);
+      expect(at(0, 0)).toEqual(green);
+    });
   });
 });
 

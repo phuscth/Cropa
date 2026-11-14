@@ -2,6 +2,8 @@ import {
   Button,
   DetailsCard,
   DetailsRow,
+  OptionList,
+  OptionListItem,
   PopoverContent,
   SegmentedControl,
   SegmentedControlItem,
@@ -9,27 +11,26 @@ import {
 import { useTranslation } from 'react-i18next';
 
 import type { ExportFormat } from '../../lib/bindings.ts';
-import type { ExportScale } from '../editor/export/plan.ts';
+import { EXPORT_SIZES, type ExportSize } from '../editor/export/plan.ts';
 import type { EditorActions } from './editor-actions.ts';
 
 const FORMATS: readonly ExportFormat[] = ['png', 'jpeg', 'webp'];
-const SCALES: readonly ExportScale[] = [1, 2, 3];
 
 interface Props {
   options: EditorActions['exportOptions'];
   /** An export is running. */
   busy: boolean;
-  /** Saves right away with the chosen format and scale. */
+  /** Saves right away with the chosen format and size. */
   onSave: () => void;
-  /** Opens the native save dialog with the chosen format and scale. */
+  /** Opens the native save dialog with the chosen format and size. */
   onSaveAs: () => void;
 }
 
-/** The content of the Save popover: format, scale, the sizes they give, and the two save actions. */
+/** The content of the Save popover: format, size, the sizes they give, and the two save actions. */
 export function SavePopover({ options, busy, onSave, onSaveAs }: Props) {
   const { t } = useTranslation();
-  const { format, scale, scaleFixed, scaleLabels, imageSize, output } = options;
-  const size = (box: { width: number; height: number }) => t('editor.details.size', box);
+  const { format, size, sizeFixed, sizes, imageSize, output } = options;
+  const dimensions = (box: { width: number; height: number }) => t('editor.details.size', box);
 
   return (
     <PopoverContent align="end" className="flex w-72 flex-col gap-3">
@@ -49,37 +50,34 @@ export function SavePopover({ options, busy, onSave, onSaveAs }: Props) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <span className="text-section">{t('editor.export.scale')}</span>
-        <SegmentedControl
-          aria-label={t('editor.export.scale')}
-          value={String(scaleFixed ? 1 : scale)}
-          disabled={scaleFixed}
-          onValueChange={(next) => { options.setScale(Number(next) as ExportScale); }}
+        <span className="text-section">{t('editor.export.size')}</span>
+        <OptionList
+          aria-label={t('editor.export.size')}
+          value={sizeFixed ? '1x' : size}
+          disabled={sizeFixed}
+          onValueChange={(next) => { options.setSize(next as ExportSize); }}
         >
-          {SCALES.map((s) => {
-            const label = scaleLabels[s];
-            return (
-              <SegmentedControlItem key={s} value={String(s)}>
-                {`${String(s)}x`}
-                {label !== undefined && !scaleFixed && (
-                  <span className="text-caption ml-1 tabular-nums">{label}</span>
-                )}
-              </SegmentedControlItem>
-            );
-          })}
-        </SegmentedControl>
-        {scaleFixed && (
+          {EXPORT_SIZES.map((s) => (
+            <OptionListItem
+              key={s}
+              value={s}
+              label={s === '1x' ? s : s.toUpperCase()}
+              detail={sizeFixed ? undefined : t('editor.export.sizeValue', sizes[s])}
+            />
+          ))}
+        </OptionList>
+        {sizeFixed && (
           <p className="text-caption tabular-nums">
-            {t('editor.export.scaleFixed', { width: output.width, height: output.height })}
+            {t('editor.export.sizeFixed', { width: output.width, height: output.height })}
           </p>
         )}
       </div>
 
       <DetailsCard>
-        <DetailsRow label={t('editor.details.image')} value={size(imageSize)} />
+        <DetailsRow label={t('editor.details.image')} value={dimensions(imageSize)} />
         <DetailsRow
           label={t('editor.details.output')}
-          value={`${format.toUpperCase()} · ${size(output)}`}
+          value={`${format.toUpperCase()} · ${dimensions(output)}`}
         />
       </DetailsCard>
 

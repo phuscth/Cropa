@@ -12,7 +12,7 @@ import { requestCaptureAfterPaint } from '../../features/shell/capture.ts';
 import { publishEditorActions, type ExportOptions } from '../../features/shell/editor-actions.ts';
 import { useViewActive } from '../../features/shell/view-active.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
-import { exportPlan, resolutionLabel, type ExportScale } from '../../features/editor/export/plan.ts';
+import { EXPORT_SIZES, exportPlan, type ExportSize } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
 import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
@@ -89,7 +89,7 @@ export function EditorView() {
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; });
   const [format, setFormat] = useState<ExportFormat>('png');
-  const [scale, setScale] = useState<ExportScale>(2);
+  const [size, setSize] = useState<ExportSize>('2k');
   const history = useSceneHistory(placeholder);
   const { load } = history;
   const hasImage = loaded !== undefined;
@@ -119,27 +119,28 @@ export function EditorView() {
   // An export error wins over the warning that a layer was left out.
   const exportProblem = exporter.error ?? exporter.warning;
   const { busy, quickSave, saveAs, copy, reveal, dragHandlers } = exporter;
-  const saveAsChosen = useCallback(() => saveAs(format, scale), [saveAs, format, scale]);
-  const quickSaveChosen = useCallback(() => quickSave(format, scale), [quickSave, format, scale]);
+  const saveAsChosen = useCallback(() => saveAs(format, size), [saveAs, format, size]);
+  const quickSaveChosen = useCallback(() => quickSave(format, size), [quickSave, format, size]);
   const imageWidth = loaded?.bitmap.width ?? 0;
   const imageHeight = loaded?.bitmap.height ?? 0;
   const exportOptions = useMemo<ExportOptions>(() => {
-    const output = exportPlan(history.scene, format, scale);
+    const sizes = Object.fromEntries(
+      EXPORT_SIZES.map((choice) => {
+        const { width, height } = exportPlan(history.scene, format, choice);
+        return [choice, { width, height }];
+      }),
+    ) as ExportOptions['sizes'];
     return {
       format,
-      scale,
+      size,
       setFormat,
-      setScale,
+      setSize,
       imageSize: { width: imageWidth, height: imageHeight },
-      output: { width: output.width, height: output.height },
-      scaleLabels: {
-        1: resolutionLabel(exportPlan(history.scene, format, 1).width),
-        2: resolutionLabel(exportPlan(history.scene, format, 2).width),
-        3: resolutionLabel(exportPlan(history.scene, format, 3).width),
-      },
-      scaleFixed: history.scene.output.width !== null,
+      output: sizes[size],
+      sizes,
+      sizeFixed: history.scene.output.width !== null,
     };
-  }, [history.scene, format, scale, imageWidth, imageHeight]);
+  }, [history.scene, format, size, imageWidth, imageHeight]);
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
 
