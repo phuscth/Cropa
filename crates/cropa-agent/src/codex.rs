@@ -116,6 +116,8 @@ fn build_args(
         "project_doc_max_bytes=0",
         "-c",
         "web_search=\"disabled\"",
+        "-c",
+        "model_reasoning_summary=\"auto\"",
     ]
     .into_iter()
     .map(OsString::from)
@@ -388,7 +390,12 @@ enum Final {
 /// Reads the JSON lines of one turn.
 #[derive(Debug, Default)]
 struct CodexStream {
+    /// Whether the turn asked for a schema: the final message is then the structured
+    /// answer, not prose.
+    wants_schema: bool,
     started: bool,
+    /// Whether a reasoning summary was already sent, so the next one follows a blank line.
+    thinking_sent: bool,
     last_text: Option<String>,
     /// Messages of `error` events. Codex sends its retry notices as `error`,
     /// so they do not end the turn; they only help classify a later failure.
@@ -417,6 +424,13 @@ fn event_label(line: &Value) -> String {
 }
 
 impl CodexStream {
+    fn new(wants_schema: bool) -> Self {
+        Self {
+            wants_schema,
+            ..Self::default()
+        }
+    }
+
     /// The turn's failure and `error` event messages, cut short.
     #[cfg(feature = "diagnostics")]
     fn failure_summary(&self) -> Value {
@@ -446,6 +460,26 @@ impl CodexStream {
             Some("item.completed") if line["item"]["type"] == "agent_message" => {
                 if let Some(text) = line["item"]["text"].as_str() {
                     self.last_text = Some(text.to_owned());
+                    // Codex sends each message whole, never in pieces.
+                    let text = text.to_owned();
+                    on_event(if self.wants_schema {
+                        Event::OutputDelta { text }
+                    } else {
+                        Event::Delta { text }
+                    });
+                }
+            }
+            Some("item.completed") if line["item"]["type"] == "reasoning" => {
+                if let Some(text) = line["item"]["text"].as_str().filter(|t| !t.is_empty()) {
+                    if self.thinking_sent {
+                        on_event(Event::Thinking {
+                            text: "\n\n".to_owned(),
+                        });
+                    }
+                    self.thinking_sent = true;
+                    on_event(Event::Thinking {
+                        text: text.to_owned(),
+                    });
                 }
             }
             Some("error") => {
@@ -555,7 +589,7 @@ impl AgentCli for CodexExec {
             stdin: Some(stdin_text(&req.system, &req.prompt)),
             timeout: req.timeout,
         };
-        let mut stream = CodexStream::default();
+        let mut stream = CodexStream::new(req.schema.is_some());
         let process = run_process(&spec, dir.path(), cancel, &mut |line| {
             stream.push(&line, &mut *on_event)
         });
@@ -588,6 +622,7 @@ mod tests {
 
     const SCHEMA_OK: &str = include_str!("../tests/fixtures/codex/exec-schema-ok.jsonl");
     const IMAGE_OK: &str = include_str!("../tests/fixtures/codex/exec-image-ok.jsonl");
+    const REASONING: &str = include_str!("../tests/fixtures/codex/exec-reasoning-summary.jsonl");
     const REJECTED: &str = include_str!("../tests/fixtures/codex/exec-schema-rejected.jsonl");
     const CANCELLED: &str = include_str!("../tests/fixtures/codex/exec-cancelled.jsonl");
     const LOGIN_IN: &str =
@@ -597,7 +632,11 @@ mod tests {
 
     /// Feeds lines like the runner does: in order, up to the first `Stop`.
     fn feed(lines: &str) -> (CodexStream, Vec<Event>, usize) {
-        let mut stream = CodexStream::default();
+        feed_as(lines, false)
+    }
+
+    fn feed_as(lines: &str, wants_schema: bool) -> (CodexStream, Vec<Event>, usize) {
+        let mut stream = CodexStream::new(wants_schema);
         let mut events = Vec::new();
         let mut fed = 0;
         for line in lines.lines().filter(|l| !l.trim().is_empty()) {
@@ -618,11 +657,54 @@ mod tests {
     #[test]
     fn a_schema_turn_returns_the_last_agent_message_as_json() {
         let schema = json!({"type": "object", "properties": {"layers": {"type": "array"}}, "required": ["layers"]});
-        let (stream, events, fed) = feed(SCHEMA_OK);
-        assert_eq!(events, [Event::Started]);
+        let (stream, events, fed) = feed_as(SCHEMA_OK, true);
+        assert_eq!(events.len(), 2);
+        assert_eq!(events[0], Event::Started);
+        assert!(matches!(&events[1], Event::OutputDelta { text } if text.starts_with('{')));
         assert_eq!(fed, SCHEMA_OK.lines().count());
         let out = stream.finish(ok(), Some(&schema)).unwrap();
         assert_eq!(out.json.unwrap()["layers"][1]["kind"], "radial");
+    }
+
+    #[test]
+    fn a_reasoning_summary_streams_as_thinking_before_the_answer() {
+        let schema = json!({"type": "object"});
+        let (stream, events, _) = feed_as(REASONING, true);
+        let final_text = match events.last() {
+            Some(Event::OutputDelta { text }) => text.clone(),
+            other => panic!("expected the answer last, got {other:?}"),
+        };
+        assert_eq!(
+            events[..events.len() - 1],
+            [
+                Event::Started,
+                Event::Thinking {
+                    text: "**Sizing the canvas**".to_owned()
+                },
+            ]
+        );
+        let out = stream.finish(ok(), Some(&schema)).unwrap();
+        assert_eq!(out.json, serde_json::from_str(&final_text).ok());
+    }
+
+    #[test]
+    fn a_second_reasoning_summary_follows_a_blank_line_and_prose_is_a_delta() {
+        let lines = [
+            r#"{"type":"item.completed","item":{"type":"reasoning","text":"one"}}"#,
+            r#"{"type":"item.completed","item":{"type":"reasoning","text":"two"}}"#,
+            r#"{"type":"item.completed","item":{"type":"agent_message","text":"done"}}"#,
+        ]
+        .join("\n");
+        let (_, events, _) = feed(&lines);
+        let texts: Vec<String> = events
+            .into_iter()
+            .map(|event| match event {
+                Event::Thinking { text } => format!("t:{text}"),
+                Event::Delta { text } => format!("d:{text}"),
+                other => format!("{other:?}"),
+            })
+            .collect();
+        assert_eq!(texts, ["Started", "t:one", "t:\n\n", "t:two", "d:done"]);
     }
 
     #[test]
@@ -760,6 +842,8 @@ mod tests {
             "project_doc_max_bytes=0",
             "-c",
             "web_search=\"disabled\"",
+            "-c",
+            "model_reasoning_summary=\"auto\"",
             "-c",
             "model_reasoning_effort=\"low\"",
         ]
