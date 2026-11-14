@@ -50,7 +50,6 @@ packages/ui         @cropa/ui: shadcn/ui components
 packages/config     shared tsconfig, ESLint, Tailwind tokens
 crates/cropa-agent  drives the user's Codex / Claude Code CLI
 crates/cropa-gif    animated GIF writer
-crates/cropa-matte  background removal: applies the AI cut-out's alpha to the original
 tools/              bindings generator, npm licence check
 ```
 

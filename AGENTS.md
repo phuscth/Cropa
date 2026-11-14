@@ -25,7 +25,7 @@ What a module must not do is as binding as what it does.
 - `apps/desktop/src`: windows (one Vite entry each), state, wiring UI to core, ai and the typed commands. Draws images only through core's renderer.
 - `apps/desktop/src-tauri`: a thin Rust layer. Everything that differs by operating system stays behind the `Platform` trait in `platform/`. Rust works in physical pixels; conversion to logical units happens only at the UI edge.
 - `crates/cropa-agent`: detects the user's Codex or Claude Code CLI, runs one turn, cancels, returns the output image. Knows nothing about backgrounds or prompts.
-- `crates/cropa-gif`, `crates/cropa-matte`: pure algorithms on buffers, no Tauri.
+- `crates/cropa-gif`: a pure algorithm on buffers, no Tauri.
 
 ## Safety invariants
 
