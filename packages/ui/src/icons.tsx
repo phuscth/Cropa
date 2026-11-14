@@ -5,11 +5,13 @@ import { AltArrowDownIcon as SolarChevronDown } from '@solar-icons/react/linear/
 import { AltArrowRightIcon as SolarChevronRight } from '@solar-icons/react/linear/alt-arrow-right';
 import { ArrowUpIcon as SolarArrowUp } from '@solar-icons/react/linear/arrow-up';
 import { ChatSquareIcon as SolarChat } from '@solar-icons/react/linear/chat-square';
+import { CameraMinimalisticIcon as SolarCamera } from '@solar-icons/react/linear/camera-minimalistic';
 import { CheckIcon as SolarCheck } from '@solar-icons/react/linear/check';
 import { CloseIcon as SolarClose } from '@solar-icons/react/linear/close';
 import { CopyIcon as SolarCopy } from '@solar-icons/react/linear/copy';
 import { CursorIcon as SolarCursor } from '@solar-icons/react/linear/cursor';
 import { DownloadMinimalisticIcon as SolarDownload } from '@solar-icons/react/linear/download-minimalistic';
+import { GalleryAddIcon as SolarGalleryAdd } from '@solar-icons/react/linear/gallery-add';
 import { GalleryIcon as SolarGallery } from '@solar-icons/react/linear/gallery';
 import { GallerySendIcon as SolarGallerySend } from '@solar-icons/react/linear/gallery-send';
 import { Grid2x2Icon as SolarGrid } from '@solar-icons/react/linear/grid-2x2';
@@ -17,6 +19,7 @@ import { HistoryIcon as SolarHistory } from '@solar-icons/react/linear/history';
 import { ListOrderedIcon as SolarListOrdered } from '@solar-icons/react/linear/list-ordered';
 import { MenuDotsIcon as SolarMenuDots } from '@solar-icons/react/linear/menu-dots';
 import { QuestionCircleIcon as SolarQuestionCircle } from '@solar-icons/react/linear/question-circle';
+import { RestartIcon as SolarRestart } from '@solar-icons/react/linear/restart';
 import { SettingsIcon as SolarSettings } from '@solar-icons/react/linear/settings';
 import { StopIcon as SolarStop } from '@solar-icons/react/linear/stop';
 import { StopCircleIcon as SolarStopCircle } from '@solar-icons/react/linear/stop-circle';
@@ -43,6 +46,7 @@ function linear(Solar: Icon, displayName: string): Icon {
 
 export const UndoIcon = linear(SolarUndo, 'UndoIcon');
 export const RedoIcon = linear(SolarRedo, 'RedoIcon');
+export const RestartIcon = linear(SolarRestart, 'RestartIcon');
 export const DragOutIcon = linear(SolarGallerySend, 'DragOutIcon');
 export const CopyIcon = linear(SolarCopy, 'CopyIcon');
 export const SaveIcon = linear(SolarDownload, 'SaveIcon');
@@ -55,6 +59,8 @@ export const UploadIcon = linear(SolarUpload, 'UploadIcon');
 export const MoreIcon = linear(SolarMenuDots, 'MoreIcon');
 export const CloseIcon = linear(SolarClose, 'CloseIcon');
 export const ImageIcon = linear(SolarGallery, 'ImageIcon');
+export const ImageAddIcon = linear(SolarGalleryAdd, 'ImageAddIcon');
+export const CameraIcon = linear(SolarCamera, 'CameraIcon');
 export const ChevronDownIcon = linear(SolarChevronDown, 'ChevronDownIcon');
 export const ChevronRightIcon = linear(SolarChevronRight, 'ChevronRightIcon');
 export const CheckIcon = linear(SolarCheck, 'CheckIcon');

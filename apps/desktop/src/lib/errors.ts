@@ -1,6 +1,7 @@
 import type { TFunction } from 'i18next';
 
 import type { CommandError, ExportFormat } from './bindings.ts';
+import type { ImportProblem } from '../features/editor/import-image.ts';
 import type { PresetFileProblem } from '../features/editor/presets/preset-file.ts';
 
 /** Every user-facing error has three parts: what happened, why, what to do next. */
@@ -89,4 +90,13 @@ export type BackgroundImageProblem =
 export function describeBackgroundImage(t: TFunction, problem: BackgroundImageProblem): UserError {
   const vars = problem.kind === 'BackgroundImageDimensions' ? { limit: String(problem.limit) } : {};
   return render(t, problem.kind, vars);
+}
+
+/** An image the user dropped, pasted or picked could not be opened by the WebView. */
+export function describeImageImport(t: TFunction, problem: ImportProblem): UserError {
+  if (problem.kind === 'ImageImportFileTooLarge') return render(t, problem.kind, { limit: String(problem.limit) });
+  if (problem.kind === 'ImageImportTooLarge') {
+    return render(t, problem.kind, { detail: String(problem.side), megapixels: String(problem.megapixels) });
+  }
+  return render(t, problem.kind, {});
 }

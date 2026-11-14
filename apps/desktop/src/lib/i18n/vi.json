@@ -3,7 +3,26 @@
     "name": "Cropa"
   },
   "editor": {
-    "empty": "Chưa có ảnh chụp.",
+    "startOver": {
+      "label": "Bắt đầu lại",
+      "title": "Bắt đầu lại?",
+      "caption": "Ảnh và các chỉnh sửa sẽ rời khỏi trình chỉnh sửa. Ảnh chụp của bạn vẫn còn trong Lịch sử.",
+      "cancel": "Hủy",
+      "confirm": "Bắt đầu lại"
+    },
+    "picker": {
+      "title": "Chọn ảnh",
+      "add": "Thêm ảnh",
+      "recentAlt": "Ảnh chụp lúc {{time}}"
+    },
+    "drop": {
+      "title": "Kéo thả hoặc dán",
+      "subtitle": "Hình ảnh",
+      "selectTitle": "Chọn ảnh",
+      "selectSubtitle": "Mở trình chọn ảnh",
+      "dropTitle": "Thả để mở",
+      "opening": "Đang mở ảnh…"
+    },
     "hint": "Bấm {{shortcut}}, chọn Tệp > Chụp vùng, hoặc chọn “Chụp vùng” ở khay hệ thống.",
     "undo": "Hoàn tác",
     "redo": "Làm lại",
@@ -560,6 +579,21 @@
       "what": "Chưa thêm được ảnh.",
       "why": "File lớn hơn {{detail}} MB.",
       "next": "Chọn file nhỏ hơn, hoặc lưu một bản ảnh nhỏ hơn trước."
+    },
+    "ImageImportUnreadable": {
+      "what": "Chưa mở được ảnh.",
+      "why": "File này không phải là ảnh mà Cropa đọc được.",
+      "next": "Dùng ảnh PNG, JPEG hoặc WebP."
+    },
+    "ImageImportFileTooLarge": {
+      "what": "Chưa mở được ảnh.",
+      "why": "File lớn hơn {{limit}} MB.",
+      "next": "Chọn file nhỏ hơn, hoặc lưu một bản ảnh nhỏ hơn trước."
+    },
+    "ImageImportTooLarge": {
+      "what": "Chưa mở được ảnh.",
+      "why": "Ảnh lớn hơn {{detail}} px mỗi cạnh, hoặc có hơn {{megapixels}} megapixel.",
+      "next": "Thu nhỏ ảnh trước, rồi mở lại."
     },
     "BackgroundImagesFull": {
       "what": "Chưa thêm được ảnh.",

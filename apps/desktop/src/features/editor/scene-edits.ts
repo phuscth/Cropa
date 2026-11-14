@@ -1,6 +1,7 @@
 import {
   applyPlatformSize,
   clamp,
+  defaultScene,
   migrateScene,
   type BackgroundSpec,
   type PlatformId,
@@ -33,6 +34,49 @@ export function accept(prev: Scene, next: Scene): Scene {
 export function tryAccept(prev: Scene, next: Scene): Scene | null {
   if (next === prev) return prev;
   return migrateScene(next).ok ? next : null;
+}
+
+/** The frame with every length scaled by `k`, rounded as `defaultScene` rounds them. */
+function scaledFrame(frame: Frame, k: number): Frame {
+  const scale = (value: number) => Math.round(value * k);
+  return {
+    ...frame,
+    padding: scale(frame.padding),
+    radius: scale(frame.radius),
+    inset: scale(frame.inset),
+    border: frame.border && { ...frame.border, width: Math.max(0.5, scale(frame.border.width)) },
+    shadows: frame.shadows.map((shadow) => ({
+      ...shadow,
+      x: scale(shadow.x),
+      y: scale(shadow.y),
+      blur: scale(shadow.blur),
+    })),
+  };
+}
+
+/**
+ * The scene for a newly loaded image. The first image keeps what was chosen
+ * before it: the background and the output (aspect ratio and fixed width), which
+ * do not depend on the image's size, and the frame when it was edited, scaled to
+ * the new size. An untouched frame becomes the defaults for the new size, so an
+ * editor nobody touched starts exactly as after a capture. Any later image
+ * starts over.
+ */
+export function sceneForNewImage(
+  previous: Scene | null,
+  size: { width: number; height: number },
+): Scene {
+  const fresh = defaultScene(size);
+  if (!previous) return fresh;
+  const edited = JSON.stringify(previous.frame) !== JSON.stringify(defaultScene(previous.screenshot).frame);
+  const k =
+    Math.max(size.width, size.height) / Math.max(previous.screenshot.width, previous.screenshot.height);
+  return accept(fresh, {
+    ...fresh,
+    frame: edited ? scaledFrame(previous.frame, k) : fresh.frame,
+    background: previous.background,
+    output: previous.output,
+  });
 }
 
 // ---------------------------------------------------------------- background

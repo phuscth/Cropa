@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-import-editor-image"
+description = "Enables the import_editor_image command without any pre-configured scope."
+commands.allow = ["import_editor_image"]
+
+[[permission]]
+identifier = "deny-import-editor-image"
+description = "Denies the import_editor_image command without any pre-configured scope."
+commands.deny = ["import_editor_image"]

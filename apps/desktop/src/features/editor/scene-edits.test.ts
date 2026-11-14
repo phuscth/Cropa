@@ -32,6 +32,7 @@ import {
   setBackgroundAngle,
   setBackgroundBlur,
   setBackgroundColor,
+  sceneForNewImage,
   setBackgroundKind,
   setBorderColor,
   setBorderWidth,
@@ -497,5 +498,39 @@ describe('image backgrounds', () => {
     ]);
     expect(migrateScene({ ...fresh(), background: next }).ok).toBe(true);
     expect(withoutMissingImages(spec, [])).toBe(spec);
+  });
+});
+
+describe('scene for a new image', () => {
+  const size = { width: 3000, height: 2000 };
+  const empty = defaultScene({ width: 1440, height: 1080 });
+
+  it('is exactly the defaults when the editor had no image and nothing was edited', () => {
+    expect(sceneForNewImage(empty, size)).toEqual(defaultScene(size));
+  });
+
+  it('keeps the background and the whole output chosen before the first image', () => {
+    const chosen = setAspectRatio(setBackgroundColor(empty, 0, '#123456'), [16, 9]);
+    const scene = expectValid(sceneForNewImage(chosen, size));
+    expect(scene.background).toBe(chosen.background);
+    expect(scene.output).toEqual({ aspectRatio: [16, 9], width: null });
+    expect(scene.screenshot).toEqual(defaultScene(size).screenshot);
+
+    const sized = { ...empty, output: { aspectRatio: null, width: 1200 } };
+    expect(sceneForNewImage(sized, size).output).toEqual({ aspectRatio: null, width: 1200 });
+  });
+
+  it('scales an edited frame to the new image', () => {
+    const edited = setRadius(setPadding(empty, 100), 20);
+    const scene = expectValid(sceneForNewImage(edited, size));
+    const k = 3000 / 1440;
+    expect(scene.frame.padding).toBe(Math.round(100 * k));
+    expect(scene.frame.radius).toBe(Math.round(20 * k));
+    expect(scene.frame.shadows[0]?.blur).toBe(Math.round((empty.frame.shadows[0]?.blur ?? 0) * k));
+    expect(scene.frame.shadows[0]?.color).toBe(empty.frame.shadows[0]?.color);
+  });
+
+  it('starts over when the editor had an image', () => {
+    expect(sceneForNewImage(null, size)).toEqual(defaultScene(size));
   });
 });

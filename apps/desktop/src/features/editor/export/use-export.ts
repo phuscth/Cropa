@@ -28,6 +28,16 @@ interface Args {
 
 const NOTICE_MS = 6000;
 
+let dragOutDepth = 0;
+
+/**
+ * Whether the app's own drag of the exported image is in flight. The page then
+ * receives that drag as a file drag too, and must not open it as an import.
+ */
+export function isDraggingOut(): boolean {
+  return dragOutDepth > 0;
+}
+
 /** How far the pointer moves, in CSS px, before a press on the handle becomes a drag. */
 const DRAG_THRESHOLD_PX = 4;
 
@@ -209,7 +219,14 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
           setError(describeExportImageChanged(current.t));
           return;
         }
-        const result = unwrap(await commands.startDrag(dataUrl, start.capturedAt));
+        dragOutDepth += 1;
+        let result;
+        try {
+          result = unwrap(await commands.startDrag(dataUrl, start.capturedAt));
+        } finally {
+          // The drop event can be delivered just after the call returns.
+          setTimeout(() => { dragOutDepth -= 1; }, 300);
+        }
         // Released before the drag began: tell the user how it works.
         if (result === 'notStarted') show({ kind: 'dragHint' });
       });

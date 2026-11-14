@@ -48,6 +48,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::history::get_chat,
             commands::history::save_chat,
             commands::editor::get_editor_image,
+            commands::editor::import_editor_image,
+            commands::editor::clear_editor_image,
             commands::export::quick_save,
             commands::export::choose_save_as_path,
             commands::export::write_save_as,

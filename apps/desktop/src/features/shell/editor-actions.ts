@@ -38,6 +38,10 @@ export interface EditorActions {
   canRedo: boolean;
   undo: () => void;
   redo: () => void;
+  /** Something to clear: an image, or edits on the empty canvas. */
+  canStartOver: boolean;
+  /** Takes the image out of the editor and resets its scene. */
+  startOver: () => void;
   copy: () => void;
   /** Saves right away with the format and size chosen in the Save popover. */
   quickSave: () => void;

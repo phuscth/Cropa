@@ -21,6 +21,8 @@ fn main() {
         "get_chat",
         "save_chat",
         "get_editor_image",
+        "import_editor_image",
+        "clear_editor_image",
         "quick_save",
         "choose_save_as_path",
         "write_save_as",

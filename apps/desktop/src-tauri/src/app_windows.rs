@@ -20,6 +20,8 @@ pub const ONBOARDING: &str = "onboarding";
 /// How long a closed window stays hidden before it is destroyed.
 pub const DESTROY_AFTER: Duration = Duration::from_secs(5 * 60);
 
+// Each flag is a separate window builder option; they do not form states.
+#[allow(clippy::struct_excessive_bools)]
 struct Spec {
     label: &'static str,
     url: &'static str,
@@ -30,6 +32,9 @@ struct Spec {
     /// Whether the operating system draws the title bar and frame. The main
     /// window draws its own title bar in the page.
     decorations: bool,
+    /// Whether the page receives files dropped on it as HTML5 `drop` events, which
+    /// carry the `File`. The window's native file-drop handler is turned off for it.
+    page_file_drop: bool,
     /// Whether the window is transparent and the page draws its edge: the
     /// main window rounds its corners in CSS, on Windows 10 too. The OS then
     /// paints no background, shadow or corner of its own.
@@ -45,6 +50,7 @@ const SPECS: &[Spec] = &[
         min_size: Some((880.0, 520.0)),
         resizable: true,
         decorations: false,
+        page_file_drop: true,
         transparent: true,
     },
     Spec {
@@ -55,6 +61,7 @@ const SPECS: &[Spec] = &[
         min_size: None,
         resizable: false,
         decorations: true,
+        page_file_drop: false,
         transparent: false,
     },
 ];
@@ -107,6 +114,9 @@ fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewW
         .visible(false);
     if let Some((width, height)) = spec.min_size {
         builder = builder.min_inner_size(width, height);
+    }
+    if spec.page_file_drop {
+        builder = builder.disable_drag_drop_handler();
     }
     let window = builder.build()?;
     if spec.transparent {

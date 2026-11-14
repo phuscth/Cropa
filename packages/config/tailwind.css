@@ -181,13 +181,18 @@
 
   --animate-menu-in: menu-in 160ms var(--ease-enter);
   --animate-menu-out: menu-out 140ms var(--ease-enter) forwards;
+  --animate-fade-out: fade-out 160ms var(--ease-enter) forwards;
   --animate-fade-in: fade-in 200ms var(--ease-enter);
   --animate-notice-in: notice-in 200ms var(--ease-enter);
+  --animate-picker-in: picker-in 200ms var(--ease-enter);
+  --animate-confirm-in: confirm-in 200ms var(--ease-enter);
+  --animate-confirm-out: confirm-out 160ms var(--ease-enter) forwards;
   --animate-tab-in: tab-in 200ms var(--ease-enter);
   --animate-tooltip-in: tooltip-in 150ms var(--ease-enter);
 
   /* Movement distances, zeroed under reduced motion so only the fades remain. */
   --motion-scale-from: 0.96;
+  --motion-pop-from: 0.9;
   --motion-rise: 8px;
   --motion-slide: 6px;
 }
@@ -214,6 +219,38 @@
   }
 }
 
+/* A confirmation card growing out of the button that asked, and back into it. */
+@keyframes confirm-in {
+  from {
+    opacity: 0;
+    transform: scale(var(--motion-pop-from));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes confirm-out {
+  from {
+    opacity: 1;
+    transform: none;
+  }
+  to {
+    opacity: 0;
+    transform: scale(var(--motion-pop-from));
+  }
+}
+
+@keyframes fade-out {
+  from {
+    opacity: 1;
+  }
+  to {
+    opacity: 0;
+  }
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -227,6 +264,18 @@
   from {
     opacity: 0;
     transform: translateY(var(--motion-rise));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A panel at the top of the canvas, sliding down into place. */
+@keyframes picker-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--motion-rise)));
   }
   to {
     opacity: 1;
@@ -261,6 +310,7 @@
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-scale-from: 1;
+    --motion-pop-from: 1;
     --motion-rise: 0px;
     --motion-slide: 0px;
     --press-scale: 1;
