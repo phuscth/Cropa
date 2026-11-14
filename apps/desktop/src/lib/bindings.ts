@@ -40,6 +40,8 @@ export const commands = {
 	/**  Put the original capture back on the clipboard. */
 	copyHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("copy_history_image", { id })),
 	deleteHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_history_image", { id })),
+	/**  Delete several captures. The ones that could not be removed come back with the reason. */
+	deleteHistoryImages: (ids: string[]) => typedError<HistoryDeleteFailure[], CommandError>(__TAURI_INVOKE("delete_history_images", { ids })),
 	deleteAllHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("delete_all_history")),
 	openHistoryInEditor: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("open_history_in_editor", { id })),
 	/**  The conversation kept for a capture; empty when there is none. */
@@ -513,6 +515,12 @@ export type ExportFormat = "png" | "jpeg" | "webp";
 
 /**  The history changed: a capture was saved or deleted. */
 export type HistoryChanged = null;
+
+/**  A capture a batch delete could not remove. */
+export type HistoryDeleteFailure = {
+	id: string,
+	error: CommandError,
+};
 
 export type HistoryItem = {
 	id: string,

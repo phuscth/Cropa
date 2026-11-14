@@ -4,6 +4,8 @@
 
 use std::time::SystemTime;
 
+use serde::Serialize;
+use specta::Type;
 use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
 
@@ -101,6 +103,39 @@ pub async fn delete_history_image(app: AppHandle, id: String) -> Result<(), Comm
     .await?;
     announce_change(&app);
     Ok(())
+}
+
+/// A capture a batch delete could not remove.
+#[derive(Debug, Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct HistoryDeleteFailure {
+    pub id: String,
+    pub error: CommandError,
+}
+
+/// Delete several captures. The ones that could not be removed come back with the reason.
+#[tauri::command]
+#[specta::specta]
+pub async fn delete_history_images(
+    app: AppHandle,
+    ids: Vec<String>,
+) -> Result<Vec<HistoryDeleteFailure>, CommandError> {
+    let total = ids.len();
+    let failures = blocking(&app, move |history| {
+        Ok(history
+            .delete_each(&ids)
+            .into_iter()
+            .map(|(id, err)| HistoryDeleteFailure {
+                id,
+                error: delete_error(err),
+            })
+            .collect::<Vec<_>>())
+    })
+    .await?;
+    if failures.len() < total {
+        announce_change(&app);
+    }
+    Ok(failures)
 }
 
 #[tauri::command]
