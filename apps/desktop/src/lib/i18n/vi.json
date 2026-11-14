@@ -320,8 +320,19 @@
     "deleteAll": "Xóa tất cả",
     "confirm": {
       "message": "Xóa mọi ảnh chụp trong lịch sử? Không thể hoàn tác.",
-      "cancel": "Hủy"
+      "cancel": "Hủy",
+      "deleteSelected_one": "Xóa {{count}} ảnh chụp? Không thể hoàn tác.",
+      "deleteSelected_other": "Xóa {{count}} ảnh chụp? Không thể hoàn tác."
     },
+    "select": "Chọn",
+    "done": "Xong",
+    "selectAll": "Chọn tất cả",
+    "clearSelection": "Bỏ chọn",
+    "selectedCount_one": "Đã chọn {{count}}",
+    "selectedCount_other": "Đã chọn {{count}}",
+    "selectCapture": "Chọn ảnh chụp lúc {{time}}",
+    "deleteSelectedFailed_one": "Không xóa được {{count}} ảnh chụp.",
+    "deleteSelectedFailed_other": "Không xóa được {{count}} ảnh chụp.",
     "openInEditor": "Mở trong editor",
     "copy": "Sao chép",
     "copied": "Đã sao chép.",
@@ -333,6 +344,7 @@
   },
   "settings": {
     "title": "Cài đặt",
+    "nav": "Các trang cài đặt",
     "sections": {
       "capture": "Chụp màn hình",
       "appearance": "Giao diện",

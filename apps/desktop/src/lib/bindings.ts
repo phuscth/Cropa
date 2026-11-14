@@ -40,6 +40,8 @@ export const commands = {
 	/**  Put the original capture back on the clipboard. */
 	copyHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("copy_history_image", { id })),
 	deleteHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_history_image", { id })),
+	/**  Delete several captures. The ones that could not be removed come back with the reason. */
+	deleteHistoryImages: (ids: string[]) => typedError<HistoryDeleteFailure[], CommandError>(__TAURI_INVOKE("delete_history_images", { ids })),
 	deleteAllHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("delete_all_history")),
 	openHistoryInEditor: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("open_history_in_editor", { id })),
 	/**  The conversation kept for a capture; empty when there is none. */
@@ -169,6 +171,10 @@ export const commands = {
 	 *  state and creates no window, so it may be a synchronous command.
 	 */
 	getMainView: () => __TAURI_INVOKE<MainView>("get_main_view"),
+	/**  The settings page to show when the settings view loads. */
+	getSettingsSection: () => __TAURI_INVOKE<SettingsSection>("get_settings_section"),
+	/**  Record the settings page the user chose, so a reopened window shows it again. */
+	setSettingsSection: (section: SettingsSection) => __TAURI_INVOKE<void>("set_settings_section", { section }),
 	/**
 	 *  Start a region capture, as the capture shortcut and the tray do. It returns
 	 *  at once: the capture runs on its own thread.
@@ -557,6 +563,12 @@ export type FavoriteModel = {
 /**  The history changed: a capture was saved or deleted. */
 export type HistoryChanged = null;
 
+/**  A capture a batch delete could not remove. */
+export type HistoryDeleteFailure = {
+	id: string,
+	error: CommandError,
+};
+
 export type HistoryItem = {
 	id: string,
 	/**  Milliseconds since the Unix epoch. */
@@ -595,6 +607,9 @@ export type SavedFile = {
  *  (see `commands::settings::get_autostart`).
  */
 export type Settings = Settings_Serialize | Settings_Deserialize;
+
+/**  A page of the settings view. */
+export type SettingsSection = "capture" | "appearance" | "general" | "ai" | "about";
 
 /**
  *  Start-at-login is not stored here: Windows is the only source of truth for it

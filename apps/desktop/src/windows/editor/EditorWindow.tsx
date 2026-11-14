@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
 import { ChatPanel } from '../../features/chat/ChatPanel.tsx';
+import { ChatDock } from '../../features/chat/ChatDock.tsx';
 import { useChatPanelOpen, setChatPanelOpen } from '../../features/chat/panel-state.ts';
 import { useBackgroundChat } from '../../features/chat/use-background-chat.ts';
 import { AnnotationOverlay } from '../../features/editor/annotate/AnnotationOverlay.tsx';
@@ -279,8 +280,14 @@ export function EditorView() {
   // Clears the image in Rust; the image-changed event then empties the editor.
   // Through a ref, so `startOver` stays the same function and the title bar is not republished each render.
   const stopChat = useRef(chat.stop);
-  useEffect(() => { stopChat.current = chat.stop; });
-  const canStartOver = (hasImage || history.canUndo || history.canRedo) && !busy;
+  const clearChat = useRef(chat.clear);
+  useEffect(() => {
+    stopChat.current = chat.stop;
+    clearChat.current = chat.clear;
+  });
+  // A conversation that changed nothing on the canvas is still something to clear.
+  const hasChat = chat.state.messages.length > 0 || chat.state.run !== null;
+  const canStartOver = (hasImage || history.canUndo || history.canRedo || hasChat) && !busy;
   const startOver = useCallback(() => {
     stopChat.current();
     setPickerOpen(false);
@@ -293,6 +300,8 @@ export function EditorView() {
         // Edits made on the empty canvas go too, whether or not an image was loaded.
         setError(undefined);
         load(emptyScene);
+        // The empty canvas's conversation goes with its scene; an image change would not clear it.
+        clearChat.current();
       },
       (cause: unknown) => { setImportError(describeUnexpected(tRef.current, cause)); },
     );
@@ -538,7 +547,9 @@ export function EditorView() {
           )}
         />
       </section>
-      {loaded && chatOpen && <ChatPanel chat={chat} onClose={() => { setChatPanelOpen(false); }} />}
+      <ChatDock open={chatOpen}>
+        <ChatPanel chat={chat} onClose={() => { setChatPanelOpen(false); }} />
+      </ChatDock>
     </main>
   );
 }

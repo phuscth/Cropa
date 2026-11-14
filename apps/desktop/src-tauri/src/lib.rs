@@ -43,6 +43,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::history::get_history_thumbnail,
             commands::history::copy_history_image,
             commands::history::delete_history_image,
+            commands::history::delete_history_images,
             commands::history::delete_all_history,
             commands::history::open_history_in_editor,
             commands::history::get_chat,
@@ -80,6 +81,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::ai_setup::open_login_terminal,
             commands::settings::answer_autostart_question,
             commands::main_window::get_main_view,
+            commands::main_window::get_settings_section,
+            commands::main_window::set_settings_section,
             commands::main_window::request_capture,
         ])
         .events(collect_events![
@@ -109,6 +112,7 @@ fn export_bindings(builder: &tauri_specta::Builder<tauri::Wry>, path: &std::path
 fn manage_stores(app: &tauri::App, config_dir: &std::path::Path, local_data_dir: &std::path::Path) {
     app.manage(app_windows::CloseTimers::default());
     app.manage(main_window::MainViewState::default());
+    app.manage(main_window::SettingsSectionState::default());
     app.manage(editor::EditorImage::default());
     app.manage(commands::ai::AiRuns::default());
     app.manage(export::SavedFiles::default());

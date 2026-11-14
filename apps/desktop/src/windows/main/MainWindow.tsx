@@ -1,9 +1,9 @@
 import { cn } from '@cropa/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
-import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { ABOUT_SECTION_ID } from '../../features/settings/SettingsLayout.tsx';
+import { selectSettingsSection } from '../../features/settings/sections.ts';
 import { TitleBar } from '../../features/shell/TitleBar.tsx';
 import { ViewActiveContext } from '../../features/shell/view-active.ts';
 import { commands, events, type MainView } from '../../lib/bindings.ts';
@@ -13,6 +13,8 @@ import { EditorView } from '../editor/EditorWindow.tsx';
 import { HistoryView } from '../history/HistoryWindow.tsx';
 import { SettingsView } from '../settings/SettingsWindow.tsx';
 
+const ORDER: readonly MainView[] = ['Editor', 'History', 'Settings'];
+
 /**
  * The one window of the app: a title bar across the top with the buttons that
  * switch between the editor, history and settings views, and the view under it.
@@ -21,7 +23,9 @@ import { SettingsView } from '../settings/SettingsWindow.tsx';
  */
 export function MainWindow() {
   const { t } = useTranslation();
-  const [view, setView] = useState<MainView>('Editor');
+  // `from` is the side the view enters from: -1 left, 1 right, 0 for the first view.
+  const [{ view, from }, setShown] = useState<{ view: MainView; from: -1 | 0 | 1 }>({ view: 'Editor', from: 0 });
+  const panes = useRef(new Map<MainView, HTMLElement>());
   const [visited, setVisited] = useState<ReadonlySet<MainView>>(() => new Set<MainView>(['Editor']));
 
   // One notice for what the title bar's buttons could not do.
@@ -47,7 +51,11 @@ export function MainWindow() {
   }, [t]);
 
   const show = useCallback((next: MainView) => {
-    setView(next);
+    setShown((previous) =>
+      previous.view === next
+        ? previous
+        : { view: next, from: ORDER.indexOf(next) > ORDER.indexOf(previous.view) ? 1 : -1 },
+    );
     setVisited((previous) => (previous.has(next) ? previous : new Set(previous).add(next)));
   }, []);
 
@@ -74,25 +82,39 @@ export function MainWindow() {
     };
   }, [show]);
 
-  // The settings view may not be mounted yet, and loads before it shows the card.
+  // The entrance restarts on every switch, whether or not the browser would restart it when the
+  // pane goes from hidden to shown. Only the pane's own animations, not those of its contents.
+  useLayoutEffect(() => {
+    const incoming = panes.current.get(view);
+    if (!incoming) return;
+    for (const animation of incoming.getAnimations()) {
+      animation.cancel();
+      animation.play();
+    }
+  }, [view]);
+
+  // The settings view reads the chosen page when it mounts, so this works before its first visit.
   const showAbout = useCallback(() => {
+    selectSettingsSection('about');
     show('Settings');
-    let tries = 0;
-    const scroll = () => {
-      const card = document.getElementById(ABOUT_SECTION_ID);
-      if (card) card.scrollIntoView({ block: 'start' });
-      else if (++tries < 60) requestAnimationFrame(scroll);
-    };
-    requestAnimationFrame(scroll);
   }, [show]);
 
-  // A pane that comes to the front fades in; History and Settings sit in a panel of their own.
+  // A pane that comes to the front slides in from the side it lies on; History and Settings sit in a panel of their own.
   const pane = (which: MainView, children: ReactNode, panel = true) => (
     <ViewActiveContext.Provider value={view === which}>
       <div
+        ref={(element) => {
+          if (element) panes.current.set(which, element);
+          else panes.current.delete(which);
+        }}
         hidden={view !== which}
+        style={
+          view === which
+            ? ({ '--view-from': `calc(var(--motion-view) * ${String(from)})` } as CSSProperties)
+            : undefined
+        }
         className={cn(
-          'flex min-w-0 flex-1 animate-fade-in',
+          'flex min-w-0 flex-1 animate-view-in',
           panel && 'm-1.5 overflow-hidden rounded-2xl bg-panel',
         )}
       >

@@ -77,6 +77,8 @@ export interface ChatController {
   stop: () => void;
   regenerate: () => void;
   startOver: () => void;
+  /** Cancels any run and empties the conversation, as when the canvas is reset. */
+  clear: () => void;
   useResult: (messageId: string) => void;
   /** Saves a reply's background as a preset; resolves true once it is saved. */
   savePreset: (messageId: string, name: string) => Promise<boolean>;
@@ -148,12 +150,11 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
   const state = useSyncExternalStore(session.subscribe, session.getState);
 
   // A new image cancels a run in flight, whose answer was written for the old one, and brings
-  // the conversation kept for the new one.
+  // the conversation kept for the new one. Going back to the empty canvas shows an empty one.
   useEffect(() => {
-    if (imageId === 0) return undefined;
     let current = true;
     session.load(null, []);
-    if (historyId !== null) {
+    if (imageId !== 0 && historyId !== null) {
       // Waits for a reply still being saved, so reopening a capture never reads an older file.
       saver
         .settled()
@@ -306,6 +307,10 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
       if (ready) session.regenerate(ready);
     },
     startOver: () => { session.startOver(); },
+    clear: () => {
+      session.load(null, []);
+      setRaised(undefined);
+    },
     useResult: (messageId) => { session.useResult(messageId); },
     savePreset,
   };

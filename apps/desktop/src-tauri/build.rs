@@ -16,6 +16,7 @@ fn main() {
         "get_history_thumbnail",
         "copy_history_image",
         "delete_history_image",
+        "delete_history_images",
         "delete_all_history",
         "open_history_in_editor",
         "get_chat",
@@ -53,6 +54,8 @@ fn main() {
         "open_login_terminal",
         "answer_autostart_question",
         "get_main_view",
+        "get_settings_section",
+        "set_settings_section",
         "request_capture",
     ]);
 

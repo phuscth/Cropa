@@ -320,8 +320,19 @@
     "deleteAll": "Delete all",
     "confirm": {
       "message": "Delete every capture in history? This can't be undone.",
-      "cancel": "Cancel"
+      "cancel": "Cancel",
+      "deleteSelected_one": "Delete {{count}} capture? This can't be undone.",
+      "deleteSelected_other": "Delete {{count}} captures? This can't be undone."
     },
+    "select": "Select",
+    "done": "Done",
+    "selectAll": "Select all",
+    "clearSelection": "Clear",
+    "selectedCount_one": "{{count}} selected",
+    "selectedCount_other": "{{count}} selected",
+    "selectCapture": "Select capture from {{time}}",
+    "deleteSelectedFailed_one": "{{count}} capture couldn't be deleted.",
+    "deleteSelectedFailed_other": "{{count}} captures couldn't be deleted.",
     "openInEditor": "Open in editor",
     "copy": "Copy",
     "copied": "Copied.",
@@ -333,6 +344,7 @@
   },
   "settings": {
     "title": "Settings",
+    "nav": "Settings pages",
     "sections": {
       "capture": "Capture",
       "appearance": "Appearance",

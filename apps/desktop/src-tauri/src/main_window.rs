@@ -44,6 +44,40 @@ impl MainViewState {
     }
 }
 
+/// A page of the settings view.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum SettingsSection {
+    #[default]
+    Capture,
+    Appearance,
+    General,
+    Ai,
+    About,
+}
+
+/// The settings page last shown. It outlives the main window, which is
+/// destroyed a few minutes after it is closed, and is kept in memory only, so
+/// the view opens on the first page after a restart.
+#[derive(Default)]
+pub struct SettingsSectionState(Mutex<SettingsSection>);
+
+impl SettingsSectionState {
+    pub fn set(&self, section: SettingsSection) {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner) = section;
+    }
+
+    pub fn get(&self) -> SettingsSection {
+        *self
+            .0
+            .lock()
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+    }
+}
+
 /// Another view of the main window was requested while its page is open.
 #[derive(Debug, Clone, Serialize, Type, Event)]
 #[serde(rename_all = "camelCase")]
@@ -71,5 +105,13 @@ mod tests {
         assert_eq!(state.get(), MainView::Editor);
         state.set(MainView::Settings);
         assert_eq!(state.get(), MainView::Settings);
+    }
+
+    #[test]
+    fn settings_open_on_the_first_page_and_remember_the_last_one() {
+        let state = SettingsSectionState::default();
+        assert_eq!(state.get(), SettingsSection::Capture);
+        state.set(SettingsSection::About);
+        assert_eq!(state.get(), SettingsSection::About);
     }
 }

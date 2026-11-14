@@ -1,6 +1,7 @@
 // @cropa/ui: presentational shadcn/ui components. No business logic here.
 
 export { Button, buttonVariants } from './components/button.tsx';
+export { Checkbox } from './components/checkbox.tsx';
 export { ColorInput } from './components/color-input.tsx';
 export {
   DropdownMenu,
@@ -41,6 +42,7 @@ export { ModelPicker } from './components/model-picker.tsx';
 export type { ModelPickerModel, ModelPickerProps, ModelPickerProvider } from './components/model-picker.tsx';
 export { OptionList, OptionListItem } from './components/option-list.tsx';
 export { SegmentedControl, SegmentedControlItem } from './components/segmented-control.tsx';
+export { SidebarNav, type SidebarNavItem } from './components/sidebar-nav.tsx';
 export { Slider } from './components/slider.tsx';
 export { SliderField } from './components/slider-field.tsx';
 export { Switch } from './components/switch.tsx';
