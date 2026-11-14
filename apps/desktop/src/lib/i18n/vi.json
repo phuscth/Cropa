@@ -305,8 +305,7 @@
       "notInstalled": "{{provider}} chưa được cài đặt. Hãy cài đặt, đăng nhập rồi kiểm tra lại.",
       "notLoggedIn": "{{provider}} chưa đăng nhập. Hãy đăng nhập rồi kiểm tra lại.",
       "unavailable": "{{provider}} chưa có trong phiên bản này."
-    },
-    "notKeptNoImage": "Cuộc trò chuyện này sẽ kết thúc khi bạn mở một ảnh."
+    }
   },
   "nav": {
     "label": "Chế độ xem",

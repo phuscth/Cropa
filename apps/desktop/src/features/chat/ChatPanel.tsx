@@ -144,13 +144,16 @@ function Composer({ chat }: { chat: ChatController }) {
                 </div>
               </div>
             </div>
+            {/* With no image on the canvas there is nothing to say about it, so the tray goes. */}
+            {chat.hasImage && (
               <div className="mx-5 flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-b-[14px] bg-muted/45 px-3 pt-1 pb-1.5">
                 <span className={trayItem}>
                   <ImageIcon className="size-3.5" />
                   {t(refining ? 'chat.tray.thisBackground' : 'chat.tray.newBackground')}
                 </span>
-                {showNotKept && <span className={`${trayItem} basis-full`}>{t(chat.hasImage ? 'chat.notKept' : 'chat.notKeptNoImage')}</span>}
+                {showNotKept && <span className={`${trayItem} basis-full`}>{t('chat.notKept')}</span>}
               </div>
+            )}
           </div>
         )}
       </AiGate>

@@ -305,8 +305,7 @@
       "notInstalled": "{{provider}} isn't installed. Install it, log in, then check again.",
       "notLoggedIn": "{{provider}} isn't logged in. Log in, then check again.",
       "unavailable": "{{provider}} isn't available in this version yet."
-    },
-    "notKeptNoImage": "This conversation ends when you open an image."
+    }
   },
   "nav": {
     "label": "Views",
