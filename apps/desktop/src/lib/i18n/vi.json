@@ -3,7 +3,14 @@
     "name": "Cropa"
   },
   "editor": {
-    "empty": "Chưa có ảnh chụp.",
+    "drop": {
+      "title": "Kéo thả hoặc dán",
+      "subtitle": "Hình ảnh",
+      "selectTitle": "Chọn ảnh",
+      "selectSubtitle": "Chọn một tệp trên máy tính",
+      "dropTitle": "Thả để mở",
+      "opening": "Đang mở ảnh…"
+    },
     "hint": "Bấm {{shortcut}}, chọn Tệp > Chụp vùng, hoặc chọn “Chụp vùng” ở khay hệ thống.",
     "undo": "Hoàn tác",
     "redo": "Làm lại",
@@ -560,6 +567,21 @@
       "what": "Chưa thêm được ảnh.",
       "why": "File lớn hơn {{detail}} MB.",
       "next": "Chọn file nhỏ hơn, hoặc lưu một bản ảnh nhỏ hơn trước."
+    },
+    "ImageImportUnreadable": {
+      "what": "Chưa mở được ảnh.",
+      "why": "File này không phải là ảnh mà Cropa đọc được.",
+      "next": "Dùng ảnh PNG, JPEG hoặc WebP."
+    },
+    "ImageImportFileTooLarge": {
+      "what": "Chưa mở được ảnh.",
+      "why": "File lớn hơn {{limit}} MB.",
+      "next": "Chọn file nhỏ hơn, hoặc lưu một bản ảnh nhỏ hơn trước."
+    },
+    "ImageImportTooLarge": {
+      "what": "Chưa mở được ảnh.",
+      "why": "Ảnh lớn hơn {{detail}} px mỗi cạnh, hoặc có hơn {{megapixels}} megapixel.",
+      "next": "Thu nhỏ ảnh trước, rồi mở lại."
     },
     "BackgroundImagesFull": {
       "what": "Chưa thêm được ảnh.",

@@ -52,6 +52,13 @@ export const commands = {
 	/**  The image the editor shows with its capture time, or `None` when it has none. */
 	getEditorImage: () => typedError<EditorImageData_Serialize | null, CommandError>(__TAURI_INVOKE("get_editor_image")),
 	/**
+	 *  Opens a picture the user dropped, pasted or picked as the editor's image, as a
+	 *  capture would be: kept in the history when that is on, then shown. `data` is the
+	 *  base64 of a PNG with no `data:` prefix; the WebView has decoded the picture and
+	 *  checked it is under 50 MB, so Rust accepts only PNG.
+	 */
+	importEditorImage: (data: string) => typedError<null, CommandError>(__TAURI_INVOKE("import_editor_image", { data })),
+	/**
 	 *  Ctrl+S: save the rendered image (a `data:` URL of `format`) to the save
 	 *  folder, named after the capture time. `session_file` is the id of this
 	 *  image's earlier quick save, which is then replaced instead of adding a copy.
@@ -466,7 +473,7 @@ export type ChatRole = "user" | "agent";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "ChatInvalid"; detail: string } | { kind: "ChatTooNew" } | { kind: "ChatRead"; detail: string } | { kind: "ChatSave"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "ChatInvalid"; detail: string } | { kind: "ChatTooNew" } | { kind: "ChatRead"; detail: string } | { kind: "ChatSave"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "ImageImportUnreadable"; detail: string } | { kind: "ImageImportTooLarge"; detail: number } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
 
 /**  How a drag out of the editor ended. */
 export type DragResult = "dropped" | "cancelled" | 

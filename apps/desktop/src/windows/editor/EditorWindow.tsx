@@ -1,5 +1,5 @@
 import { defaultScene, edgeColor, type PaletteColour } from '@cropa/core';
-import { Button, CloseIcon } from '@cropa/ui';
+import { Button, cn, CloseIcon } from '@cropa/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -17,10 +17,16 @@ import { useViewActive } from '../../features/shell/view-active.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
 import { EXPORT_SIZES, exportPlan, type ExportSize } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
+import { EmptyCanvas } from '../../features/editor/EmptyCanvas.tsx';
+import { useEmptyBitmap } from '../../features/editor/empty-bitmap.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
+import { isDraggingOut } from '../../features/editor/export/use-export.ts';
+import { fileToPng, MAX_IMPORT_PIXELS, pickImageFile } from '../../features/editor/import-image.ts';
 import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
 import { beginBackgroundChange } from '../../features/editor/background-images.ts';
 import { dataUrlToBitmap } from '../../features/editor/load-image.ts';
+import { shotRectCss } from '../../features/editor/annotate/geometry.ts';
+import { sceneForNewImage } from '../../features/editor/scene-edits.ts';
 import { ScenePreview } from '../../features/editor/ScenePreview.tsx';
 import { useSceneHistory } from '../../features/editor/use-scene-history.ts';
 import { commands, events, type ExportFormat } from '../../lib/bindings.ts';
@@ -28,6 +34,7 @@ import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import {
   describeCommandError,
   describeEditorImage,
+  describeImageImport,
   describeUnexpected,
   type UserError,
 } from '../../lib/errors.ts';
@@ -46,7 +53,9 @@ interface Loaded {
   historyId: string | null;
 }
 
-const placeholder = defaultScene({ width: 1, height: 1 });
+/** The size of the stand-in screenshot before an image is loaded: 4:3. */
+const EMPTY_SIZE = { width: 1440, height: 1080 };
+const emptyScene = defaultScene(EMPTY_SIZE);
 const noPalette: PaletteColour[] = [];
 
 function findEdgeColor(bitmap: ImageBitmap): string | null {
@@ -61,22 +70,6 @@ function findEdgeColor(bitmap: ImageBitmap): string | null {
   }
 }
 
-/** Two crop corners around a square: the mark of an empty canvas. */
-function EmptyMark() {
-  return (
-    <svg viewBox="0 0 48 48" className="size-14 text-tertiary-foreground" fill="none" aria-hidden="true">
-      <path
-        d="M13 5v24a6 6 0 0 0 6 6h24M5 13h24a6 6 0 0 1 6 6v24"
-        stroke="currentColor"
-        strokeWidth="3"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-      <rect x="19" y="19" width="10" height="10" rx="2" fill="currentColor" opacity="0.5" />
-    </svg>
-  );
-}
-
 export function EditorView() {
   const { t } = useTranslation();
   // Hidden while another view is open: the keyboard shortcuts then belong to that view.
@@ -84,13 +77,24 @@ export function EditorView() {
   const [shortcut, setShortcut] = useState<string>();
   const [loaded, setLoaded] = useState<Loaded>();
   const [error, setError] = useState<UserError>();
+  const [importError, setImportError] = useState<UserError>();
+  const [importing, setImporting] = useState(false);
+  const [dragging, setDragging] = useState(false);
+  const emptyBitmap = useEmptyBitmap();
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; });
   const [format, setFormat] = useState<ExportFormat>('png');
   const [size, setSize] = useState<ExportSize>('2k');
-  const history = useSceneHistory(placeholder);
+  const history = useSceneHistory(emptyScene);
   const { load } = history;
   const hasImage = loaded !== undefined;
+  // Read by the image loader, which outlives renders: the first image keeps the scene chosen so far.
+  const sceneNow = useRef(history.scene);
+  const hasImageNow = useRef(hasImage);
+  useEffect(() => {
+    sceneNow.current = history.scene;
+    hasImageNow.current = hasImage;
+  });
   const annotate = useAnnotate({ history, imageId: loaded?.imageId ?? 0, enabled: hasImage && active });
   const { undo, redo } = annotate;
   // While a text is being edited, its glyphs are the text field's; the renderer skips empty text.
@@ -149,6 +153,12 @@ export function EditorView() {
   }, [history.scene, format, size, imageWidth, imageHeight]);
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
+  // An import counts as running until the image it opened has loaded, or failed to.
+  const importRunning = useRef(false);
+  const endImport = useCallback(() => {
+    importRunning.current = false;
+    setImporting(false);
+  }, []);
 
   useEffect(() => {
     void commands.getShortcutStatus().then((status) => {
@@ -163,7 +173,10 @@ export function EditorView() {
       // A background still loading belongs to the scene of the previous capture.
       beginBackgroundChange();
       const failed = (next: UserError) => {
-        if (id === loadId.current) setError(next);
+        if (id === loadId.current) {
+          setError(next);
+          endImport();
+        }
       };
       commands
         .getEditorImage()
@@ -174,7 +187,10 @@ export function EditorView() {
             return;
           }
           const data = result.data;
-          if (!data) return;
+          if (!data) {
+            endImport();
+            return;
+          }
           const bitmap = await dataUrlToBitmap(data.image).catch((cause: unknown) => {
             failed(describeEditorImage(tRef.current, cause));
             return undefined;
@@ -191,6 +207,7 @@ export function EditorView() {
             return;
           }
           setError(undefined);
+          endImport();
           const palette = screenshotPalette(bitmap);
           setLoaded((previous) => ({
             bitmap,
@@ -200,7 +217,12 @@ export function EditorView() {
             capturedAt: data.capturedAt,
             historyId: data.historyId,
           }));
-          load(defaultScene({ width: bitmap.width, height: bitmap.height }));
+          load(
+            sceneForNewImage(hasImageNow.current ? null : sceneNow.current, {
+              width: bitmap.width,
+              height: bitmap.height,
+            }),
+          );
         })
         .catch((cause: unknown) => { failed(describeUnexpected(tRef.current, cause)); });
     };
@@ -211,7 +233,7 @@ export function EditorView() {
       void unlistenStatus.then((off) => { off(); });
       void unlistenImage.then((off) => { off(); });
     };
-  }, [load]);
+  }, [load, endImport]);
 
   // Frees a bitmap when a newer image replaces it and when the window closes.
   const bitmap = loaded?.bitmap;
@@ -258,6 +280,98 @@ export function EditorView() {
   }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSaveChosen, saveAsChosen, exportOptions, dragHandlers]);
   useEffect(() => () => { publishEditorActions(null); }, []);
 
+  // Opens a file like a capture: Rust keeps and shows it, and the image-changed event loads it.
+  const importFile = useCallback(async (file: File) => {
+    if (importRunning.current) return;
+    importRunning.current = true;
+    setImporting(true);
+    let started = false;
+    try {
+      const png = await fileToPng(file);
+      if ('kind' in png) {
+        setImportError(describeImageImport(tRef.current, png));
+        return;
+      }
+      const result = await commands.importEditorImage(png.base64);
+      if (result.status === 'error') {
+        setImportError(
+          describeCommandError(tRef.current, result.error, { megapixels: String(MAX_IMPORT_PIXELS / 1_000_000) }),
+        );
+        return;
+      }
+      setImportError(undefined);
+      started = true;
+    } catch (cause) {
+      setImportError(describeUnexpected(tRef.current, cause));
+    } finally {
+      // After a success the editor-image event ends it, once the image has loaded.
+      if (!started) endImport();
+    }
+  }, [endImport]);
+
+  // The window has no native file-drop handler, so a dropped file arrives as an HTML5 drop. The
+  // page must cancel it, or the WebView navigates to the file; only the editor view acts on it.
+  const activeNow = useRef(active);
+  useEffect(() => { activeNow.current = active; });
+  useEffect(() => {
+    let depth = 0;
+    const carriesFiles = (event: DragEvent) => event.dataTransfer?.types.includes('Files') ?? false;
+    // The app's own drag of the exported image also arrives as a file drag; it is never an import.
+    const accepts = () => activeNow.current && !isDraggingOut();
+    const onEnter = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      depth += 1;
+      if (accepts()) setDragging(true);
+    };
+    const onOver = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      if (event.dataTransfer) event.dataTransfer.dropEffect = accepts() ? 'copy' : 'none';
+    };
+    const onLeave = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      depth = Math.max(0, depth - 1);
+      if (depth === 0) setDragging(false);
+    };
+    const onEnd = () => {
+      depth = 0;
+      setDragging(false);
+    };
+    const onDrop = (event: DragEvent) => {
+      if (!carriesFiles(event)) return;
+      event.preventDefault();
+      onEnd();
+      const file = accepts() && event.dataTransfer ? pickImageFile(event.dataTransfer.files) : undefined;
+      if (file) void importFile(file);
+    };
+    window.addEventListener('dragenter', onEnter);
+    window.addEventListener('dragover', onOver);
+    window.addEventListener('dragleave', onLeave);
+    window.addEventListener('drop', onDrop);
+    window.addEventListener('dragend', onEnd);
+    return () => {
+      window.removeEventListener('dragenter', onEnter);
+      window.removeEventListener('dragover', onOver);
+      window.removeEventListener('dragleave', onLeave);
+      window.removeEventListener('drop', onDrop);
+      window.removeEventListener('dragend', onEnd);
+    };
+  }, [importFile]);
+
+  useEffect(() => {
+    if (!active) return;
+    const onPaste = (event: ClipboardEvent) => {
+      if (isTextField(event.target)) return;
+      const file = Array.from(event.clipboardData?.files ?? []).find((f) => f.type.startsWith('image/'));
+      if (!file) return;
+      event.preventDefault();
+      void importFile(file);
+    };
+    window.addEventListener('paste', onPaste);
+    return () => { window.removeEventListener('paste', onPaste); };
+  }, [active, importFile]);
+
   const [captureError, setCaptureError] = useState<UserError>();
   const captureRegion = () => {
     requestCaptureAfterPaint().catch((cause: unknown) => {
@@ -281,6 +395,16 @@ export function EditorView() {
             />
           </div>
         )
+      )}
+      {importError && (
+        <div className="pointer-events-auto">
+          <ErrorNotice error={importError} onDismiss={() => { setImportError(undefined); }} />
+        </div>
+      )}
+      {captureError && (
+        <div className="pointer-events-auto">
+          <ErrorNotice error={captureError} onDismiss={() => { setCaptureError(undefined); }} />
+        </div>
       )}
       {exporter.notice && (
         <div
@@ -316,41 +440,50 @@ export function EditorView() {
     </div>
   );
 
+  const shownBitmap = loaded?.bitmap ?? emptyBitmap;
+
   return (
     <main className="flex min-w-0 flex-1 gap-1.5 p-1.5">
-      {loaded ? (
-        <>
-          <EditorSidebar history={history} edgeColor={loaded.edge} />
-          <section className="relative flex min-w-0 flex-1 overflow-hidden rounded-2xl bg-canvas">
-            <ScenePreview
-              scene={displayScene}
-              bitmap={loaded.bitmap}
-              bottomInset={showProperties ? 112 : 56}
-              overlay={(geometry) => (
-                <AnnotationOverlay annotate={annotate} scene={displayScene} geometry={geometry} />
-              )}
-            />
-            {notices}
-            {/* The properties float just above the toolbar, so the two read as one group. */}
-            <div className="pointer-events-none absolute inset-x-3 bottom-[60px] z-10 flex justify-center">
-              {showProperties && <AnnotationProperties annotate={annotate} />}
-            </div>
-            <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
-          </section>
-          {chatOpen && <ChatPanel chat={chat} onClose={() => { setChatPanelOpen(false); }} />}
-        </>
-      ) : (
-        <section className="relative flex flex-1 flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl bg-canvas p-8 text-center text-canvas-foreground">
-          {notices}
-          <EmptyMark />
-          <p className="text-heading text-foreground">{t('editor.empty')}</p>
-          {shortcut && <p className="max-w-sm text-control-sm font-normal">{t('editor.hint', { shortcut })}</p>}
-          {captureError && <ErrorNotice error={captureError} onDismiss={() => { setCaptureError(undefined); }} />}
-          <Button className="mt-1" onClick={captureRegion}>
-            {t('menu.file.captureRegion')}
-          </Button>
-        </section>
-      )}
+      <EditorSidebar history={history} edgeColor={loaded?.edge ?? null} />
+      <section className="relative flex min-w-0 flex-1 overflow-hidden rounded-2xl bg-canvas">
+        {shownBitmap && (
+          <ScenePreview
+            scene={displayScene}
+            bitmap={shownBitmap}
+            bottomInset={showProperties ? 112 : 56}
+            overlay={(geometry) => {
+              if (loaded) return <AnnotationOverlay annotate={annotate} scene={displayScene} geometry={geometry} />;
+              const rect = shotRectCss(displayScene, geometry);
+              return (
+                <EmptyCanvas
+                  rect={rect}
+                  radius={displayScene.frame.radius * (rect.w / displayScene.screenshot.width)}
+                  dragging={dragging}
+                  importing={importing}
+                  shortcut={shortcut}
+                  onFile={(file) => { void importFile(file); }}
+                  onCapture={captureRegion}
+                />
+              );
+            }}
+          />
+        )}
+        {notices}
+        {/* The properties float just above the toolbar, so the two read as one group. */}
+        <div className="pointer-events-none absolute inset-x-3 bottom-[60px] z-10 flex justify-center">
+          {showProperties && <AnnotationProperties annotate={annotate} />}
+        </div>
+        <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
+        {/* With an image open, a dragged file replaces it; without one, the card shows the drop. */}
+        <div
+          aria-hidden="true"
+          className={cn(
+            'pointer-events-none absolute inset-0 z-20 rounded-2xl ring-2 ring-inset ring-ring transition-opacity duration-150',
+            dragging && hasImage ? 'opacity-100' : 'opacity-0',
+          )}
+        />
+      </section>
+      {loaded && chatOpen && <ChatPanel chat={chat} onClose={() => { setChatPanelOpen(false); }} />}
     </main>
   );
 }

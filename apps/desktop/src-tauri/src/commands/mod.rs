@@ -98,6 +98,10 @@ pub enum CommandError {
     BackgroundImagesRead(String),
     #[error("could not save the background image: {0}")]
     BackgroundImagesSave(String),
+    #[error("the picture could not be opened: {0}")]
+    ImageImportUnreadable(String),
+    #[error("the picture is larger than {0} pixels on a side")]
+    ImageImportTooLarge(u32),
     #[error("the test provider is not available in this build")]
     AiProviderUnavailable,
     #[error("the AI command line tool was not found")]

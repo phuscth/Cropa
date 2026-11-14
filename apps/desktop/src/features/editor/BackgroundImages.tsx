@@ -17,6 +17,7 @@ import {
   cacheImage,
   ensureRefs,
 } from './background-images.ts';
+import { readBase64 } from './import-image.ts';
 import { imageThumbnail } from './presets/thumbnails.ts';
 import { backgroundImageRef, CAPTURE_REF, setBackgroundImage } from './scene-edits.ts';
 import type { SceneHistory } from './use-scene-history.ts';
@@ -30,19 +31,6 @@ const MAX_FILE_MB = 20;
 const MAX_SIDE = 8192;
 
 const userRef = (id: string) => `user:${id}`;
-
-/** The file as base64, without the `data:` prefix Rust does not expect. */
-function readBase64(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const url = typeof reader.result === 'string' ? reader.result : '';
-      resolve(url.slice(url.indexOf(',') + 1));
-    };
-    reader.onerror = () => { reject(reader.error ?? new Error('could not read the file')); };
-    reader.readAsDataURL(file);
-  });
-}
 
 function UserThumb({ imageRef }: { imageRef: string }) {
   const [url, setUrl] = useState<string>();

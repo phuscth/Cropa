@@ -28,6 +28,9 @@ struct Spec {
     /// Whether the operating system draws the title bar and frame. The main
     /// window draws its own title bar in the page.
     decorations: bool,
+    /// Whether the page receives files dropped on it as HTML5 `drop` events, which
+    /// carry the `File`. The window's native file-drop handler is turned off for it.
+    page_file_drop: bool,
 }
 
 const SPECS: &[Spec] = &[
@@ -39,6 +42,7 @@ const SPECS: &[Spec] = &[
         min_size: Some((880.0, 520.0)),
         resizable: true,
         decorations: false,
+        page_file_drop: true,
     },
     Spec {
         label: ONBOARDING,
@@ -48,6 +52,7 @@ const SPECS: &[Spec] = &[
         min_size: None,
         resizable: false,
         decorations: true,
+        page_file_drop: false,
     },
 ];
 
@@ -95,6 +100,9 @@ fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewW
         .visible(false);
     if let Some((width, height)) = spec.min_size {
         builder = builder.min_inner_size(width, height);
+    }
+    if spec.page_file_drop {
+        builder = builder.disable_drag_drop_handler();
     }
     let window = builder.build()?;
     match window.theme() {

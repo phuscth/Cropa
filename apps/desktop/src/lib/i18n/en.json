@@ -3,7 +3,14 @@
     "name": "Cropa"
   },
   "editor": {
-    "empty": "No screenshot yet.",
+    "drop": {
+      "title": "Drop or Paste",
+      "subtitle": "Images",
+      "selectTitle": "Select image",
+      "selectSubtitle": "Choose a file from your computer",
+      "dropTitle": "Drop to open",
+      "opening": "Opening image…"
+    },
     "hint": "Press {{shortcut}}, choose File > Capture region, or use “Capture region” in the tray.",
     "undo": "Undo",
     "redo": "Redo",
@@ -560,6 +567,21 @@
       "what": "Couldn't add the image.",
       "why": "The file is larger than {{detail}} MB.",
       "next": "Pick a smaller file, or save a smaller copy of the picture first."
+    },
+    "ImageImportUnreadable": {
+      "what": "Couldn't open the image.",
+      "why": "The file isn't a picture Cropa can read.",
+      "next": "Use a PNG, JPEG or WebP image."
+    },
+    "ImageImportFileTooLarge": {
+      "what": "Couldn't open the image.",
+      "why": "The file is larger than {{limit}} MB.",
+      "next": "Use a smaller file, or save a smaller copy of the picture first."
+    },
+    "ImageImportTooLarge": {
+      "what": "Couldn't open the image.",
+      "why": "The picture is larger than {{detail}} px on a side, or has more than {{megapixels}} megapixels.",
+      "next": "Resize the picture first, then open it again."
     },
     "BackgroundImagesFull": {
       "what": "Couldn't add the image.",
