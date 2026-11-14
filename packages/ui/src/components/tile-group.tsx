@@ -61,7 +61,7 @@ function Tile({ className, label, children, thumbClassName, overlay, ...props }:
       >
         <span
           className={cn(
-            'relative flex h-12 items-center justify-center overflow-hidden rounded-[11px] bg-secondary outline-2 outline-offset-0 outline-transparent transition-[outline-color,outline-offset,box-shadow,transform,translate] duration-200 ease-enter group-hover/tile:-translate-y-px group-hover/tile:shadow-soft-hover group-data-[state=on]/tile:outline-foreground group-data-[state=on]/tile:outline-offset-2 group-disabled/tile:opacity-50',
+            'relative flex h-12 items-center justify-center overflow-hidden rounded-[11px] bg-secondary outline-[1.5px] outline-offset-0 outline-transparent transition-[outline-color,outline-offset,box-shadow,transform,translate] duration-200 ease-enter group-hover/tile:-translate-y-px group-hover/tile:shadow-soft-hover group-data-[state=on]/tile:outline-foreground/45 group-data-[state=on]/tile:outline-offset-2 group-disabled/tile:opacity-50',
             thumbClassName,
           )}
         >
