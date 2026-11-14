@@ -12,6 +12,8 @@ use std::time::Duration;
 use tauri::window::Color;
 use tauri::{AppHandle, Manager, Runtime, WebviewUrl, WebviewWindow, WebviewWindowBuilder};
 
+use crate::platform::{self, OwnerWindow, Platform};
+
 pub const MAIN: &str = "main";
 pub const ONBOARDING: &str = "onboarding";
 
@@ -28,6 +30,10 @@ struct Spec {
     /// Whether the operating system draws the title bar and frame. The main
     /// window draws its own title bar in the page.
     decorations: bool,
+    /// Whether the window is transparent and the page draws its edge: the
+    /// main window rounds its corners in CSS, on Windows 10 too. The OS then
+    /// paints no background, shadow or corner of its own.
+    transparent: bool,
 }
 
 const SPECS: &[Spec] = &[
@@ -39,6 +45,7 @@ const SPECS: &[Spec] = &[
         min_size: Some((880.0, 520.0)),
         resizable: true,
         decorations: false,
+        transparent: true,
     },
     Spec {
         label: ONBOARDING,
@@ -48,6 +55,7 @@ const SPECS: &[Spec] = &[
         min_size: None,
         resizable: false,
         decorations: true,
+        transparent: false,
     },
 ];
 
@@ -77,29 +85,41 @@ pub fn show<R: Runtime>(app: &AppHandle<R>, label: &str) -> bool {
     true
 }
 
+fn spec(label: &str) -> Option<&'static Spec> {
+    SPECS.iter().find(|spec| spec.label == label)
+}
+
 fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewWindow<R>> {
-    let spec = SPECS
-        .iter()
-        .find(|spec| spec.label == label)
-        .ok_or_else(|| tauri::Error::WindowNotFound)?;
+    let spec = spec(label).ok_or_else(|| tauri::Error::WindowNotFound)?;
     let mut builder = WebviewWindowBuilder::new(app, spec.label, WebviewUrl::App(spec.url.into()))
         .title(spec.title)
         .inner_size(spec.size.0, spec.size.1)
         .resizable(spec.resizable)
         .maximizable(spec.resizable)
         .decorations(spec.decorations)
-        // An undecorated window keeps the native shadow and rounded corners
-        // only with this set (it is the default, stated so it stays).
-        .shadow(true)
+        .transparent(spec.transparent)
+        // The native shadow of an undecorated window comes with a frame that
+        // the OS draws square (Windows 10) or rounded at its own smaller
+        // radius (Windows 11); around corners the page rounds, it would show.
+        // It has no effect on a decorated window.
+        .shadow(!spec.transparent)
         .center()
         .visible(false);
     if let Some((width, height)) = spec.min_size {
         builder = builder.min_inner_size(width, height);
     }
     let window = builder.build()?;
-    match window.theme() {
-        Ok(theme) => paint_background(&window, theme),
-        Err(err) => log::warn!("could not read the theme of window `{label}`: {err}"),
+    if spec.transparent {
+        if let Some(owner) = OwnerWindow::of(&window)
+            && let Err(err) = platform::current().drop_native_corners(owner)
+        {
+            log::warn!("could not turn off the native corners of window `{label}`: {err}");
+        }
+    } else {
+        match window.theme() {
+            Ok(theme) => paint_background(&window, theme),
+            Err(err) => log::warn!("could not read the theme of window `{label}`: {err}"),
+        }
     }
     Ok(window)
 }
@@ -108,7 +128,13 @@ fn create<R: Runtime>(app: &AppHandle<R>, label: &str) -> tauri::Result<WebviewW
 /// window does not flash white before the page loads or while it is resized.
 /// Called when a window is created and whenever its theme changes. The colours
 /// match `--background` in packages/config/tailwind.css.
+///
+/// A transparent window is left alone: its page paints its own background,
+/// and a native one would fill the corners the page leaves out.
 pub fn paint_background<R: Runtime>(window: &WebviewWindow<R>, theme: tauri::Theme) {
+    if spec(window.label()).is_some_and(|spec| spec.transparent) {
+        return;
+    }
     let background = match theme {
         tauri::Theme::Dark => Color(0x0d, 0x0d, 0x0d, 255),
         _ => Color(0xda, 0xda, 0xda, 255),

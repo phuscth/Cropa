@@ -8,6 +8,11 @@
 // why it is sound.
 #![allow(unsafe_code)]
 
+use ::windows::Win32::Foundation::{E_INVALIDARG, HWND};
+use ::windows::Win32::Graphics::Dwm::{
+    DWMWA_BORDER_COLOR, DWMWA_COLOR_NONE, DWMWA_WINDOW_CORNER_PREFERENCE, DWMWCP_DONOTROUND,
+    DwmSetWindowAttribute,
+};
 use ::windows::Win32::UI::Shell::ShellExecuteW;
 use ::windows::Win32::UI::WindowsAndMessaging::{
     IDYES, MB_DEFBUTTON1, MB_ICONQUESTION, MB_ICONWARNING, MB_OK, MB_SETFOREGROUND, MB_TOPMOST,
@@ -24,6 +29,7 @@ mod overlay;
 mod preview;
 mod window_list;
 
+use std::ffi::c_void;
 use std::path::{Path, PathBuf};
 
 use super::{
@@ -250,6 +256,38 @@ impl Platform for WindowsPlatform {
         png: &[u8],
     ) -> Result<DragOutcome> {
         drag::drag_file(owner, path, png)
+    }
+
+    // The attribute values are 4 bytes; their size fits in a u32.
+    #[allow(clippy::cast_possible_truncation)]
+    fn drop_native_corners(&self, window: OwnerWindow) -> Result<()> {
+        let hwnd = HWND(window.0 as *mut c_void);
+        let corners = DWMWCP_DONOTROUND;
+        let border = DWMWA_COLOR_NONE;
+        // SAFETY: `hwnd` is a live window of this process, and each pointer
+        // refers to a value of the attribute's type that outlives the call.
+        let result = unsafe {
+            DwmSetWindowAttribute(
+                hwnd,
+                DWMWA_WINDOW_CORNER_PREFERENCE,
+                (&raw const corners).cast(),
+                size_of_val(&corners) as u32,
+            )
+            .and_then(|()| {
+                DwmSetWindowAttribute(
+                    hwnd,
+                    DWMWA_BORDER_COLOR,
+                    (&raw const border).cast(),
+                    size_of_val(&border) as u32,
+                )
+            })
+        };
+        match result {
+            // Windows 10 does not know these attributes: it neither rounds
+            // nor outlines the window.
+            Err(err) if err.code() == E_INVALIDARG => Ok(()),
+            other => other.map_err(|err| PlatformError::Os(err.to_string())),
+        }
     }
 }
 

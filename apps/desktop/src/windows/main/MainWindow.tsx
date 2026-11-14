@@ -1,12 +1,14 @@
 import { cn } from '@cropa/ui';
+import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { useTranslation } from 'react-i18next';
 
 import { ABOUT_SECTION_ID } from '../../features/settings/SettingsLayout.tsx';
 import { TitleBar } from '../../features/shell/TitleBar.tsx';
 import { ViewActiveContext } from '../../features/shell/view-active.ts';
 import { commands, events, type MainView } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
-import type { UserError } from '../../lib/errors.ts';
+import { describeUnexpected, type UserError } from '../../lib/errors.ts';
 import { EditorView } from '../editor/EditorWindow.tsx';
 import { HistoryView } from '../history/HistoryWindow.tsx';
 import { SettingsView } from '../settings/SettingsWindow.tsx';
@@ -18,11 +20,31 @@ import { SettingsView } from '../settings/SettingsWindow.tsx';
  * keeps its image, scene and undo history while another view is open.
  */
 export function MainWindow() {
+  const { t } = useTranslation();
   const [view, setView] = useState<MainView>('Editor');
   const [visited, setVisited] = useState<ReadonlySet<MainView>>(() => new Set<MainView>(['Editor']));
 
   // One notice for what the title bar's buttons could not do.
   const [error, setError] = useState<UserError>();
+
+  // Rounded corners only while restored: a maximized window meets the screen edges.
+  const [maximized, setMaximized] = useState(false);
+  useEffect(() => {
+    const win = getCurrentWindow();
+    let stopped = false;
+    const sync = () => {
+      win
+        .isMaximized()
+        .then((next) => { if (!stopped) setMaximized(next); })
+        .catch((cause: unknown) => { if (!stopped) setError(describeUnexpected(t, cause)); });
+    };
+    sync();
+    const unlisten = win.onResized(sync);
+    return () => {
+      stopped = true;
+      void unlisten.then((off) => { off(); });
+    };
+  }, [t]);
 
   const show = useCallback((next: MainView) => {
     setView(next);
@@ -80,8 +102,14 @@ export function MainWindow() {
   );
 
   return (
-    <div className="flex h-screen flex-col">
+    <div
+      className={cn(
+        'flex h-screen flex-col overflow-hidden bg-background',
+        !maximized && 'rounded-2xl border',
+      )}
+    >
       <TitleBar
+        maximized={maximized}
         view={view}
         onView={show}
         onAbout={showAbout}
