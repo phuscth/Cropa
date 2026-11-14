@@ -155,7 +155,7 @@ function releaseSpeed(samples: readonly { x: number; t: number }[], now: number)
 
 /**
  * One row of cards that scrolls sideways: by wheel or trackpad, and by pressing and dragging
- * with a mouse or pen. A press that moves past a few pixels scrolls the row and does not click
+ * with a mouse. A press that moves past a few pixels scrolls the row and does not click
  * the card it started on; on release the row glides on with the drag's speed and settles on a
  * card edge (at once under reduced motion). A press a control already handled, such as a menu
  * button that opens on pointer down, is left to it.
@@ -192,7 +192,15 @@ function PickerRow({
       snapPositions(row),
       row.scrollWidth - row.clientWidth,
     );
-    row.scrollTo({ left, behavior: reduce ? 'instant' : 'smooth' });
+    if (reduce || Math.abs(left - row.scrollLeft) < 1) {
+      row.scrollTo({ left, behavior: 'instant' });
+      return;
+    }
+    // Snapping stays off until the row has settled, so it cannot pick a different card
+    // half way through the glide. The glide ends on a snap point, where snapping agrees.
+    row.setAttribute('data-gliding', '');
+    row.addEventListener('scrollend', () => { row.removeAttribute('data-gliding'); }, { once: true });
+    row.scrollTo({ left, behavior: 'smooth' });
   };
 
   return (
@@ -201,14 +209,15 @@ function PickerRow({
       className={cn(
         'flex cursor-grab snap-x snap-proximity scroll-px-4 gap-3 overflow-x-auto px-4 pt-1.5 pb-3',
         // While dragging, snapping would pull against the pointer, and the cards under it must
-        // neither lift on hover nor show their own cursor.
-        'data-dragging:cursor-grabbing data-dragging:snap-none data-dragging:select-none [&[data-dragging]_*]:pointer-events-none',
+        // neither lift on hover, stay pressed, nor show their own cursor.
+        'data-dragging:cursor-grabbing data-dragging:snap-none data-dragging:select-none data-gliding:snap-none [&[data-dragging]_*]:pointer-events-none [&[data-dragging]_*]:[--press-scale:1]',
         className,
       )}
       onPointerDown={(event) => {
         onPointerDown?.(event);
         swallowClick.current = false;
-        if (event.defaultPrevented || event.button !== 0 || event.pointerType === 'touch') return;
+        // Touch and pen already pan the row natively.
+        if (event.defaultPrevented || event.button !== 0 || event.pointerType !== 'mouse') return;
         drag.current = {
           pointerId: event.pointerId,
           startX: event.clientX,
@@ -223,15 +232,18 @@ function PickerRow({
         const current = drag.current;
         if (current?.pointerId !== event.pointerId) return;
         const row = event.currentTarget;
-        const dx = event.clientX - current.startX;
         if (!current.dragging) {
-          if (!isDrag(dx, event.clientY - current.startY)) return;
+          if (!isDrag(event.clientX - current.startX, event.clientY - current.startY)) return;
           current.dragging = true;
+          // Counted from here, so a row still gliding from a flick is caught where it is
+          // instead of jumping back to where it was when pressed.
+          current.startX = event.clientX;
+          current.startScroll = row.scrollLeft;
           // Captured so the drag follows the pointer, and ends, even outside the row.
           row.setPointerCapture(event.pointerId);
           row.setAttribute('data-dragging', '');
         }
-        row.scrollLeft = current.startScroll - dx;
+        row.scrollLeft = current.startScroll - (event.clientX - current.startX);
         current.samples.push({ x: event.clientX, t: event.timeStamp });
         while (current.samples.length > 2 && event.timeStamp - (current.samples[0]?.t ?? 0) > VELOCITY_WINDOW_MS) {
           current.samples.shift();
