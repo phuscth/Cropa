@@ -3,7 +3,9 @@ import { getCurrentWindow } from '@tauri-apps/api/window';
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { AiOnboarding } from '../../features/ai/AiOnboarding.tsx';
+import { AiProviderList } from '../../features/ai/AiProviderList.tsx';
+import { cliStatus } from '../../features/ai/providers.ts';
+import { useDetection } from '../../features/ai/use-ai-providers.ts';
 import { commands } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
@@ -19,6 +21,8 @@ export function OnboardingWindow() {
   const [error, setError] = useState<UserError>();
   // The answer was given, but applying it failed: the next click only moves on.
   const [answeredWithError, setAnsweredWithError] = useState(false);
+  const { listed, rechecking, recheck } = useDetection();
+  const anyReady = listed?.some(({ detection }) => cliStatus(detection) === 'ready') ?? false;
 
   useEffect(() => {
     commands
@@ -33,6 +37,21 @@ export function OnboardingWindow() {
 
   const finish = () => {
     getCurrentWindow().close().catch((cause: unknown) => { setError(describeUnexpected(t, cause)); });
+  };
+
+  // Done and Later both end the step; the first is what the button says once a provider is ready.
+  const endAiStep = async () => {
+    setBusy(true);
+    setError(undefined);
+    try {
+      const result = await commands.dismissAiOnboarding();
+      if (result.status === 'error') setError(describeCommandError(t, result.error));
+      else finish();
+    } catch (cause) {
+      setError(describeUnexpected(t, cause));
+    } finally {
+      setBusy(false);
+    }
   };
 
   const answer = async () => {
@@ -100,7 +119,16 @@ export function OnboardingWindow() {
       {step === 'ai' && (
         <section className="flex flex-col gap-3">
           <h2 className="text-heading">{t('onboarding.ai.heading')}</h2>
-          <AiOnboarding mode="first" onSaved={finish} />
+          <div className="flex flex-col gap-4 rounded-xl bg-card p-5 shadow-soft">
+            <h3 className="text-sm font-medium">{t('ai.onboarding.title')}</h3>
+            <p className="text-sm text-muted-foreground">{t('ai.onboarding.intro')}</p>
+            <AiProviderList listed={listed} recheck={recheck} rechecking={rechecking} disabled={busy} />
+            <div className="flex justify-end">
+              <Button disabled={busy} onClick={() => { void endAiStep(); }}>
+                {t(anyReady ? 'ai.onboarding.done' : 'ai.onboarding.later')}
+              </Button>
+            </div>
+          </div>
         </section>
       )}
     </main>

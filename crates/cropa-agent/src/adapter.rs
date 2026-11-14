@@ -9,7 +9,7 @@ use std::path::{Path, PathBuf};
 use std::time::Duration;
 
 use crate::cancel::CancelToken;
-use crate::cli::{AgentError, Detection};
+use crate::cli::{AgentError, Detection, ModelInfo};
 use crate::env::{BASE_ENV_ALLOWLIST, filter_env};
 use crate::runner::{Captured, Finished, ProcessError, ProcessSpec, run_capture};
 use crate::turn_dir::TurnDir;
@@ -85,20 +85,69 @@ pub fn parse_version(text: &str) -> Option<Version> {
         })
 }
 
-/// Refuses a model name that is empty, long, starts with `-` or holds bytes
-/// outside `[A-Za-z0-9._:-]`.
-pub fn check_model(model: Option<&str>) -> Result<(), AgentError> {
-    let Some(model) = model else { return Ok(()) };
-    let ok = (1..=64).contains(&model.len())
-        && !model.starts_with('-')
-        && model
+/// Whether `name` can go to `--model`: 1 to 64 bytes of `[A-Za-z0-9._:-]`, not
+/// starting with `-`.
+pub fn valid_model_name(name: &str) -> bool {
+    (1..=64).contains(&name.len())
+        && !name.starts_with('-')
+        && name
             .bytes()
-            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b':' | b'-'));
-    if ok {
-        Ok(())
-    } else {
-        Err(AgentError::Protocol("invalid model name".to_owned()))
+            .all(|b| b.is_ascii_alphanumeric() || matches!(b, b'.' | b'_' | b':' | b'-'))
+}
+
+/// Refuses a model name that fails [`valid_model_name`].
+pub fn check_model(model: Option<&str>) -> Result<(), AgentError> {
+    match model {
+        Some(model) if !valid_model_name(model) => {
+            Err(AgentError::Protocol("invalid model name".to_owned()))
+        }
+        _ => Ok(()),
     }
+}
+
+/// How long listing a CLI's models may take.
+pub const LIST_TIMEOUT: Duration = Duration::from_secs(15);
+
+const MAX_MODELS: usize = 32;
+const MAX_NAME_CHARS: usize = 64;
+const MAX_DESCRIPTION_CHARS: usize = 200;
+
+fn truncate_chars(text: &str, max: usize) -> String {
+    text.chars().take(max).collect()
+}
+
+/// Cleans what a CLI reported: drops entries whose id is not a valid model
+/// name and duplicate ids (the first wins), cuts the texts, keeps at most 32
+/// entries and puts the one default first. If several claim to be the default
+/// only the first stays one. An empty display name becomes the id.
+pub fn sanitize_models(models: Vec<ModelInfo>) -> Vec<ModelInfo> {
+    let mut seen = std::collections::HashSet::new();
+    let mut out: Vec<ModelInfo> = Vec::new();
+    let mut default_seen = false;
+    for mut model in models {
+        if !valid_model_name(&model.id) || !seen.insert(model.id.clone()) {
+            continue;
+        }
+        model.display_name = if model.display_name.trim().is_empty() {
+            model.id.clone()
+        } else {
+            truncate_chars(&model.display_name, MAX_NAME_CHARS)
+        };
+        model.description = truncate_chars(&model.description, MAX_DESCRIPTION_CHARS);
+        if model.is_default {
+            if default_seen {
+                model.is_default = false;
+            }
+            default_seen = true;
+        }
+        out.push(model);
+        if out.len() == MAX_MODELS {
+            break;
+        }
+    }
+    // Stable: the default moves to the front, the rest keep their order.
+    out.sort_by_key(|model| !model.is_default);
+    out
 }
 
 /// Reads an input picture. Only PNG is accepted.
@@ -167,6 +216,7 @@ fn capture(executable: &Path, args: &[&str], env: &[(OsString, OsString)]) -> Op
         args: args.iter().map(OsString::from).collect(),
         env: env.to_vec(),
         stdin: None,
+        keep_stdin_open: false,
         timeout: PROBE_TIMEOUT,
     };
     run_capture(&spec, dir.path(), &CancelToken::new()).ok()
@@ -227,6 +277,44 @@ mod tests {
                 "{bad}"
             );
         }
+    }
+
+    fn model(id: &str, default: bool) -> ModelInfo {
+        ModelInfo {
+            id: id.to_owned(),
+            display_name: id.to_owned(),
+            description: String::new(),
+            is_default: default,
+            is_new: false,
+        }
+    }
+
+    #[test]
+    fn listed_models_are_cleaned() {
+        let mut long = model("long", false);
+        long.display_name = "é".repeat(100);
+        long.description = "d".repeat(300);
+        let mut unnamed = model("unnamed", false);
+        unnamed.display_name = "  ".to_owned();
+        let cleaned = sanitize_models(vec![
+            model("a", false),
+            model("--bad", false),
+            model("b", true),
+            model("a", true),
+            model("c", true),
+            long,
+            unnamed,
+        ]);
+        let ids: Vec<_> = cleaned.iter().map(|m| m.id.as_str()).collect();
+        assert_eq!(ids, ["b", "a", "c", "long", "unnamed"]);
+        let defaults: Vec<_> = cleaned.iter().map(|m| m.is_default).collect();
+        assert_eq!(defaults, [true, false, false, false, false]);
+        assert_eq!(cleaned[3].display_name.chars().count(), 64);
+        assert_eq!(cleaned[3].description.len(), 200);
+        assert_eq!(cleaned[4].display_name, "unnamed");
+
+        let many: Vec<_> = (0..40).map(|i| model(&format!("m{i}"), false)).collect();
+        assert_eq!(sanitize_models(many).len(), 32);
     }
 
     #[test]

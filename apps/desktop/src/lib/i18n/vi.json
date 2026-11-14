@@ -290,7 +290,22 @@
       "next": "Hãy thử một mô tả không có vật thể 3D. Preset gần nhất vẫn được giữ.",
       "nextKept": "Hãy thử một mô tả không có vật thể 3D. Nền hiện tại của bạn không thay đổi."
     },
-    "unchanged": "Nền hiện tại của bạn không thay đổi."
+    "unchanged": "Nền hiện tại của bạn không thay đổi.",
+    "model": {
+      "picker": "Mô hình: {{model}}",
+      "search": "Tìm mô hình…",
+      "favorites": "Mô hình yêu thích",
+      "addFavorite": "Thêm {{model}} vào yêu thích",
+      "removeFavorite": "Bỏ {{model}} khỏi yêu thích",
+      "new": "Mới",
+      "noFavorites": "Gắn sao cho một mô hình để giữ nó ở đây.",
+      "noMatch": "Không có mô hình nào khớp “{{query}}”.",
+      "default": "Mặc định",
+      "listFailed": "Không đọc được danh sách mô hình của {{provider}}; sẽ dùng mô hình mặc định của nó.",
+      "notInstalled": "{{provider}} chưa được cài đặt. Hãy cài đặt, đăng nhập rồi kiểm tra lại.",
+      "notLoggedIn": "{{provider}} chưa đăng nhập. Hãy đăng nhập rồi kiểm tra lại.",
+      "unavailable": "{{provider}} chưa có trong phiên bản này."
+    }
   },
   "nav": {
     "label": "Chế độ xem",
@@ -376,7 +391,7 @@
       "title": "Giới thiệu",
       "version": "Cropa {{version}}",
       "sponsor": "Ủng hộ Cropa trên GitHub Sponsors",
-      "iconCredit": "Biểu tượng: bộ Solar Icons của 480 Design, CC BY 4.0 (creativecommons.org/licenses/by/4.0), đã chỉnh độ dày nét."
+      "iconCredit": "Biểu tượng: Solar của 480 Design (CC BY 4.0), logo: Lobe Icons (MIT)"
     }
   },
   "errors": {
@@ -670,6 +685,11 @@
       "why": "Nhà cung cấp thử nghiệm chỉ có trong bản phát triển.",
       "next": "Hãy chọn Codex hoặc Claude Code."
     },
+    "AiModelInvalid": {
+      "what": "Không dùng được mô hình đó.",
+      "why": "Tên không phải là tên mô hình hợp lệ, hoặc bạn đã gắn sao cho số mô hình tối đa mà Cropa có thể lưu.",
+      "next": "Hãy chọn mô hình khác trong danh sách, hoặc bỏ sao một mô hình trước."
+    },
     "AiCliNotFound": {
       "what": "Không tìm thấy công cụ dòng lệnh.",
       "why": "Nó không nằm trong PATH nên Cropa không thể mở phần đăng nhập của nó.",
@@ -696,30 +716,26 @@
       "unavailable": "Chưa có trong phiên bản này",
       "notInstalled": "Chưa cài đặt",
       "notLoggedIn": "Đã cài, chưa đăng nhập",
-      "ready": "Sẵn sàng"
+      "ready": "Sẵn sàng",
+      "readyVersion": "Sẵn sàng · phiên bản {{version}}",
+      "versionUntested": "Phiên bản này chưa được thử với Cropa; một số tính năng có thể không hoạt động."
     },
     "locked": {
-      "hint": "Hãy thiết lập AI trong Cài đặt.",
-      "setUp": "Thiết lập"
+      "hint": "Hãy thiết lập Claude Code hoặc Codex trong Cài đặt → AI để dùng AI.",
+      "notReady": "{{provider}} chưa sẵn sàng: {{status}}."
     },
     "onboarding": {
       "title": "Thiết lập AI",
-      "intro": "Cropa có thể dùng Codex hoặc Claude Code bạn đã cài để đặt tên bảng màu và hỗ trợ xử lý ảnh. Hãy chọn một công cụ đã sẵn sàng, hoặc thiết lập trước. Bạn có thể bỏ qua và làm sau trong Cài đặt.",
+      "intro": "Cropa có thể dùng Codex hoặc Claude Code bạn đã cài để đặt tên bảng màu và hỗ trợ xử lý ảnh. Hãy thiết lập những công cụ bạn muốn; bạn chọn công cụ trả lời cho từng tin nhắn. Bạn có thể bỏ qua và làm sau trong Cài đặt.",
       "checking": "Đang tìm Codex và Claude Code…",
-      "use": "Dùng cái này",
       "installGuide": "Hướng dẫn cài đặt",
       "login": "Đăng nhập trong terminal",
       "recheck": "Kiểm tra lại",
       "later": "Để sau",
-      "cancel": "Hủy"
+      "done": "Xong"
     },
     "settings": {
       "title": "AI",
-      "provider": "Nhà cung cấp:",
-      "notSetUp": "Chưa thiết lập",
-      "setUp": "Thiết lập AI",
-      "change": "Đổi…",
-      "turnOff": "Tắt AI",
       "allowImages": "Cho phép gửi ảnh cho AI",
       "allowImagesHint": "Mặc định tắt. Dù đã bật, Cropa vẫn hỏi trước mỗi lần ảnh chụp rời khỏi máy này.",
       "privacy": "Cropa chạy Codex hoặc Claude Code mà bạn đã cài, và mức dùng được tính vào tài khoản của bạn ở đó. Cropa không bao giờ đọc hay lưu thông tin đăng nhập của bạn. Ảnh chụp chỉ được gửi khi bạn cho phép ở đây và xác nhận từng lần."

@@ -104,6 +104,8 @@ pub enum CommandError {
     ImageImportTooLarge(u32),
     #[error("the test provider is not available in this build")]
     AiProviderUnavailable,
+    #[error("the model name is not valid or too many models are starred")]
+    AiModelInvalid,
     #[error("the AI command line tool was not found")]
     AiCliNotFound,
     #[error("could not open a terminal: {0}")]

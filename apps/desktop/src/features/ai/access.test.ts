@@ -5,14 +5,22 @@ import { aiAccess } from './access.ts';
 
 function settings(ai: Partial<Settings['ai']>): Settings {
   return {
-    version: 6,
+    version: 7,
     captureShortcut: 'Alt+Shift+S',
     theme: 'system',
     autostartAsked: true,
     saveHistory: true,
     excludeFromClipboardHistory: false,
     saveFolder: null,
-    ai: { provider: null, allowImages: false, effort: 'low', onboardingAnswered: false, ...ai },
+    ai: {
+      lastProvider: null,
+      lastModel: null,
+      favoriteModels: [],
+      allowImages: false,
+      effort: 'low',
+      onboardingAnswered: false,
+      ...ai,
+    },
   };
 }
 
@@ -21,20 +29,27 @@ describe('aiAccess', () => {
     expect(aiAccess(undefined).state).toBe('loading');
   });
 
-  it('is locked until a provider is chosen', () => {
-    expect(aiAccess(settings({ onboardingAnswered: true })).state).toBe('locked');
-  });
-
-  it('is ready with the chosen provider and the image choice', () => {
-    expect(aiAccess(settings({ provider: 'claude', allowImages: true }))).toEqual({
+  it('carries the last choice, the favorites and the image choice', () => {
+    const favorites = [{ provider: 'codex' as const, model: 'gpt-6.1-sol' }];
+    expect(
+      aiAccess(settings({ lastProvider: 'claude', lastModel: 'opus', favoriteModels: favorites, allowImages: true })),
+    ).toEqual({
       state: 'ready',
-      provider: 'claude',
       allowImages: true,
       effort: 'low',
+      lastProvider: 'claude',
+      lastModel: 'opus',
+      favorites,
     });
   });
 
+  it('is ready with no provider chosen yet', () => {
+    const access = aiAccess(settings({}));
+    expect(access.state).toBe('ready');
+    expect(access.lastProvider).toBeNull();
+  });
+
   it('carries the effort the user chose', () => {
-    expect(aiAccess(settings({ provider: 'codex', effort: 'high' })).effort).toBe('high');
+    expect(aiAccess(settings({ effort: 'high' })).effort).toBe('high');
   });
 });

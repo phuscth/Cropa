@@ -39,6 +39,8 @@ export interface ChatRun {
   kind: RunKind;
   prompt: string;
   provider: AiProvider;
+  /** The model the run uses; null is the CLI's default. */
+  model: string | null;
   effort: AiEffort;
   stage: ReplyStage;
   attempt: 1 | 2;
@@ -63,6 +65,7 @@ export interface AiRunRequest {
   input: BackgroundInput;
   check: CodeScene;
   provider: AiProvider;
+  model: string | null;
   effort: AiEffort;
   signal: AbortSignal;
   onEvent: (event: TaskEvent) => void;
@@ -100,6 +103,8 @@ export interface ChatDeps {
 export interface SendContext {
   palette: readonly PaletteColour[];
   provider: AiProvider;
+  /** The model to use; null is the CLI's default. */
+  model: string | null;
   effort: AiEffort;
 }
 
@@ -248,7 +253,7 @@ export function createChatSession(deps: ChatDeps): ChatSession {
     kind: RunKind,
     prompt: string,
     currentSource: string | undefined,
-    { palette, provider, effort }: SendContext,
+    { palette, provider, model, effort }: SendContext,
   ) => {
     if (state.run) return;
     const abort = new AbortController();
@@ -262,6 +267,7 @@ export function createChatSession(deps: ChatDeps): ChatSession {
       input: currentSource === undefined ? input : { ...input, currentSource },
       check,
       provider,
+      model,
       effort,
       signal: abort.signal,
       onEvent: onEvent(abort),
@@ -271,6 +277,7 @@ export function createChatSession(deps: ChatDeps): ChatSession {
         kind,
         prompt,
         provider,
+        model,
         effort,
         stage: 'started',
         attempt: 1,
@@ -342,6 +349,7 @@ export function createChatSession(deps: ChatDeps): ChatSession {
       at,
       text: cutBytes(run.text.trimEnd(), MAX_AGENT_TEXT_BYTES),
       provider: run.provider,
+      ...(run.model === null ? {} : { model: run.model }),
       effort: run.effort,
       outcome: reply.outcome,
       elapsedMs: Math.max(0, Math.round(at - run.startedAt)),

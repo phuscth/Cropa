@@ -45,7 +45,7 @@ function toAgentError(error: AiError): AgentError {
   }
 }
 
-function toRequest(req: TransportRequest): AiRequest_Deserialize {
+function toRequest(req: TransportRequest, model: string | null): AiRequest_Deserialize {
   return {
     system: req.system,
     prompt: req.prompt,
@@ -53,7 +53,7 @@ function toRequest(req: TransportRequest): AiRequest_Deserialize {
     // Rust accepts bare base64 PNG only and rejects anything else.
     images: req.images.map((image) => image.replace(PNG_DATA_URL_PREFIX, '')),
     wantImage: req.wantImage,
-    model: null,
+    model,
     effort: req.effort ?? 'low',
     timeoutMs: req.timeoutMs,
   };
@@ -63,13 +63,15 @@ function toRequest(req: TransportRequest): AiRequest_Deserialize {
  * The `@cropa/ai` transport over the `ai_run` and `ai_cancel` commands. The
  * window starts no process: Rust runs the provider's CLI.
  *
- * `mock` is the scripted result of the debug-only mock provider.
+ * `target` is where every run of this transport goes: the provider, and the model (`null`: the
+ * CLI's default). `mock` is the scripted result of the debug-only mock provider.
  */
 export function createDesktopTransport(
-  provider: string,
+  target: { provider: string; model: string | null },
   deps: Partial<TransportDeps> = {},
   mock: AiMockScript_Deserialize | null = null,
 ): Transport {
+  const { provider, model } = target;
   const { aiRun, aiCancel, channel, newRunId } = { ...defaultDeps, ...deps };
 
   return {
@@ -114,7 +116,7 @@ export function createDesktopTransport(
           }
         });
 
-        aiRun(runId, provider, toRequest(req), mock, events).then(
+        aiRun(runId, provider, toRequest(req, model), mock, events).then(
           (result) => {
             settle(() => {
               if (result.status === 'error') {

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-pub const CURRENT_VERSION: u32 = 6;
+pub const CURRENT_VERSION: u32 = 7;
 pub const DEFAULT_CAPTURE_SHORTCUT: &str = "Alt+Shift+S";
 pub const FILE_NAME: &str = "settings.json";
 
@@ -56,16 +56,36 @@ pub enum AiEffort {
     High,
 }
 
+/// A model starred in the picker.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct FavoriteModel {
+    pub provider: AiProvider,
+    pub model: String,
+}
+
+/// The most starred models kept.
+pub const MAX_FAVORITE_MODELS: usize = 64;
+
 /// AI choices. The login itself is never stored: Cropa uses the CLI the user
 /// installed and logged in to.
 #[derive(Debug, Clone, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase", default)]
 pub struct AiSettings {
-    /// The provider chosen by the user; `None` until one is chosen or after
-    /// AI is turned off.
+    /// The provider of the last model the user picked; `None` until they pick
+    /// one.
     #[serde(deserialize_with = "known_provider")]
     #[specta(type = Option<AiProvider>)]
-    pub provider: Option<AiProvider>,
+    pub last_provider: Option<AiProvider>,
+    /// The model last picked for `last_provider`; `None` means the CLI's
+    /// default.
+    #[serde(deserialize_with = "valid_model")]
+    #[specta(type = Option<String>)]
+    pub last_model: Option<String>,
+    /// Models starred in the picker, in the order they were starred.
+    #[serde(deserialize_with = "known_favorites")]
+    #[specta(type = Vec<FavoriteModel>)]
+    pub favorite_models: Vec<FavoriteModel>,
     /// Whether a task may send screenshots to the provider (each send is also
     /// confirmed).
     pub allow_images: bool,
@@ -84,6 +104,42 @@ fn known_provider<'de, D: serde::Deserializer<'de>>(
 ) -> Result<Option<AiProvider>, D::Error> {
     let value = serde_json::Value::deserialize(deserializer)?;
     Ok(serde_json::from_value(value).ok())
+}
+
+/// A model name that cannot go to `--model` loads as none, so the rest of the
+/// file is kept.
+fn valid_model<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Option<String>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    Ok(serde_json::from_value::<String>(value)
+        .ok()
+        .filter(|model| cropa_agent::valid_model_name(model)))
+}
+
+/// Each starred model is read on its own: one with an unknown provider or an
+/// invalid model name is dropped, as are duplicates and entries past the cap.
+/// Anything but a list loads as empty.
+fn known_favorites<'de, D: serde::Deserializer<'de>>(
+    deserializer: D,
+) -> Result<Vec<FavoriteModel>, D::Error> {
+    let value = serde_json::Value::deserialize(deserializer)?;
+    let serde_json::Value::Array(entries) = value else {
+        return Ok(Vec::new());
+    };
+    let mut kept: Vec<FavoriteModel> = Vec::new();
+    for entry in entries {
+        let Ok(favorite) = serde_json::from_value::<FavoriteModel>(entry) else {
+            continue;
+        };
+        if cropa_agent::valid_model_name(&favorite.model)
+            && !kept.contains(&favorite)
+            && kept.len() < MAX_FAVORITE_MODELS
+        {
+            kept.push(favorite);
+        }
+    }
+    Ok(kept)
 }
 
 /// An effort this build does not know (a file from a newer build) loads as low, so the rest of
@@ -163,12 +219,15 @@ pub fn migrate(value: serde_json::Value) -> Result<Settings, MigrateError> {
         .and_then(serde_json::Value::as_u64)
         .ok_or(MigrateError::MissingVersion)?;
     match version {
-        1 => over_defaults(v5_to_v6(v4_to_v5(v3_to_v4(v2_to_v3(v1_to_v2(value)))))),
-        2 => over_defaults(v5_to_v6(v4_to_v5(v3_to_v4(v2_to_v3(value))))),
-        3 => over_defaults(v5_to_v6(v4_to_v5(v3_to_v4(value)))),
-        4 => over_defaults(v5_to_v6(v4_to_v5(value))),
-        5 => over_defaults(v5_to_v6(value)),
-        6 => over_defaults(value),
+        1 => over_defaults(v6_to_v7(v5_to_v6(v4_to_v5(v3_to_v4(v2_to_v3(v1_to_v2(
+            value,
+        ))))))),
+        2 => over_defaults(v6_to_v7(v5_to_v6(v4_to_v5(v3_to_v4(v2_to_v3(value)))))),
+        3 => over_defaults(v6_to_v7(v5_to_v6(v4_to_v5(v3_to_v4(value))))),
+        4 => over_defaults(v6_to_v7(v5_to_v6(v4_to_v5(value)))),
+        5 => over_defaults(v6_to_v7(v5_to_v6(value))),
+        6 => over_defaults(v6_to_v7(value)),
+        7 => over_defaults(value),
         other => Err(MigrateError::TooNew(other)),
     }
 }
@@ -234,6 +293,30 @@ fn v5_to_v6(mut value: serde_json::Value) -> serde_json::Value {
     value
 }
 
+/// Every detected provider can be used in version 7, and the provider and model
+/// are chosen per message. The provider the user had chosen becomes the last
+/// one picked, on the CLI's default model; no model is starred.
+fn v6_to_v7(mut value: serde_json::Value) -> serde_json::Value {
+    if let Some(file) = value.as_object_mut() {
+        file.insert("version".into(), 7.into());
+        if let Some(ai) = file
+            .get_mut("ai")
+            .and_then(serde_json::Value::as_object_mut)
+        {
+            let provider = ai.remove("provider");
+            if !ai.contains_key("lastProvider") {
+                ai.insert(
+                    "lastProvider".into(),
+                    provider.unwrap_or(serde_json::Value::Null),
+                );
+            }
+            ai.entry("lastModel").or_insert(serde_json::Value::Null);
+            ai.entry("favoriteModels").or_insert(serde_json::json!([]));
+        }
+    }
+    value
+}
+
 fn over_defaults(file: serde_json::Value) -> Result<Settings, MigrateError> {
     let mut merged = serde_json::to_value(Settings::default())?;
     if let (Some(base), serde_json::Value::Object(file)) = (merged.as_object_mut(), file) {
@@ -273,12 +356,20 @@ pub fn load(path: &Path) -> Settings {
     }
 }
 
-/// The mock provider exists in debug builds only; a release build drops it.
+/// The mock provider exists in debug builds only; a release build drops it,
+/// the model last picked for it and its starred models.
 #[cfg_attr(debug_assertions, allow(unused_mut))]
 fn without_mock_provider(mut settings: Settings) -> Settings {
     #[cfg(not(debug_assertions))]
-    if settings.ai.provider == Some(AiProvider::Mock) {
-        settings.ai.provider = None;
+    {
+        if settings.ai.last_provider == Some(AiProvider::Mock) {
+            settings.ai.last_provider = None;
+            settings.ai.last_model = None;
+        }
+        settings
+            .ai
+            .favorite_models
+            .retain(|favorite| favorite.provider != AiProvider::Mock);
     }
     settings
 }
@@ -343,7 +434,12 @@ mod tests {
             exclude_from_clipboard_history: true,
             save_folder: Some(PathBuf::from("D:/Pictures/Cropa")),
             ai: AiSettings {
-                provider: Some(AiProvider::Codex),
+                last_provider: Some(AiProvider::Codex),
+                last_model: Some("gpt-6.1-sol".to_owned()),
+                favorite_models: vec![FavoriteModel {
+                    provider: AiProvider::Claude,
+                    model: "opus".to_owned(),
+                }],
                 allow_images: true,
                 effort: AiEffort::High,
                 onboarding_answered: true,
@@ -354,9 +450,15 @@ mod tests {
         let on_disk: serde_json::Value =
             serde_json::from_str(&fs::read_to_string(&path).unwrap()).unwrap();
         assert_eq!(on_disk["theme"], "dark");
-        assert_eq!(on_disk["version"], 6);
+        assert_eq!(on_disk["version"], 7);
         assert_eq!(on_disk["ai"]["effort"], "high");
-        assert_eq!(on_disk["ai"]["provider"], "codex");
+        assert_eq!(on_disk["ai"]["lastProvider"], "codex");
+        assert_eq!(on_disk["ai"]["lastModel"], "gpt-6.1-sol");
+        assert_eq!(
+            on_disk["ai"]["favoriteModels"],
+            serde_json::json!([{ "provider": "claude", "model": "opus" }])
+        );
+        assert!(on_disk["ai"].get("provider").is_none());
         assert_eq!(on_disk["ai"]["allowImages"], true);
         assert_eq!(on_disk["ai"]["onboardingAnswered"], true);
         assert_eq!(on_disk["autostartAsked"], true);
@@ -411,7 +513,7 @@ mod tests {
             "version": 1, "captureShortcut": "Ctrl+Alt+P", "theme": "light", "autostart": true
         });
         let migrated = migrate(with_theme).unwrap();
-        assert_eq!(migrated.version, 6);
+        assert_eq!(migrated.version, 7);
         assert!(migrated.autostart_asked);
         assert!(migrated.save_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -424,12 +526,12 @@ mod tests {
     }
 
     #[test]
-    fn a_version_2_file_migrates_to_6_and_keeps_its_fields() {
+    fn a_version_2_file_migrates_to_7_and_keeps_its_fields() {
         let v2 = serde_json::json!({
             "version": 2, "captureShortcut": "Ctrl+Alt+P", "theme": "dark", "autostartAsked": false
         });
         let migrated = migrate(v2).unwrap();
-        assert_eq!(migrated.version, 6);
+        assert_eq!(migrated.version, 7);
         assert!(migrated.save_history);
         assert!(!migrated.exclude_from_clipboard_history);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -450,13 +552,13 @@ mod tests {
     }
 
     #[test]
-    fn a_version_3_file_migrates_to_6_without_a_save_folder() {
+    fn a_version_3_file_migrates_to_7_without_a_save_folder() {
         let v3 = serde_json::json!({
             "version": 3, "captureShortcut": "Ctrl+Alt+P", "theme": "dark",
             "autostartAsked": true, "saveHistory": false, "excludeFromClipboardHistory": true
         });
         let migrated = migrate(v3).unwrap();
-        assert_eq!(migrated.version, 6);
+        assert_eq!(migrated.version, 7);
         assert_eq!(migrated.save_folder, None);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
         assert_eq!(migrated.theme, ThemePreference::Dark);
@@ -475,13 +577,13 @@ mod tests {
     }
 
     #[test]
-    fn a_version_4_file_migrates_to_6_and_asks_about_ai_once() {
+    fn a_version_4_file_migrates_to_7_and_asks_about_ai_once() {
         let v4 = serde_json::json!({
             "version": 4, "captureShortcut": "Ctrl+Alt+P", "theme": "dark",
             "saveFolder": "D:/Pictures/Cropa"
         });
         let migrated = migrate(v4).unwrap();
-        assert_eq!(migrated.version, 6);
+        assert_eq!(migrated.version, 7);
         assert_eq!(migrated.ai, AiSettings::default());
         assert!(!migrated.ai.onboarding_answered);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -499,7 +601,7 @@ mod tests {
             "ai": { "provider": "claude", "allowImages": true, "onboardingAnswered": true }
         });
         let ai = migrate(v5).unwrap().ai;
-        assert_eq!(ai.provider, Some(AiProvider::Claude));
+        assert_eq!(ai.last_provider, Some(AiProvider::Claude));
         assert!(ai.allow_images);
         assert!(ai.onboarding_answered);
     }
@@ -532,9 +634,9 @@ mod tests {
             "ai": { "provider": "claude", "allowImages": true, "onboardingAnswered": true }
         });
         let migrated = migrate(v5).unwrap();
-        assert_eq!(migrated.version, 6);
+        assert_eq!(migrated.version, 7);
         assert_eq!(migrated.ai.effort, AiEffort::Low);
-        assert_eq!(migrated.ai.provider, Some(AiProvider::Claude));
+        assert_eq!(migrated.ai.last_provider, Some(AiProvider::Claude));
 
         let v6 = serde_json::json!({ "version": 6, "ai": { "effort": "high" } });
         assert_eq!(migrate(v6).unwrap().ai.effort, AiEffort::High);
@@ -555,7 +657,7 @@ mod tests {
     fn a_partial_ai_object_keeps_what_it_has_and_defaults_the_rest() {
         let partial = serde_json::json!({ "version": 5, "ai": { "provider": "codex" } });
         let ai = migrate(partial).unwrap().ai;
-        assert_eq!(ai.provider, Some(AiProvider::Codex));
+        assert_eq!(ai.last_provider, Some(AiProvider::Codex));
         assert!(!ai.allow_images);
         assert!(!ai.onboarding_answered);
     }
@@ -567,7 +669,7 @@ mod tests {
             "ai": { "provider": "gemini", "allowImages": true, "onboardingAnswered": true }
         });
         let migrated = migrate(file).unwrap();
-        assert_eq!(migrated.ai.provider, None);
+        assert_eq!(migrated.ai.last_provider, None);
         assert!(migrated.ai.allow_images);
         assert!(migrated.ai.onboarding_answered);
         assert_eq!(migrated.capture_shortcut, "Ctrl+Alt+P");
@@ -586,16 +688,155 @@ mod tests {
     fn a_release_build_drops_the_mock_provider_on_load() {
         let dir = TempDir::new("mock");
         let path = dir.0.join(FILE_NAME);
-        fs::write(&path, r#"{ "version": 5, "ai": { "provider": "mock" } }"#).unwrap();
-        assert_eq!(load(&path).ai.provider, None);
+        fs::write(
+            &path,
+            r#"{ "version": 7, "ai": {
+                "lastProvider": "mock", "lastModel": "mock-fast",
+                "favoriteModels": [
+                    { "provider": "mock", "model": "mock-fast" },
+                    { "provider": "claude", "model": "opus" }
+                ] } }"#,
+        )
+        .unwrap();
+        let ai = load(&path).ai;
+        assert_eq!(ai.last_provider, None);
+        assert_eq!(ai.last_model, None);
+        assert_eq!(
+            ai.favorite_models,
+            [FavoriteModel {
+                provider: AiProvider::Claude,
+                model: "opus".to_owned()
+            }]
+        );
     }
 
     #[test]
     fn a_newer_version_is_rejected() {
         assert!(matches!(
-            migrate(serde_json::json!({ "version": 7 })),
-            Err(MigrateError::TooNew(7))
+            migrate(serde_json::json!({ "version": 8 })),
+            Err(MigrateError::TooNew(8))
         ));
+    }
+
+    #[test]
+    fn a_version_6_file_keeps_its_provider_as_the_last_pick() {
+        let v6 = serde_json::json!({
+            "version": 6,
+            "ai": {
+                "provider": "claude", "allowImages": true, "effort": "high",
+                "onboardingAnswered": true
+            }
+        });
+        let ai = migrate(v6).unwrap().ai;
+        assert_eq!(ai.last_provider, Some(AiProvider::Claude));
+        assert_eq!(ai.last_model, None);
+        assert_eq!(ai.favorite_models.len(), 0);
+        assert!(ai.allow_images);
+        assert_eq!(ai.effort, AiEffort::High);
+        assert!(ai.onboarding_answered);
+    }
+
+    #[test]
+    fn the_v6_to_v7_step_moves_the_provider_and_keeps_the_other_ai_fields() {
+        // On the JSON itself, before any deserialising fills in a default.
+        let step = v6_to_v7(serde_json::json!({
+            "version": 6,
+            "ai": { "provider": "codex", "allowImages": true, "effort": "low" }
+        }));
+        assert_eq!(step["version"], 7);
+        assert_eq!(
+            step["ai"],
+            serde_json::json!({
+                "lastProvider": "codex", "lastModel": null, "favoriteModels": [],
+                "allowImages": true, "effort": "low"
+            })
+        );
+
+        let kept = v6_to_v7(serde_json::json!({
+            "version": 6,
+            "ai": { "provider": "codex", "lastProvider": "claude", "lastModel": "opus" }
+        }));
+        assert_eq!(kept["ai"]["lastProvider"], "claude");
+        assert_eq!(kept["ai"]["lastModel"], "opus");
+        assert!(kept["ai"].get("provider").is_none());
+    }
+
+    #[test]
+    fn older_files_reach_version_7_with_their_provider() {
+        let v1 = migrate(serde_json::json!({ "version": 1, "theme": "dark" })).unwrap();
+        assert_eq!(v1.version, 7);
+        assert_eq!(v1.ai, AiSettings::default());
+
+        let v4 = migrate(serde_json::json!({ "version": 4, "saveHistory": false })).unwrap();
+        assert_eq!(v4.version, 7);
+        assert!(!v4.save_history);
+        assert_eq!(v4.ai, AiSettings::default());
+
+        let v5 = migrate(serde_json::json!({
+            "version": 5, "ai": { "provider": "codex", "onboardingAnswered": true }
+        }))
+        .unwrap();
+        assert_eq!(v5.version, 7);
+        assert_eq!(v5.ai.last_provider, Some(AiProvider::Codex));
+        assert!(v5.ai.onboarding_answered);
+    }
+
+    #[test]
+    fn an_invalid_last_model_loads_as_none_and_keeps_the_rest() {
+        for bad in [
+            serde_json::json!("--config"),
+            serde_json::json!("a b"),
+            serde_json::json!(""),
+            serde_json::json!(7),
+        ] {
+            let file = serde_json::json!({
+                "version": 7,
+                "ai": { "lastProvider": "codex", "lastModel": bad, "allowImages": true }
+            });
+            let ai = migrate(file).unwrap().ai;
+            assert_eq!(ai.last_model, None);
+            assert_eq!(ai.last_provider, Some(AiProvider::Codex));
+            assert!(ai.allow_images);
+        }
+    }
+
+    #[test]
+    fn favorites_keep_the_good_entries_in_order() {
+        let mut entries = vec![
+            serde_json::json!({ "provider": "claude", "model": "opus" }),
+            serde_json::json!({ "provider": "gemini", "model": "pro" }),
+            serde_json::json!({ "provider": "codex", "model": "--bad" }),
+            serde_json::json!({ "provider": "claude", "model": "opus" }),
+            serde_json::json!({ "provider": "codex" }),
+            serde_json::json!("not an entry"),
+            serde_json::json!({ "provider": "codex", "model": "gpt-6.1-sol" }),
+        ];
+        let file = serde_json::json!({ "version": 7, "ai": { "favoriteModels": entries } });
+        let ai = migrate(file).unwrap().ai;
+        let kept: Vec<_> = ai
+            .favorite_models
+            .iter()
+            .map(|f| (f.provider, f.model.as_str()))
+            .collect();
+        assert_eq!(
+            kept,
+            [
+                (AiProvider::Claude, "opus"),
+                (AiProvider::Codex, "gpt-6.1-sol")
+            ]
+        );
+
+        entries = (0..70)
+            .map(|i| serde_json::json!({ "provider": "codex", "model": format!("m{i}") }))
+            .collect();
+        let file = serde_json::json!({ "version": 7, "ai": { "favoriteModels": entries } });
+        assert_eq!(
+            migrate(file).unwrap().ai.favorite_models.len(),
+            MAX_FAVORITE_MODELS
+        );
+
+        let file = serde_json::json!({ "version": 7, "ai": { "favoriteModels": "oops" } });
+        assert_eq!(migrate(file).unwrap().ai.favorite_models.len(), 0);
     }
 
     #[test]

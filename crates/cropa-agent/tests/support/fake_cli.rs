@@ -12,10 +12,12 @@
 //! - `cwd`: prints `{"cwd":"<current directory>"}`.
 //! - `env`: prints `{"names":[<environment variable names>]}`.
 //! - `stdin`: reads stdin to EOF and prints `{"len":<bytes>}`.
+//! - `eof-probe`: reads one stdin line, then prints `{"stdin":"open"}` or
+//!   `{"stdin":"closed"}` by whether stdin reached EOF within half a second.
 //! - `capture <code>`: prints a line on stdout and one on stderr, exits with the code.
 //! - `not-json`: prints a line that is not JSON.
 
-use std::io::{Read, Write};
+use std::io::{BufRead, Read, Write};
 use std::process::{Command, Stdio};
 use std::time::Duration;
 
@@ -84,6 +86,24 @@ fn main() {
             let mut data = Vec::new();
             std::io::stdin().read_to_end(&mut data).expect("stdin");
             say(&serde_json::json!({ "len": data.len() }));
+        }
+        Some("eof-probe") => {
+            let mut first = String::new();
+            std::io::stdin()
+                .lock()
+                .read_line(&mut first)
+                .expect("first line");
+            let (tx, rx) = std::sync::mpsc::channel();
+            std::thread::spawn(move || {
+                let mut rest = Vec::new();
+                let _ = std::io::stdin().read_to_end(&mut rest);
+                let _ = tx.send(());
+            });
+            let state = match rx.recv_timeout(Duration::from_millis(500)) {
+                Ok(()) => "closed",
+                Err(_) => "open",
+            };
+            say(&serde_json::json!({ "stdin": state }));
         }
         Some("capture") => {
             say_raw("captured out");

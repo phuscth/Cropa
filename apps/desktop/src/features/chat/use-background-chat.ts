@@ -3,11 +3,13 @@ import type { PaletteColour } from '@cropa/core';
 import { useCallback, useEffect, useLayoutEffect, useState, useSyncExternalStore } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { commands, type AiEffort } from '../../lib/bindings.ts';
+import { commands, type AiEffort, type AiProvider, type FavoriteModel } from '../../lib/bindings.ts';
 import { type UserError } from '../../lib/errors.ts';
 import { saveUserPreset } from '../../lib/user-presets.ts';
 import { useAiAccess, type AiAccess } from '../ai/access.ts';
+import { initialChoice, type ModelChoice, type ModelNames } from '../ai/models.ts';
 import { createDesktopTransport } from '../ai/transport.ts';
+import { useAiProviders, type ProviderState } from '../ai/use-ai-providers.ts';
 import { beginBackgroundChange } from '../editor/background-images.ts';
 import { announceAiBackgroundReveal } from '../editor/preview-motion.ts';
 import type { SceneHistory } from '../editor/use-scene-history.ts';
@@ -42,6 +44,23 @@ interface Options {
 export interface ChatController {
   state: ChatState;
   access: AiAccess;
+  /** The providers offered and where each stands; empty until the first detection is done. */
+  providers: ProviderState[];
+  /** The first detection is still running. */
+  detecting: boolean;
+  recheckProviders: () => void;
+  /** What the next message is sent with; undefined until a provider is offered. */
+  choice: ModelChoice | undefined;
+  /** The models each provider offers, to name the one a reply used. */
+  modelNames: ModelNames;
+  /** The chosen provider is ready, so a message can be sent. */
+  choiceReady: boolean;
+  chooseModel: (provider: AiProvider, model: string | null) => void;
+  /** The models starred in the picker. */
+  favorites: readonly FavoriteModel[];
+  toggleFavorite: (provider: AiProvider, model: string) => void;
+  /** An image is loaded in the editor, not the empty canvas. */
+  hasImage: boolean;
   effort: AiEffort;
   chooseEffort: (effort: AiEffort) => void;
   /** The canvas has generated code, so the next message changes it. */
@@ -102,11 +121,11 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
   );
   const [session] = useState<ChatSession>(() =>
     createChatSession({
-      start: ({ input, check, provider, effort: level, signal, onEvent }) => {
+      start: ({ input, check, provider, model, effort: level, signal, onEvent }) => {
         const validator = backgroundValidator(check);
         const run = runTask(backgroundTask, input, {
           transport: createDesktopTransport(
-            provider,
+            { provider, model },
             {},
             import.meta.env.DEV && provider === 'mock' ? backgroundMockScript() : null,
           ),
@@ -163,10 +182,17 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
     };
   }, [session, saver, imageId, historyId, key, report]);
 
-  const provider = access.provider;
+  const { providers, detecting, recheck: recheckProviders } = useAiProviders();
+  // The choice made in this session; until then, the one saved in settings.
+  const [picked, setPicked] = useState<ModelChoice>();
+  const choice = picked ?? initialChoice(providers, { provider: access.lastProvider, model: access.lastModel });
+  const choiceReady = providers.some((p) => p.provider === choice?.provider && p.status === 'ready');
+  const [starred, setStarred] = useState<readonly FavoriteModel[]>();
+  const favorites = starred ?? access.favorites;
+
   const context = useCallback(
-    () => (provider ? { palette, provider, effort } : undefined),
-    [palette, provider, effort],
+    () => (choice && choiceReady ? { palette, provider: choice.provider, model: choice.model, effort } : undefined),
+    [palette, choice, choiceReady, effort],
   );
 
   const chooseEffort = useCallback(
@@ -182,6 +208,49 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
       );
     },
     [report],
+  );
+
+  const chooseModel = useCallback(
+    (provider: AiProvider, model: string | null) => {
+      setPicked({ provider, model });
+      // Remembered for next time; a failed save leaves the choice applied for this session.
+      void commands.setAiModel(provider, model).then(
+        (result) => {
+          if (result.status === 'error') report(failureOf(result));
+        },
+        (cause: unknown) => { report({ kind: 'unexpected', cause }); },
+      );
+    },
+    [report],
+  );
+
+  const toggleFavorite = useCallback(
+    (provider: AiProvider, model: string) => {
+      // The entry that stands for the CLI's default has no model name to keep.
+      if (model === '') return;
+      const before = favorites;
+      const starredNow = before.some((f) => f.provider === provider && f.model === model);
+      setStarred(
+        starredNow
+          ? before.filter((f) => !(f.provider === provider && f.model === model))
+          : [...before, { provider, model }],
+      );
+      commands.setAiFavoriteModel(provider, model, !starredNow).then(
+        (result) => {
+          if (result.status === 'error') {
+            setStarred(before);
+            report(failureOf(result));
+          } else {
+            setStarred(result.data.ai.favoriteModels);
+          }
+        },
+        (cause: unknown) => {
+          setStarred(before);
+          report({ kind: 'unexpected', cause });
+        },
+      );
+    },
+    [favorites, report],
   );
 
   const savePreset = useCallback(
@@ -208,6 +277,18 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
   return {
     state,
     access,
+    providers,
+    detecting,
+    recheckProviders,
+    choice,
+    modelNames: Object.fromEntries(
+      providers.flatMap((p) => (p.models === 'loading' ? [] : [[p.provider, p.models] as const])),
+    ),
+    choiceReady,
+    chooseModel,
+    favorites,
+    toggleFavorite,
+    hasImage: imageId !== 0,
     effort,
     chooseEffort,
     refining: isRefining(state, history.scene),

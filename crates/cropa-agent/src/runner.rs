@@ -41,6 +41,11 @@ pub struct ProcessSpec {
     /// The prompt, written once and then closed. `None` gives the child a null
     /// stdin.
     pub stdin: Option<Vec<u8>>,
+    /// When true, stdin is written and then held open until the process ends or
+    /// the line callback returns [`LineFlow::Stop`]. For a child that quits
+    /// when its input closes before it has answered. When false, stdin is
+    /// closed right after the write.
+    pub keep_stdin_open: bool,
     pub timeout: Duration,
 }
 
@@ -361,6 +366,8 @@ struct Spawned {
     stderr: ChildStderr,
     /// Writes the prompt, if there is one.
     writer: Option<JoinHandle<()>>,
+    /// Dropping it lets the writer close a stdin held open.
+    release_stdin: Option<mpsc::Sender<()>>,
     deadline: Instant,
     pid: u32,
     started: Instant,
@@ -389,12 +396,18 @@ fn spawn(spec: &ProcessSpec, cwd: &Path) -> Result<Spawned, ProcessError> {
         return Err(ProcessError::Spawn(io::ErrorKind::Other));
     };
     let deadline = Instant::now() + spec.timeout;
+    let (release_tx, release_rx) = mpsc::channel::<()>();
+    let hold = spec.keep_stdin_open;
     let writer: Option<JoinHandle<()>> = running.child.stdin.take().map(|mut stdin| {
         let data = spec.stdin.clone().unwrap_or_default();
         std::thread::spawn(move || {
             // The child may exit without reading its input; that is not an
             // error here.
             let _ = stdin.write_all(&data);
+            if hold {
+                // Blocks until the sender is dropped, then `stdin` closes.
+                let _ = release_rx.recv();
+            }
         })
     });
     Ok(Spawned {
@@ -402,6 +415,7 @@ fn spawn(spec: &ProcessSpec, cwd: &Path) -> Result<Spawned, ProcessError> {
         stdout,
         stderr,
         writer,
+        release_stdin: Some(release_tx),
         deadline,
         pid,
         started,
@@ -422,6 +436,7 @@ pub fn run_process(
         stdout,
         stderr,
         writer,
+        release_stdin,
         deadline,
         pid,
         started,
@@ -433,6 +448,7 @@ pub fn run_process(
     let outcome = drive(&mut running, &rx, cancel, deadline, on_line);
     drop(rx);
     running.kill_and_reap();
+    drop(release_stdin);
     let _ = reader.join();
     if let Some(writer) = writer {
         let _ = writer.join();
@@ -505,6 +521,7 @@ pub fn run_capture(
         stdout,
         stderr,
         writer,
+        release_stdin,
         deadline,
         pid,
         started,
@@ -514,6 +531,7 @@ pub fn run_capture(
 
     let outcome = wait_exit(&mut running, cancel, deadline);
     running.kill_and_reap();
+    drop(release_stdin);
     let stdout = stdout_reader.join().unwrap_or_default();
     if let Some(writer) = writer {
         let _ = writer.join();

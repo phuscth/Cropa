@@ -1,5 +1,5 @@
-//! Choosing the AI provider and getting its CLI ready: the settings that
-//! belong to AI, the install guide and a terminal for logging in.
+//! Remembering the model choice and getting a provider's CLI ready: the
+//! settings that belong to AI, the install guide and a terminal for logging in.
 //!
 //! Cropa never reads or stores the CLI's login: it only opens the CLI's own
 //! login command in a console window the user types into. Every address and
@@ -17,7 +17,7 @@ use tauri::State;
 use super::CommandError;
 use super::settings::persist;
 use crate::platform::{self, Platform};
-use crate::settings::{AiEffort, AiProvider, Settings};
+use crate::settings::{AiEffort, AiProvider, FavoriteModel, MAX_FAVORITE_MODELS, Settings};
 use crate::state::AppState;
 
 const CODEX_INSTALL_URL: &str = "https://developers.openai.com/codex/cli";
@@ -61,21 +61,74 @@ impl AiCli {
     }
 }
 
-/// Choose the provider every AI task uses, or turn AI off with `None`. Either
-/// answer ends the first-launch AI question.
+/// The mock provider exists in debug builds only.
+fn check_provider(provider: AiProvider) -> Result<(), CommandError> {
+    if cfg!(not(debug_assertions)) && provider == AiProvider::Mock {
+        Err(CommandError::AiProviderUnavailable)
+    } else {
+        Ok(())
+    }
+}
+
+/// Remember the model picked for a message: its provider, and the model, where
+/// `None` means the CLI's default.
 #[tauri::command]
 #[specta::specta]
-pub fn set_ai_provider(
+pub fn set_ai_model(
     state: State<'_, AppState>,
-    provider: Option<AiProvider>,
+    provider: AiProvider,
+    model: Option<String>,
 ) -> Result<Settings, CommandError> {
-    if cfg!(not(debug_assertions)) && provider == Some(AiProvider::Mock) {
-        return Err(CommandError::AiProviderUnavailable);
+    check_provider(provider)?;
+    if model
+        .as_deref()
+        .is_some_and(|name| !cropa_agent::valid_model_name(name))
+    {
+        return Err(CommandError::AiModelInvalid);
     }
     persist(&state, |s| {
-        s.ai.provider = provider;
-        s.ai.onboarding_answered = true;
+        s.ai.last_provider = Some(provider);
+        s.ai.last_model = model;
     })
+}
+
+/// Star or unstar a model in the picker.
+#[tauri::command]
+#[specta::specta]
+pub fn set_ai_favorite_model(
+    state: State<'_, AppState>,
+    provider: AiProvider,
+    model: String,
+    favorite: bool,
+) -> Result<Settings, CommandError> {
+    check_provider(provider)?;
+    if !cropa_agent::valid_model_name(&model) {
+        return Err(CommandError::AiModelInvalid);
+    }
+    let entry = FavoriteModel { provider, model };
+    let current = state.lock().settings.ai.favorite_models.clone();
+    if !can_set_favorite(&current, &entry, favorite) {
+        return Err(CommandError::AiModelInvalid);
+    }
+    persist(&state, |s| {
+        set_favorite(&mut s.ai.favorite_models, entry, favorite);
+    })
+}
+
+/// Whether starring `entry` is allowed: a new star past the cap is not.
+fn can_set_favorite(list: &[FavoriteModel], entry: &FavoriteModel, favorite: bool) -> bool {
+    !favorite || list.contains(entry) || list.len() < MAX_FAVORITE_MODELS
+}
+
+/// Adds `entry` if it is absent, or removes it; a model is never listed twice.
+fn set_favorite(list: &mut Vec<FavoriteModel>, entry: FavoriteModel, favorite: bool) {
+    if favorite {
+        if !list.contains(&entry) {
+            list.push(entry);
+        }
+    } else {
+        list.retain(|existing| *existing != entry);
+    }
 }
 
 /// Allow tasks to send screenshots to the provider, or not.
@@ -98,7 +151,7 @@ pub fn set_ai_effort(
     persist(&state, |s| s.ai.effort = effort)
 }
 
-/// "Later" on the first-launch AI question: stop asking, keep the provider.
+/// End the first-launch AI question, whatever the user did with it.
 #[tauri::command]
 #[specta::specta]
 pub fn dismiss_ai_onboarding(state: State<'_, AppState>) -> Result<Settings, CommandError> {
@@ -142,6 +195,65 @@ mod tests {
     fn login_runs_the_login_command_of_each_cli() {
         assert_eq!(AiCli::Codex.login_args(), ["login"]);
         assert_eq!(AiCli::Claude.login_args(), ["auth", "login"]);
+    }
+
+    #[test]
+    fn the_mock_provider_is_refused_only_in_release_builds() {
+        assert!(check_provider(AiProvider::Codex).is_ok());
+        assert!(check_provider(AiProvider::Claude).is_ok());
+        assert_eq!(
+            check_provider(AiProvider::Mock).is_err(),
+            cfg!(not(debug_assertions))
+        );
+    }
+
+    fn star(provider: AiProvider, model: &str) -> FavoriteModel {
+        FavoriteModel {
+            provider,
+            model: model.to_owned(),
+        }
+    }
+
+    #[test]
+    fn starring_adds_once_and_unstarring_removes_only_that_model() {
+        let mut list = Vec::new();
+        set_favorite(&mut list, star(AiProvider::Codex, "a"), true);
+        set_favorite(&mut list, star(AiProvider::Claude, "a"), true);
+        set_favorite(&mut list, star(AiProvider::Codex, "a"), true);
+        assert_eq!(
+            list,
+            [star(AiProvider::Codex, "a"), star(AiProvider::Claude, "a")]
+        );
+        set_favorite(&mut list, star(AiProvider::Codex, "a"), false);
+        set_favorite(&mut list, star(AiProvider::Codex, "missing"), false);
+        assert_eq!(list, [star(AiProvider::Claude, "a")]);
+    }
+
+    #[test]
+    fn a_new_star_past_the_cap_is_refused_but_an_existing_one_is_not() {
+        let list: Vec<_> = (0..MAX_FAVORITE_MODELS)
+            .map(|i| star(AiProvider::Codex, &format!("m{i}")))
+            .collect();
+        assert!(!can_set_favorite(
+            &list,
+            &star(AiProvider::Codex, "new"),
+            true
+        ));
+        assert!(can_set_favorite(
+            &list,
+            &star(AiProvider::Codex, "m0"),
+            true
+        ));
+        assert!(can_set_favorite(
+            &list,
+            &star(AiProvider::Codex, "new"),
+            false
+        ));
+        assert!(can_set_favorite(
+            &list[1..],
+            &star(AiProvider::Codex, "new"),
+            true
+        ));
     }
 
     #[test]

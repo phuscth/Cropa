@@ -139,15 +139,22 @@ export const commands = {
 	 */
 	aiDetect: () => __TAURI_INVOKE<AiDetection_Serialize[]>("ai_detect"),
 	/**
-	 *  Choose the provider every AI task uses, or turn AI off with `None`. Either
-	 *  answer ends the first-launch AI question.
+	 *  The models a provider's CLI offers, without spending a turn. The CLI runs on
+	 *  a blocking thread; an unknown or switched-off provider is `Unsupported`.
 	 */
-	setAiProvider: (provider: AiProvider | null) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_provider", { provider })),
+	aiListModels: (provider: string) => typedError<AiModel[], AiError>(__TAURI_INVOKE("ai_list_models", { provider })),
+	/**
+	 *  Remember the model picked for a message: its provider, and the model, where
+	 *  `None` means the CLI's default.
+	 */
+	setAiModel: (provider: AiProvider, model: string | null) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_model", { provider, model })),
+	/**  Star or unstar a model in the picker. */
+	setAiFavoriteModel: (provider: AiProvider, model: string, favorite: boolean) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_favorite_model", { provider, model, favorite })),
 	/**  Allow tasks to send screenshots to the provider, or not. */
 	setAiAllowImages: (enabled: boolean) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_allow_images", { enabled })),
 	/**  Remember how much effort AI tasks use. Low, medium or high only. */
 	setAiEffort: (effort: AiEffort) => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("set_ai_effort", { effort })),
-	/**  "Later" on the first-launch AI question: stop asking, keep the provider. */
+	/**  End the first-launch AI question, whatever the user did with it. */
 	dismissAiOnboarding: () => typedError<Settings_Serialize, CommandError>(__TAURI_INVOKE("dismiss_ai_onboarding")),
 	/**  Open the official install page of a CLI in the default browser. */
 	openAiInstallGuide: (provider: AiCli) => typedError<null, CommandError>(__TAURI_INVOKE("open_ai_install_guide", { provider })),
@@ -288,6 +295,18 @@ export type AiMockScript_Serialize = {
 	error: AiErrorKind | null,
 };
 
+/**  A model a provider's CLI offers. */
+export type AiModel = {
+	/**  The value to send as `model`. */
+	id: string,
+	name: string,
+	description: string,
+	/**  The model the CLI uses when no model is sent. */
+	isDefault: boolean,
+	/**  The CLI announces it as newly available. */
+	isNew: boolean,
+};
+
 export type AiOutput = AiOutput_Serialize | AiOutput_Deserialize;
 
 export type AiOutput_Deserialize = {
@@ -350,10 +369,17 @@ export type AiSettings = AiSettings_Serialize | AiSettings_Deserialize;
  */
 export type AiSettings_Deserialize = {
 	/**
-	 *  The provider chosen by the user; `None` until one is chosen or after
-	 *  AI is turned off.
+	 *  The provider of the last model the user picked; `None` until they pick
+	 *  one.
 	 */
-	provider?: AiProvider | null,
+	lastProvider?: AiProvider | null,
+	/**
+	 *  The model last picked for `last_provider`; `None` means the CLI's
+	 *  default.
+	 */
+	lastModel?: string | null,
+	/**  Models starred in the picker, in the order they were starred. */
+	favoriteModels?: FavoriteModel[],
 	/**
 	 *  Whether a task may send screenshots to the provider (each send is also
 	 *  confirmed).
@@ -371,10 +397,17 @@ export type AiSettings_Deserialize = {
  */
 export type AiSettings_Serialize = {
 	/**
-	 *  The provider chosen by the user; `None` until one is chosen or after
-	 *  AI is turned off.
+	 *  The provider of the last model the user picked; `None` until they pick
+	 *  one.
 	 */
-	provider: AiProvider | null,
+	lastProvider: AiProvider | null,
+	/**
+	 *  The model last picked for `last_provider`; `None` means the CLI's
+	 *  default.
+	 */
+	lastModel: string | null,
+	/**  Models starred in the picker, in the order they were starred. */
+	favoriteModels: FavoriteModel[],
 	/**
 	 *  Whether a task may send screenshots to the provider (each send is also
 	 *  confirmed).
@@ -430,6 +463,8 @@ export type ChatMessage_Deserialize = {
 	text: string,
 	mode?: ChatMode | null,
 	provider?: string | null,
+	/**  The model an agent reply ran on; none means the CLI's default. */
+	model?: string | null,
 	effort?: AiEffort | null,
 	/**  The reasoning summary the CLI showed. */
 	thinking?: string | null,
@@ -456,6 +491,8 @@ export type ChatMessage_Serialize = {
 	text: string,
 	mode?: ChatMode,
 	provider?: string,
+	/**  The model an agent reply ran on; none means the CLI's default. */
+	model?: string,
 	effort?: AiEffort,
 	/**  The reasoning summary the CLI showed. */
 	thinking?: string,
@@ -481,7 +518,7 @@ export type ChatRole = "user" | "agent";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "ChatInvalid"; detail: string } | { kind: "ChatTooNew" } | { kind: "ChatRead"; detail: string } | { kind: "ChatSave"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "ImageImportUnreadable"; detail: string } | { kind: "ImageImportTooLarge"; detail: number } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "ChatInvalid"; detail: string } | { kind: "ChatTooNew" } | { kind: "ChatRead"; detail: string } | { kind: "ChatSave"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "ImageImportUnreadable"; detail: string } | { kind: "ImageImportTooLarge"; detail: number } | { kind: "AiProviderUnavailable" } | { kind: "AiModelInvalid" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
 
 /**  How a drag out of the editor ended. */
 export type DragResult = "dropped" | "cancelled" | 
@@ -516,6 +553,12 @@ export type EditorImageData_Serialize = {
 
 /**  An image file format the editor can export. */
 export type ExportFormat = "png" | "jpeg" | "webp";
+
+/**  A model starred in the picker. */
+export type FavoriteModel = {
+	provider: AiProvider,
+	model: string,
+};
 
 /**  The history changed: a capture was saved or deleted. */
 export type HistoryChanged = null;

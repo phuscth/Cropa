@@ -7,7 +7,6 @@
     "allow-get-settings",
     "allow-answer-autostart-question",
     "allow-ai-detect",
-    "allow-set-ai-provider",
     "allow-dismiss-ai-onboarding",
     "allow-open-ai-install-guide",
     "allow-open-login-terminal",

@@ -1,6 +1,5 @@
 import {
   Button,
-  ChatIcon,
   ChevronDownIcon,
   CloseIcon,
   DropdownMenu,
@@ -21,6 +20,7 @@ import type { AiEffort } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { AiGate } from '../ai/AiGate.tsx';
 import { providerName } from '../ai/providers.ts';
+import { ModelPickerControl } from './ModelPickerControl.tsx';
 import { AgentReply, RunningReply, UserBubble, type ReplyActions } from './ChatParts.tsx';
 import { reachedCanvas } from './chat-session.ts';
 import type { ChatController } from './use-background-chat.ts';
@@ -35,7 +35,17 @@ function Composer({ chat }: { chat: ChatController }) {
   const fieldId = useId();
   const hintId = useId();
   const [text, setText] = useState('');
-  const { state, access, refining, loading } = chat;
+  const { state, refining, loading } = chat;
+  const chosen = chat.providers.find((p) => p.provider === chat.choice?.provider);
+  const anyReady = chat.providers.some((p) => p.status === 'ready');
+  // Why AI is off: nothing is set up, or the chosen provider is not ready while another is.
+  const hint = chat.detecting
+    ? undefined
+    : chosen && chosen.status !== 'ready' && anyReady
+      ? t('ai.locked.notReady', { provider: providerName(t, chosen.provider), status: t(`ai.status.${chosen.status}`) })
+      : !chat.choiceReady
+        ? t('ai.locked.hint')
+        : undefined;
   const running = state.run !== null;
 
   const send = () => {
@@ -57,7 +67,7 @@ function Composer({ chat }: { chat: ChatController }) {
 
   return (
     <div className="flex shrink-0 flex-col gap-2 p-3 pt-1">
-      <AiGate access={access}>
+      <AiGate enabled={chat.choiceReady} hint={hint}>
         {(enabled) => (
           <div className="flex w-full flex-col">
             <label htmlFor={fieldId} className="sr-only">
@@ -88,6 +98,7 @@ function Composer({ chat }: { chat: ChatController }) {
                   </Button>
                 )}
                 <div className="ml-auto flex items-center gap-1">
+                  <ModelPickerControl chat={chat} disabled={running} />
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
@@ -133,19 +144,16 @@ function Composer({ chat }: { chat: ChatController }) {
                 </div>
               </div>
             </div>
+            {/* With no image on the canvas there is nothing to say about it, so the tray goes. */}
+            {chat.hasImage && (
               <div className="mx-5 flex flex-wrap items-center gap-x-3 gap-y-0.5 rounded-b-[14px] bg-muted/45 px-3 pt-1 pb-1.5">
-                {access.provider && (
-                  <span className={trayItem}>
-                    <ChatIcon className="size-3.5" />
-                    {providerName(t, access.provider)}
-                  </span>
-                )}
                 <span className={trayItem}>
                   <ImageIcon className="size-3.5" />
                   {t(refining ? 'chat.tray.thisBackground' : 'chat.tray.newBackground')}
                 </span>
                 {showNotKept && <span className={`${trayItem} basis-full`}>{t('chat.notKept')}</span>}
               </div>
+            )}
           </div>
         )}
       </AiGate>
@@ -217,6 +225,7 @@ export function ChatPanel({ chat, onClose }: { chat: ChatController; onClose: ()
               latestApplied={index === lastApplied}
               busy={run !== null}
               actions={actions}
+              models={chat.modelNames}
             />
           ),
         )}
@@ -224,7 +233,7 @@ export function ChatPanel({ chat, onClose }: { chat: ChatController; onClose: ()
           <>
             <UserBubble text={run.prompt} />
             {/* Keyed by run, so each run's log starts closed whatever the last one was. */}
-            <RunningReply key={run.startedAt} run={run} onStop={chat.stop} />
+            <RunningReply key={run.startedAt} run={run} models={chat.modelNames} onStop={chat.stop} />
           </>
         )}
       </div>

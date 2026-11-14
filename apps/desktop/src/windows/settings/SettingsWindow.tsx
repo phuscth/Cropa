@@ -529,10 +529,7 @@ export function SettingsView() {
           {page(
             'about',
             <SettingsSection title={t('settings.about.title')}>
-              <SettingRow
-                label={version ? t('settings.about.version', { version }) : t('app.name')}
-                description={t('settings.about.iconCredit')}
-              >
+              <SettingRow label={version ? t('settings.about.version', { version }) : t('app.name')}>
                 <Button
                   variant="outline"
                   size="sm"
@@ -542,6 +539,10 @@ export function SettingsView() {
                   {t('settings.about.sponsor')}
                 </Button>
               </SettingRow>
+              {/* Its own full-width line, so it stays on one row at the window's minimum width. */}
+              <p className="px-5 py-3 text-[13px] leading-snug text-muted-foreground">
+                {t('settings.about.iconCredit')}
+              </p>
             </SettingsSection>,
           )}
         </div>

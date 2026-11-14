@@ -29,9 +29,9 @@ export interface ListedProvider {
   detection: AiDetection;
 }
 
-/** The providers to offer: Codex and Claude Code, plus the mock in development builds. */
+/** The providers to offer: Claude Code and Codex, in the order of the picker rail, plus the mock in development builds. */
 export function listProviders(detections: readonly AiDetection[], dev: boolean): ListedProvider[] {
-  const offered: AiProvider[] = dev ? ['codex', 'claude', 'mock'] : ['codex', 'claude'];
+  const offered: AiProvider[] = dev ? ['claude', 'codex', 'mock'] : ['claude', 'codex'];
   return offered.flatMap((provider) => {
     const detection = detections.find((d) => d.provider === provider);
     return detection ? [{ provider, detection }] : [];

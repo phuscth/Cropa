@@ -290,7 +290,22 @@
       "next": "Try a description without 3D objects. The closest preset stays in place.",
       "nextKept": "Try a description without 3D objects. Your current background is unchanged."
     },
-    "unchanged": "Your current background is unchanged."
+    "unchanged": "Your current background is unchanged.",
+    "model": {
+      "picker": "Model: {{model}}",
+      "search": "Search models…",
+      "favorites": "Favorite models",
+      "addFavorite": "Add {{model}} to favorites",
+      "removeFavorite": "Remove {{model}} from favorites",
+      "new": "New",
+      "noFavorites": "Star a model to keep it here.",
+      "noMatch": "No model matches “{{query}}”.",
+      "default": "Default",
+      "listFailed": "Couldn't read the model list of {{provider}}; its default model is used.",
+      "notInstalled": "{{provider}} isn't installed. Install it, log in, then check again.",
+      "notLoggedIn": "{{provider}} isn't logged in. Log in, then check again.",
+      "unavailable": "{{provider}} isn't available in this version yet."
+    }
   },
   "nav": {
     "label": "Views",
@@ -376,7 +391,7 @@
       "title": "About",
       "version": "Cropa {{version}}",
       "sponsor": "Support Cropa on GitHub Sponsors",
-      "iconCredit": "Icons: Solar Icons Set by 480 Design, CC BY 4.0 (creativecommons.org/licenses/by/4.0), line width adjusted."
+      "iconCredit": "Icons: Solar by 480 Design (CC BY 4.0), logos: Lobe Icons (MIT)"
     }
   },
   "errors": {
@@ -670,6 +685,11 @@
       "why": "The test provider only exists in development builds.",
       "next": "Pick Codex or Claude Code instead."
     },
+    "AiModelInvalid": {
+      "what": "That model can't be used.",
+      "why": "Its name isn't a valid model name, or you have already starred as many models as Cropa can keep.",
+      "next": "Pick another model from the list, or unstar one first."
+    },
     "AiCliNotFound": {
       "what": "Couldn't find the command line tool.",
       "why": "It isn't on your PATH, so Cropa can't open its login.",
@@ -696,30 +716,26 @@
       "unavailable": "Not available in this version yet",
       "notInstalled": "Not installed",
       "notLoggedIn": "Installed, not logged in",
-      "ready": "Ready"
+      "ready": "Ready",
+      "readyVersion": "Ready · version {{version}}",
+      "versionUntested": "This version hasn't been tested with Cropa; some features may not work."
     },
     "locked": {
-      "hint": "Set up AI in Settings.",
-      "setUp": "Set up"
+      "hint": "Set up Claude Code or Codex in Settings → AI to use AI.",
+      "notReady": "{{provider}} isn't ready: {{status}}."
     },
     "onboarding": {
       "title": "Set up AI",
-      "intro": "Cropa can use the Codex or Claude Code you already installed to name palettes and help with your images. Pick one that is ready, or set one up first. You can skip this and do it later in Settings.",
+      "intro": "Cropa can use the Codex or Claude Code you already installed to name palettes and help with your images. Set up the ones you want; you choose which one answers each message. You can skip this and do it later in Settings.",
       "checking": "Looking for Codex and Claude Code…",
-      "use": "Use this",
       "installGuide": "Install guide",
       "login": "Log in in a terminal",
       "recheck": "Check again",
       "later": "Later",
-      "cancel": "Cancel"
+      "done": "Done"
     },
     "settings": {
       "title": "AI",
-      "provider": "Provider:",
-      "notSetUp": "Not set up",
-      "setUp": "Set up AI",
-      "change": "Change…",
-      "turnOff": "Turn off AI",
       "allowImages": "Allow sending images to AI",
       "allowImagesHint": "Off by default. Even when on, Cropa asks before each screenshot leaves this computer.",
       "privacy": "Cropa runs the Codex or Claude Code you installed, and what it does counts against your account there. Cropa never reads or stores your login. Screenshots are sent only when you allow it here and confirm each time."
