@@ -61,7 +61,7 @@ function Logo() {
       alt=""
       aria-hidden="true"
       draggable={false}
-      className="pointer-events-none size-6 select-none"
+      className="pointer-events-none size-9 select-none"
     />
   );
 }
@@ -74,14 +74,15 @@ function PanelToggle() {
   return (
     <Button
       variant="ghost"
-      size="icon-sm"
+      // As large as the logo, so the whole mark takes the hover and the click.
+      size="icon"
       aria-label={t('editor.panel.toggle')}
       aria-pressed={open}
       tooltip={{ label: t(open ? 'editor.panel.hide' : 'editor.panel.show'), keys: ['Ctrl', 'B'], align: 'start' }}
       className="group/logo relative"
       onClick={toggleEditorSidebar}
     >
-      <span className={cn(swap, 'group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0')}>
+      <span className={cn(swap, 'flex group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0')}>
         <Logo />
       </span>
       <span
@@ -91,7 +92,8 @@ function PanelToggle() {
           'absolute inset-0 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100',
         )}
       >
-        {open ? <PanelCloseIcon /> : <PanelOpenIcon />}
+        {/* The size of the view icons beside it. */}
+        {open ? <PanelCloseIcon className="size-[18px]" /> : <PanelOpenIcon className="size-[18px]" />}
       </span>
     </Button>
   );
