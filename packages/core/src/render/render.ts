@@ -14,7 +14,8 @@ import { roundedRect } from './shapes.ts';
  * screenshot with its blur and pixelate annotations baked in, the `front` bitmap of
  * each code layer over the whole canvas, then the other annotations in array order
  * (they may extend over the padding). The frame is scaled uniformly to fit the canvas
- * and centred; the background always covers all of it. A preview passes any canvas,
+ * and centred, unless the canvas is the layout rounded to whole pixels, when it fills the canvas
+ * edge to edge (see `placeFrame`); the background always covers all of it. A preview passes any canvas,
  * an export passes one sized by `outputSize`.
  *
  * `t` is the animation time in [0, 1); a still image uses 0. A code layer draws what

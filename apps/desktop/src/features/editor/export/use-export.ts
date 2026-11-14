@@ -12,7 +12,7 @@ import {
   type UserError,
 } from '../../../lib/errors.ts';
 import { renderImage } from './encode.ts';
-import { captureFileStem, type ExportScale } from './plan.ts';
+import { captureFileStem, type ExportSize } from './plan.ts';
 import { afterQuickSave, initialSessionFile, sessionFileFor } from './session-file.ts';
 
 export type ExportNotice = { kind: 'saved'; file: SavedFile } | { kind: 'copied' } | { kind: 'dragHint' };
@@ -97,10 +97,10 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     async (
       current: { scene: Scene; bitmap: ImageBitmap; t: typeof t },
       format: ExportFormat,
-      scale: ExportScale,
+      size: ExportSize,
     ): Promise<string | undefined> => {
       try {
-        const image = await renderImage(current.scene, current.bitmap, format, scale);
+        const image = await renderImage(current.scene, current.bitmap, format, size);
         if (image.codeLayerFailed) setWarning(describeCodeLayerSkipped(current.t));
         return image.dataUrl;
       } catch (cause) {
@@ -122,9 +122,9 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
   }, []);
 
   const quickSave = useCallback(
-    (format: ExportFormat, scale: ExportScale) =>
+    (format: ExportFormat, size: ExportSize) =>
       run(async (current) => {
-        const dataUrl = await render(current, format, scale);
+        const dataUrl = await render(current, format, size);
         if (dataUrl === undefined) return;
         const outcome = unwrap(
           await commands.quickSave(
@@ -142,7 +142,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
   );
 
   const saveAs = useCallback(
-    (format: ExportFormat, scale: ExportScale) =>
+    (format: ExportFormat, size: ExportSize) =>
       run(async (current) => {
         // The dialog comes first so it appears before the image is rendered.
         const choice = unwrap(
@@ -155,7 +155,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
           return;
         }
         // The user can change the file type in the dialog; encode what they chose.
-        const dataUrl = await render(current, choice.format, scale);
+        const dataUrl = await render(current, choice.format, size);
         if (dataUrl === undefined) return;
         const file = unwrap(await commands.writeSaveAs(choice.token, dataUrl));
         if (file) show({ kind: 'saved', file });
@@ -167,7 +167,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     () =>
       run(async (current) => {
         // 1x, the size of the capture: a 2x image is too heavy to paste into a chat.
-        const dataUrl = await render(current, 'png', 1);
+        const dataUrl = await render(current, 'png', '1x');
         if (dataUrl === undefined) return;
         if (unwrap(await commands.copyRenderedImage(dataUrl)) !== undefined) show({ kind: 'copied' });
       }),
@@ -185,7 +185,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
         y: event.clientY,
         imageId: current.imageId,
         capturedAt: current.capturedAt,
-        pending: render({ ...current, bitmap: current.bitmap }, 'png', 1),
+        pending: render({ ...current, bitmap: current.bitmap }, 'png', '1x'),
       };
     },
     [render],

@@ -1,23 +1,17 @@
-import { outputSize, type Scene } from '@cropa/core';
+import { outputSize, outputSizeAtLongEdge, type Scene } from '@cropa/core';
 
 import type { ExportFormat } from '../../../lib/bindings.ts';
 
-export type ExportScale = 1 | 2 | 3;
+/** `1x` is the canvas's own size; the K sizes fix the longer side of the output. */
+export type ExportSize = '1x' | '2k' | '4k' | '6k';
 
-/**
- * A short size class for an export, such as "4K", from the width it will
- * really have (a 1920 px capture at 2x is about 4K, a small region is not).
- * Undefined below 1500 px, where a "K" label would only mislead.
- */
-export function resolutionLabel(width: number): string | undefined {
-  return width >= 1500 ? `${String(Math.round(width / 1000))}K` : undefined;
-}
+export const EXPORT_SIZES: readonly ExportSize[] = ['1x', '2k', '4k', '6k'];
+
+const LONG_EDGE = { '2k': 2560, '4k': 3840, '6k': 6144 } as const;
 
 export interface ExportPlan {
   width: number;
   height: number;
-  /** The scale actually used, which can be lower than the one asked for. */
-  scale: number;
   mime: string;
   /** Encoder quality from 0 to 1; undefined for lossless PNG. */
   quality: number | undefined;
@@ -34,18 +28,15 @@ const MIME: Record<ExportFormat, string> = {
 
 const LOSSY_QUALITY = 0.92;
 
-export function exportPlan(scene: Scene, format: ExportFormat, scale: ExportScale): ExportPlan {
-  const base = outputSize(scene, 1);
-  // A fixed pixel width (a platform size) is the file's width, whatever the scale.
-  const effective =
-    scene.output.width !== null
-      ? 1
-      : Math.max(1, Math.min(scale, MAX_EXPORT_SIDE / Math.max(base.width, base.height)));
-  const { width, height } = outputSize(scene, effective);
+export function exportPlan(scene: Scene, format: ExportFormat, size: ExportSize): ExportPlan {
+  // A fixed pixel width (a platform size) is the file's width, whatever the size.
+  const { width, height } =
+    size === '1x' || scene.output.width !== null
+      ? outputSize(scene, 1)
+      : outputSizeAtLongEdge(scene, Math.min(LONG_EDGE[size], MAX_EXPORT_SIDE));
   return {
     width,
     height,
-    scale: effective,
     mime: MIME[format],
     quality: format === 'png' ? undefined : LOSSY_QUALITY,
   };

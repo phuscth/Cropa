@@ -126,8 +126,9 @@
       "save": "Lưu",
       "saveAs": "Lưu thành…",
       "format": "Định dạng",
-      "scale": "Tỉ lệ",
-      "scaleFixed": "Kích thước theo nền tảng luôn xuất ở 1x ({{width}} × {{height}} px)",
+      "size": "Kích thước",
+      "sizeFixed": "Kích thước theo nền tảng luôn xuất đúng kích thước đó ({{width}} × {{height}} px)",
+      "sizeValue": "{{width}} × {{height}}",
       "saved": "Đã lưu {{fileName}}",
       "drag": "Kéo ảnh ra ngoài",
       "dragHold": "Giữ chuột trong khi kéo ảnh ra ngoài",
@@ -454,7 +455,7 @@
     "ExportRender": {
       "what": "Không tạo được ảnh.",
       "why": "Không thể vẽ hoặc mã hóa ảnh ({{detail}}).",
-      "next": "Hãy thử tỉ lệ hoặc độ đệm nhỏ hơn, hoặc đóng bớt ứng dụng khác để giải phóng bộ nhớ, rồi thử lại."
+      "next": "Hãy thử cỡ xuất nhỏ hơn hoặc độ đệm nhỏ hơn, hoặc đóng bớt ứng dụng khác để giải phóng bộ nhớ, rồi thử lại."
     },
     "ExportFormatUnsupported": {
       "what": "Không tạo được ảnh {{format}}.",

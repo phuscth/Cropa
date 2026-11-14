@@ -11,7 +11,7 @@ import {
 } from '../code-frames.ts';
 import { loadInter } from '../fonts.ts';
 import { renderEnv } from '../render-env.ts';
-import { exportPlan, type ExportScale } from './plan.ts';
+import { exportPlan, type ExportSize } from './plan.ts';
 
 function context(canvas: OffscreenCanvas): OffscreenCanvasRenderingContext2D {
   const ctx = canvas.getContext('2d');
@@ -45,10 +45,10 @@ export async function renderImage(
   scene: Scene,
   bitmap: ImageBitmap,
   format: ExportFormat,
-  scale: ExportScale,
+  size: ExportSize,
 ): Promise<RenderedImage> {
   await loadInter();
-  const plan = exportPlan(scene, format, scale);
+  const plan = exportPlan(scene, format, size);
   const canvas = new OffscreenCanvas(plan.width, plan.height);
   let frames: CodeFrames | null = null;
   let codeLayerFailed = false;
