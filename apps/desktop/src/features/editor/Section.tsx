@@ -17,7 +17,7 @@ export function Section({
   children: ReactNode;
 }) {
   return (
-    <section id={id} className="flex scroll-mt-3 flex-col gap-2.5">
+    <section id={id} className="flex scroll-mt-3 flex-col gap-2">
       <div className="flex min-h-5 items-center justify-between gap-2">
         <h3 className="text-section">{title}</h3>
         {actions && <div className="-my-1.5 flex items-center gap-1">{actions}</div>}
@@ -93,7 +93,7 @@ export function CollapsibleSection({
         className={`grid transition-[grid-template-rows,opacity] duration-200 ease-enter ${open ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'}`}
       >
         <div className="-mx-1 min-h-0 overflow-hidden">
-          <div className="flex flex-col gap-2.5 px-1 pt-2.5 pb-1">{children}</div>
+          <div className="flex flex-col gap-2.5 px-1 pt-2 pb-1">{children}</div>
         </div>
       </div>
     </section>

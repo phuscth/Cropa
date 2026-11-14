@@ -103,6 +103,21 @@
       "insetCustom": "Custom",
       "insetColorPicker": "Pick the inset colour",
       "insetColorHex": "Inset colour as hex",
+      "style": "Style",
+      "styles": {
+        "none": "Default",
+        "glassLight": "Glass light",
+        "glassDark": "Glass dark",
+        "inset": "Inset",
+        "outline": "Outline",
+        "border": "Border"
+      },
+      "fineTune": "Fine-tune",
+      "cornerPreset": {
+        "sharp": "Sharp",
+        "curved": "Curved",
+        "round": "Round"
+      },
       "corners": "Corners"
     },
     "aspect": {

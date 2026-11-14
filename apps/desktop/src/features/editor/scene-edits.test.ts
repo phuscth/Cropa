@@ -18,7 +18,13 @@ import {
   backgroundKind,
   BACKGROUND_KINDS,
   CAPTURE_REF,
+  cornerPreset,
+  cornerRadius,
+  CORNER_PRESETS,
   frameRanges,
+  frameStyle,
+  FRAME_STYLES,
+  setFrameStyle,
   matchImageColor,
   platformMatches,
   presetRatio,
@@ -232,6 +238,83 @@ describe('frame', () => {
     const scene = expectValid(setBorderColor(fresh(), '#00ff00'));
     // 0.2% of the longest side (1200 px).
     expect(scene.frame.border).toEqual({ width: 2, color: '#00ff00' });
+  });
+
+  it('round-trips every frame style on a small and a large screenshot', () => {
+    for (const size of [{ width: 120, height: 80 }, { width: 3840, height: 2160 }]) {
+      for (const style of FRAME_STYLES) {
+        const scene = expectValid(setFrameStyle(defaultScene(size), style));
+        expect(frameStyle(scene)).toBe(style);
+      }
+    }
+  });
+
+  it('reads a fresh scene as the default style with curved corners', () => {
+    expect(frameStyle(fresh())).toBe('none');
+    expect(cornerPreset(fresh())).toBe('curved');
+  });
+
+  it('clears the border when switching to inset and the inset when switching to a border', () => {
+    const bordered = setFrameStyle(fresh(), 'border');
+    expect(bordered.frame.border).not.toBeNull();
+    const inset = setFrameStyle(bordered, 'inset');
+    expect(inset.frame.border).toBeNull();
+    expect(inset.frame.inset).toBeGreaterThan(0);
+    const back = setFrameStyle(inset, 'glassLight');
+    expect(back.frame.inset).toBe(0);
+    expect(back.frame.border).not.toBeNull();
+    expect(setFrameStyle(back, 'glassLight')).toBe(back);
+  });
+
+  it('reports no style once a style field is tuned by hand', () => {
+    const glass = setFrameStyle(fresh(), 'glassLight');
+    const width = glass.frame.border?.width ?? 0;
+    expect(frameStyle(setBorderWidth(glass, width + 1))).toBeNull();
+    expect(frameStyle(setBorderColor(glass, '#123456'))).toBeNull();
+  });
+
+  it('keeps the border width of every style inside the slider range', () => {
+    for (const size of [{ width: 120, height: 80 }, { width: 1200, height: 800 }, { width: 6000, height: 4000 }]) {
+      const ranges = frameRanges(size);
+      for (const style of FRAME_STYLES) {
+        const { frame } = setFrameStyle(defaultScene(size), style);
+        expect(frame.border?.width ?? 0).toBeLessThanOrEqual(ranges.border[1]);
+        expect(frame.inset).toBeLessThanOrEqual(ranges.inset[1]);
+      }
+    }
+  });
+
+  it('keeps every corner preset inside the radius range', () => {
+    for (const size of [
+      { width: 500, height: 4000 },
+      { width: 4000, height: 500 },
+      { width: 40, height: 30 },
+      { width: 1920, height: 1080 },
+    ]) {
+      for (const preset of CORNER_PRESETS) {
+        expect(cornerRadius(preset, size)).toBeLessThanOrEqual(frameRanges(size).radius[1]);
+      }
+    }
+  });
+
+  it('gets the style back after the border width is moved away and back', () => {
+    const glass = setFrameStyle(fresh(), 'glassLight');
+    const width = glass.frame.border?.width ?? 0;
+    const moved = setBorderWidth(glass, width + 2);
+    expect(frameStyle(moved)).toBeNull();
+    const back = setBorderWidth(moved, width);
+    expect(frameStyle(back)).toBe('glassLight');
+    expect(setFrameStyle(back, 'glassLight')).toBe(back);
+  });
+
+  it('round-trips the corner presets and keeps round larger than curved', () => {
+    for (const size of [{ width: 800, height: 1600 }, { width: 1600, height: 800 }, { width: 40, height: 30 }]) {
+      for (const preset of CORNER_PRESETS) {
+        expect(cornerPreset(setRadius(defaultScene(size), cornerRadius(preset, size)))).toBe(preset);
+      }
+      expect(cornerRadius('round', size)).toBeGreaterThan(cornerRadius('curved', size));
+    }
+    expect(cornerPreset(setRadius(fresh(), 7))).toBeNull();
   });
 
   it('scales the slider ranges with the screenshot', () => {

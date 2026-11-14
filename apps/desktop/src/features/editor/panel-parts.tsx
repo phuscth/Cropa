@@ -1,7 +1,7 @@
 import { Input, SliderField } from '@cropa/ui';
 import { useState, type CSSProperties } from 'react';
 
-import type { ShadowLevel } from './scene-edits.ts';
+import type { FrameStyle, ShadowLevel } from './scene-edits.ts';
 
 interface SliderRowProps {
   label: string;
@@ -40,13 +40,46 @@ const SHADOW_SWATCH: Record<ShadowLevel, CSSProperties['boxShadow']> = {
   strong: '0 6px 14px rgb(0 0 0 / 0.5)',
 };
 
+/** A white card peeking from the bottom-right of the tile, casting the level's shadow. */
 export function ShadowThumb({ level }: { level: ShadowLevel }) {
   return (
     <span
       aria-hidden="true"
-      className="size-7 rounded-md bg-white"
+      className="absolute top-[30%] left-[30%] size-full rounded-[7px] bg-white"
       style={{ boxShadow: SHADOW_SWATCH[level] }}
     />
+  );
+}
+
+/** The soft two-colour ground every style tile is drawn on. */
+const STYLE_GROUND = 'linear-gradient(135deg, #5b7cfa 0%, #4fc3e8 100%)';
+
+/**
+ * A style tile's drawing in CSS: a screen corner peeking from the bottom-right,
+ * dressed as the style dresses the screenshot. An illustration, not the renderer:
+ * at tile size the real frame widths are under a pixel.
+ */
+export function StyleThumb({ style }: { style: FrameStyle }) {
+  // The band around the screen: its fill, padding and corner.
+  const band: Record<FrameStyle, string> = {
+    none: '',
+    glassLight: 'bg-white/45 p-[4px] rounded-tl-[10px]',
+    glassDark: 'bg-black/35 p-[4px] rounded-tl-[10px]',
+    inset: 'bg-white/90 p-[5px] rounded-tl-[10px]',
+    outline: 'rounded-tl-[7px] shadow-[0_0_0_1px_rgba(255,255,255,0.7)]',
+    border: 'bg-white p-[3px] rounded-tl-[10px]',
+  };
+  const screen = style === 'inset' ? 'bg-[#c9cad6]' : 'bg-[#f6f6f8]';
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute inset-0 overflow-hidden"
+      style={{ background: STYLE_GROUND }}
+    >
+      <span className={`absolute top-[32%] left-[28%] size-full ${band[style]}`}>
+        <span className={`block size-full rounded-tl-[6px] ${screen}`} />
+      </span>
+    </span>
   );
 }
 

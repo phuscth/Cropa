@@ -11,7 +11,6 @@ import {
   platformMatches,
   presetRatio,
   setAspectRatio,
-  setInset,
   setPadding,
   setPlatformSize,
   type AspectPreset,
@@ -126,14 +125,6 @@ export function LayoutSections({ history }: Props) {
             current={frame.padding}
             range={ranges.padding}
             onPreview={(next) => { preview((s) => setPadding(s, next)); }}
-            onCommit={commit}
-          />
-          <SliderRow
-            label={t('editor.frame.inset')}
-            value={px(frame.inset)}
-            current={frame.inset}
-            range={ranges.inset}
-            onPreview={(next) => { preview((s) => setInset(s, next)); }}
             onCommit={commit}
           />
         </div>

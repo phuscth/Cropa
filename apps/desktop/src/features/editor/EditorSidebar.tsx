@@ -19,12 +19,17 @@ import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { describeOutputTooLarge } from '../../lib/errors.ts';
 import {
   BACKGROUND_KINDS,
+  CORNER_PRESETS,
+  FRAME_STYLES,
   SHADOW_LEVELS,
   backgroundAngle,
   backgroundBlur,
   backgroundColors,
   backgroundKind,
+  cornerPreset,
+  cornerRadius,
   frameRanges,
+  frameStyle,
   matchImageColor,
   setBackgroundAngle,
   setBackgroundBlur,
@@ -32,17 +37,21 @@ import {
   setBackgroundKind,
   setBorderColor,
   setBorderWidth,
+  setFrameStyle,
+  setInset,
   setInsetColor,
   setRadius,
   setShadowLevel,
   shadowLevel,
   type BackgroundKind,
+  type CornerPreset,
+  type FrameStyle,
   type ShadowLevel,
 } from './scene-edits.ts';
 import { AiBackground } from './AiBackground.tsx';
 import { BackgroundImages } from './BackgroundImages.tsx';
 import { beginBackgroundChange } from './background-images.ts';
-import { ShadowThumb, SliderRow } from './panel-parts.tsx';
+import { ShadowThumb, SliderRow, StyleThumb } from './panel-parts.tsx';
 import { readCustomizeOpen, writeCustomizeOpen } from './panel-state.ts';
 import { PresetPicker } from './presets/PresetPicker.tsx';
 import { LayoutSections } from './LayoutSections.tsx';
@@ -75,6 +84,9 @@ export function EditorSidebar({ history, edgeColor, palette }: Props) {
   const angle = backgroundAngle(background);
   const ranges = frameRanges(scene.screenshot);
   const level = shadowLevel(scene);
+  const style = frameStyle(scene);
+  const corners = cornerPreset(scene);
+  const [fineTuneOpen, setFineTuneOpen] = useState(false);
   // The last colour the border had, for when a drag brings it back from width 0.
   const [borderColor, setBorderColorMemo] = useState('#ffffff');
   if (frame.border && frame.border.color !== borderColor) setBorderColorMemo(frame.border.color);
@@ -125,7 +137,88 @@ export function EditorSidebar({ history, edgeColor, palette }: Props) {
           style={slideFrom}
           className="flex animate-tab-in flex-col gap-5"
         >
+          <Section title={t('editor.frame.style')}>
+            <TileGroup
+              aria-label={t('editor.frame.style')}
+              value={style ?? undefined}
+              onValueChange={(next) => { edit((s) => setFrameStyle(s, next as FrameStyle)); }}
+            >
+              {FRAME_STYLES.map((name) => (
+                <Tile key={name} value={name} label={t(`editor.frame.styles.${name}`)}>
+                  <StyleThumb style={name} />
+                </Tile>
+              ))}
+            </TileGroup>
+            <CollapsibleSection
+              title={t('editor.frame.fineTune')}
+              open={fineTuneOpen}
+              onOpenChange={setFineTuneOpen}
+            >
+              <SliderRow
+                label={t('editor.frame.border')}
+                value={px(frame.border?.width ?? 0)}
+                current={frame.border?.width ?? 0}
+                range={ranges.border}
+                onPreview={(next) => { preview((s) => setBorderWidth(s, next, borderColor)); }}
+                onCommit={commit}
+              />
+              <Row label={t('editor.frame.borderColor')}>
+                <ColorInput
+                  value={frame.border?.color ?? '#ffffff'}
+                  swatchLabel={t('editor.frame.borderColorPicker')}
+                  textLabel={t('editor.frame.borderColorHex')}
+                  onValueChange={(hex) => { preview((s) => setBorderColor(s, hex)); }}
+                  onValueCommit={(hex) => { edit((s) => setBorderColor(s, hex)); }}
+                />
+              </Row>
+              <SliderRow
+                label={t('editor.frame.inset')}
+                value={px(frame.inset)}
+                current={frame.inset}
+                range={ranges.inset}
+                onPreview={(next) => { preview((s) => setInset(s, next)); }}
+                onCommit={commit}
+              />
+              <Row label={t('editor.frame.insetColor')}>
+                <SegmentedControl
+                  aria-label={t('editor.frame.insetColor')}
+                  value={frame.insetColor === 'auto' ? 'auto' : 'custom'}
+                  onValueChange={(next) => {
+                    edit((s) => setInsetColor(s, next === 'auto' ? 'auto' : (edgeColor ?? '#ffffff')));
+                  }}
+                >
+                  <SegmentedControlItem value="auto">{t('editor.frame.insetAuto')}</SegmentedControlItem>
+                  <SegmentedControlItem value="custom">
+                    {t('editor.frame.insetCustom')}
+                  </SegmentedControlItem>
+                </SegmentedControl>
+              </Row>
+              {frame.insetColor !== 'auto' && (
+                <ColorInput
+                  value={frame.insetColor}
+                  swatchLabel={t('editor.frame.insetColorPicker')}
+                  textLabel={t('editor.frame.insetColorHex')}
+                  onValueChange={(hex) => { preview((s) => setInsetColor(s, hex)); }}
+                  onValueCommit={(hex) => { edit((s) => setInsetColor(s, hex)); }}
+                />
+              )}
+            </CollapsibleSection>
+          </Section>
+
           <Section title={t('editor.frame.corners')}>
+            <SegmentedControl
+              aria-label={t('editor.frame.corners')}
+              value={corners ?? undefined}
+              onValueChange={(next) => {
+                edit((s) => setRadius(s, cornerRadius(next as CornerPreset, s.screenshot)));
+              }}
+            >
+              {CORNER_PRESETS.map((name) => (
+                <SegmentedControlItem key={name} value={name}>
+                  {t(`editor.frame.cornerPreset.${name}`)}
+                </SegmentedControlItem>
+              ))}
+            </SegmentedControl>
             <SliderRow
               label={t('editor.frame.radius')}
               value={px(frame.radius)}
@@ -144,60 +237,18 @@ export function EditorSidebar({ history, edgeColor, palette }: Props) {
               className="grid-cols-4"
             >
               {SHADOW_LEVELS.map((l) => (
-                <Tile key={l} value={l} label={t(`editor.frame.shadowLevel.${l}`)}>
+                <Tile
+                  key={l}
+                  value={l}
+                  label={t(`editor.frame.shadowLevel.${l}`)}
+                  thumbClassName="aspect-square h-auto"
+                >
                   <ShadowThumb level={l} />
                 </Tile>
               ))}
             </TileGroup>
           </Section>
 
-          <Section title={t('editor.frame.border')}>
-            <div className="flex flex-col gap-2.5">
-              <SliderRow
-                label={t('editor.frame.border')}
-                value={px(frame.border?.width ?? 0)}
-                current={frame.border?.width ?? 0}
-                range={ranges.border}
-                onPreview={(next) => { preview((s) => setBorderWidth(s, next, borderColor)); }}
-                onCommit={commit}
-              />
-              <Row label={t('editor.frame.borderColor')}>
-                <ColorInput
-                  value={frame.border?.color ?? '#ffffff'}
-                  swatchLabel={t('editor.frame.borderColorPicker')}
-                  textLabel={t('editor.frame.borderColorHex')}
-                  onValueChange={(hex) => { preview((s) => setBorderColor(s, hex)); }}
-                  onValueCommit={(hex) => { edit((s) => setBorderColor(s, hex)); }}
-                />
-              </Row>
-            </div>
-          </Section>
-
-          <Section title={t('editor.frame.insetColor')}>
-            <div className="flex flex-col gap-2.5">
-              <SegmentedControl
-                aria-label={t('editor.frame.insetColor')}
-                value={frame.insetColor === 'auto' ? 'auto' : 'custom'}
-                onValueChange={(next) => {
-                  edit((s) => setInsetColor(s, next === 'auto' ? 'auto' : (edgeColor ?? '#ffffff')));
-                }}
-              >
-                <SegmentedControlItem value="auto">{t('editor.frame.insetAuto')}</SegmentedControlItem>
-                <SegmentedControlItem value="custom">
-                  {t('editor.frame.insetCustom')}
-                </SegmentedControlItem>
-              </SegmentedControl>
-              {frame.insetColor !== 'auto' && (
-                <ColorInput
-                  value={frame.insetColor}
-                  swatchLabel={t('editor.frame.insetColorPicker')}
-                  textLabel={t('editor.frame.insetColorHex')}
-                  onValueChange={(hex) => { preview((s) => setInsetColor(s, hex)); }}
-                  onValueCommit={(hex) => { edit((s) => setInsetColor(s, hex)); }}
-                />
-              )}
-            </div>
-          </Section>
           <LayoutSections history={history} />
         </div>
 

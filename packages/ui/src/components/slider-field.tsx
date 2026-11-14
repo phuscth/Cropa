@@ -13,7 +13,7 @@ type SliderFieldProps = ComponentProps<typeof SliderPrimitive.Root> & {
 };
 
 /**
- * A single-thumb slider drawn as one rounded pill, 32px tall: the filled part
+ * A single-thumb slider drawn as one rounded pill, 30px tall: the filled part
  * is the raised colour and follows the pointer with no transition, a thin bar
  * marks its edge, the label sits inside on the left and the value on the right.
  * The whole pill takes clicks and drags. The thumb is a 22px box that carries
@@ -27,7 +27,7 @@ function SliderField({ className, label, valueText, value, min = 0, max = 100, .
     <SliderPrimitive.Root
       data-slot="slider-field"
       className={cn(
-        'relative flex h-8 w-full touch-none items-center rounded-full select-none has-[[role=slider]:focus-visible]:outline-2 has-[[role=slider]:focus-visible]:outline-offset-2 has-[[role=slider]:focus-visible]:outline-ring data-[disabled]:opacity-50',
+        'relative flex h-[30px] w-full touch-none items-center rounded-full select-none has-[[role=slider]:focus-visible]:outline-2 has-[[role=slider]:focus-visible]:outline-offset-2 has-[[role=slider]:focus-visible]:outline-ring data-[disabled]:opacity-50',
         className,
       )}
       value={value}
@@ -41,11 +41,11 @@ function SliderField({ className, label, valueText, value, min = 0, max = 100, .
       >
         <span
           aria-hidden="true"
-          className="absolute inset-y-0 left-0 bg-card dark:bg-foreground/15"
+          className="absolute inset-y-0 left-0 bg-card shadow-[0_1.5px_6px_-3px_rgba(0,0,0,0.4)] dark:bg-foreground/20"
           style={{ width: `calc(16px + (100% - 22px) * ${String(fraction)})` }}
         />
       </SliderPrimitive.Track>
-      <span aria-hidden="true" className="pointer-events-none absolute inset-x-3.5 z-10 flex items-center justify-between gap-2 text-control-sm">
+      <span aria-hidden="true" className="pointer-events-none absolute inset-x-3.5 z-10 flex items-center justify-between gap-2 text-[11px] leading-[1.3] font-medium tracking-[-0.2px]">
         <span className="truncate text-muted-foreground">{label}</span>
         <span className="shrink-0 text-muted-foreground tabular-nums">{valueText}</span>
       </span>
@@ -53,7 +53,7 @@ function SliderField({ className, label, valueText, value, min = 0, max = 100, .
         data-slot="slider-field-thumb"
         aria-label={label}
         aria-valuetext={valueText}
-        className="relative block h-8 w-[22px] outline-none after:absolute after:top-1/2 after:left-1/2 after:h-4 after:w-0.5 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:bg-foreground/45"
+        className="relative block h-[30px] w-[22px] outline-none after:absolute after:top-1/2 after:left-1/2 after:h-[18px] after:w-0.5 after:-translate-x-1/2 after:-translate-y-1/2 after:rounded-full after:bg-foreground/45"
       />
     </SliderPrimitive.Root>
   );
