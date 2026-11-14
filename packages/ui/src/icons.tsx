@@ -3,10 +3,11 @@ import { ArrowRightUpIcon as SolarArrowRight } from '@solar-icons/react/linear/a
 import { AddIcon as SolarAdd } from '@solar-icons/react/linear/add';
 import { AltArrowDownIcon as SolarChevronDown } from '@solar-icons/react/linear/alt-arrow-down';
 import { AltArrowRightIcon as SolarChevronRight } from '@solar-icons/react/linear/alt-arrow-right';
-import { ArrowUpIcon as SolarArrowUp } from '@solar-icons/react/linear/arrow-up';
 import { ChatSquareIcon as SolarChat } from '@solar-icons/react/linear/chat-square';
 import { CameraMinimalisticIcon as SolarCamera } from '@solar-icons/react/linear/camera-minimalistic';
 import { CheckIcon as SolarCheck } from '@solar-icons/react/linear/check';
+import { CheckCircleIcon as SolarCheckCircle } from '@solar-icons/react/linear/check-circle';
+import { CodeIcon as SolarCode } from '@solar-icons/react/linear/code';
 import { CloseIcon as SolarClose } from '@solar-icons/react/linear/close';
 import { CopyIcon as SolarCopy } from '@solar-icons/react/linear/copy';
 import { CursorIcon as SolarCursor } from '@solar-icons/react/linear/cursor';
@@ -21,6 +22,7 @@ import { MenuDotsIcon as SolarMenuDots } from '@solar-icons/react/linear/menu-do
 import { QuestionCircleIcon as SolarQuestionCircle } from '@solar-icons/react/linear/question-circle';
 import { RestartIcon as SolarRestart } from '@solar-icons/react/linear/restart';
 import { SettingsIcon as SolarSettings } from '@solar-icons/react/linear/settings';
+import { StarsIcon as SolarStars } from '@solar-icons/react/linear/stars';
 import { StopIcon as SolarStop } from '@solar-icons/react/linear/stop';
 import { StopCircleIcon as SolarStopCircle } from '@solar-icons/react/linear/stop-circle';
 import { TextFormatIcon as SolarTextFormat } from '@solar-icons/react/linear/text-format';
@@ -73,6 +75,8 @@ export const BlurToolIcon = linear(SolarWaterdrop, 'BlurToolIcon');
 export const PixelateToolIcon = linear(SolarGrid, 'PixelateToolIcon');
 export const DeleteIcon = linear(SolarTrash, 'DeleteIcon');
 export const ChatIcon = linear(SolarChat, 'ChatIcon');
-export const SendIcon = linear(SolarArrowUp, 'SendIcon');
 export const StopIcon = linear(SolarStopCircle, 'StopIcon');
+export const SparklesIcon = linear(SolarStars, 'SparklesIcon');
+export const CheckCircleIcon = linear(SolarCheckCircle, 'CheckCircleIcon');
+export const CodeIcon = linear(SolarCode, 'CodeIcon');
 

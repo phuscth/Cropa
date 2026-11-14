@@ -1,5 +1,5 @@
 import { AGENT_ERROR_KINDS, TASK_ERROR_KINDS, type AiErrorKind } from '@cropa/ai';
-import { Button, CheckIcon, ChevronRightIcon, Input } from '@cropa/ui';
+import { Button, CheckCircleIcon, CheckIcon, ChevronRightIcon, CodeIcon, Input } from '@cropa/ui';
 import { useEffect, useId, useState, type ReactNode, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -9,21 +9,27 @@ import type { UserError } from '../../lib/errors.ts';
 import { describeAiError } from '../ai/errors.ts';
 import { providerName } from '../ai/providers.ts';
 import { codeSourceOf, PRESET_NAME_MAX, presetNameFrom } from './ai-background.ts';
-import { descriptionFor, messageBackground, reachedCanvas, type ChatMessage, type ChatRun } from './chat-session.ts';
+import {
+  descriptionFor,
+  durationParts,
+  messageBackground,
+  reachedCanvas,
+  type ChatMessage,
+  type ChatRun,
+} from './chat-session.ts';
 import { partialSource } from './partial-output.ts';
 
 const KNOWN_ERRORS: readonly string[] = [...AGENT_ERROR_KINDS, ...TASK_ERROR_KINDS];
 
-/** Whole seconds since `startedAt`, counted up while it is on screen. */
+/** The time since `startedAt` as `m:ss`, counted up while it is on screen. */
 function Elapsed({ startedAt }: { startedAt: number }) {
-  const { t } = useTranslation();
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const timer = window.setInterval(() => { setNow(Date.now()); }, 1000);
     return () => { window.clearInterval(timer); };
   }, []);
-  const seconds = Math.max(0, Math.floor((now - startedAt) / 1000));
-  return <span className="text-caption tabular-nums">{t('chat.elapsed', { seconds })}</span>;
+  const { minutes, seconds } = durationParts(now - startedAt);
+  return <span className="tabular-nums">{`${minutes}:${String(seconds).padStart(2, '0')}`}</span>;
 }
 
 function Chevron({ open }: { open: boolean }) {
@@ -34,15 +40,20 @@ function Chevron({ open }: { open: boolean }) {
   );
 }
 
-/** A block with a button header that opens and closes it. `autoOpen` is the state until the user clicks. */
+/**
+ * A block with a button header that opens and closes it. `autoOpen` is the state until the user
+ * clicks. `action` sits beside the toggle, never inside it.
+ */
 function Disclosure({
   label,
   detail,
+  action,
   autoOpen,
   children,
 }: {
-  label: string;
-  detail?: string | undefined;
+  label: ReactNode;
+  detail?: ReactNode;
+  action?: ReactNode;
   autoOpen: boolean;
   children: ReactNode;
 }) {
@@ -50,18 +61,21 @@ function Disclosure({
   const [chosen, setChosen] = useState<boolean>();
   const open = chosen ?? autoOpen;
   return (
-    <div className="rounded-lg bg-secondary/60">
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={id}
-        className="focus-ring flex w-full items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-left text-tiny text-muted-foreground hover:text-foreground"
-        onClick={() => { setChosen(!open); }}
-      >
-        <Chevron open={open} />
-        <span>{label}</span>
-        {detail && <span className="ml-auto tabular-nums">{detail}</span>}
-      </button>
+    <div>
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          aria-expanded={open}
+          aria-controls={id}
+          className="focus-ring inline-flex items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[14px] leading-5 font-normal text-muted-foreground transition-colors duration-150 hover:text-foreground"
+          onClick={() => { setChosen(!open); }}
+        >
+          <Chevron open={open} />
+          <span>{label}</span>
+          {detail}
+        </button>
+        {action}
+      </div>
       <div id={id} hidden={!open}>
         {children}
       </div>
@@ -70,51 +84,117 @@ function Disclosure({
 }
 
 const blockClass =
-  'max-h-44 overflow-auto px-2.5 pb-2 text-caption whitespace-pre-wrap break-words';
+  'mt-1 max-h-44 overflow-auto px-1.5 pb-1 text-[13px] leading-5 font-normal text-muted-foreground whitespace-pre-wrap break-words';
 const codeClass =
-  'max-h-44 overflow-auto px-2.5 pb-2 font-mono text-[11px] leading-[1.45] whitespace-pre text-muted-foreground';
+  'mt-1 max-h-44 overflow-auto rounded-lg bg-foreground/[0.04] px-2.5 py-2 font-mono text-[11px] leading-[1.45] font-normal whitespace-pre text-muted-foreground';
+const chipClass =
+  'inline-flex items-center gap-1 rounded-md bg-foreground/[0.07] px-2 py-1 text-[12px] font-normal text-muted-foreground';
 
 function lineCount(source: string): number {
   return source === '' ? 0 : source.split('\n').length;
 }
 
-function ThinkingBlock({ text, streaming }: { text: string; streaming: boolean }) {
-  const { t } = useTranslation();
+/** One entry of the work log: a marker on a vertical line, and its content. */
+function TimelineStep({ marker, children }: { marker?: ReactNode; children: ReactNode }) {
   return (
-    <Disclosure label={t('chat.thinking')} autoOpen={streaming}>
-      <p className={blockClass}>{text}</p>
-    </Disclosure>
+    <li className="group/step flex gap-2">
+      <div className="relative w-4 shrink-0">
+        {marker ?? <span className="absolute top-[9px] left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-foreground/35" />}
+        <span className="absolute top-[21px] bottom-0 left-1/2 w-px -translate-x-1/2 bg-foreground/12 group-last/step:hidden" />
+      </div>
+      <div className="min-w-0 flex-1 pb-3 group-last/step:pb-0">{children}</div>
+    </li>
   );
 }
 
-function CodeBlock({ source, streaming }: { source: string; streaming: boolean }) {
+/** A step that is one line of text, with an optional pulsing dot while it is under way. */
+function TextStep({ pulse = false, strong = false, children }: { pulse?: boolean; strong?: boolean; children: ReactNode }) {
+  const dot = (
+    <span
+      className={`absolute top-[9px] left-1/2 size-1.5 -translate-x-1/2 rounded-full bg-foreground/35 ${pulse ? 'animate-pulse motion-reduce:animate-none' : ''}`}
+    />
+  );
+  return (
+    <TimelineStep marker={dot}>
+      <p className={`flex min-h-6 items-center gap-2 text-[14px] leading-5 font-normal ${strong ? 'text-foreground' : 'text-muted-foreground'}`}>
+        {children}
+      </p>
+    </TimelineStep>
+  );
+}
+
+function ThinkingStep({ text, streaming }: { text: string; streaming: boolean }) {
   const { t } = useTranslation();
   return (
-    <Disclosure
-      label={t('chat.code')}
-      detail={t('chat.lineCount', { count: lineCount(source) })}
-      autoOpen={streaming}
-    >
-      <pre className={codeClass}>{source}</pre>
+    <TimelineStep>
+      <Disclosure label={t('chat.thinking')} autoOpen={streaming}>
+        <p className={blockClass}>{text}</p>
+      </Disclosure>
+    </TimelineStep>
+  );
+}
+
+function CodeStep({ source, streaming }: { source: string; streaming: boolean }) {
+  const { t } = useTranslation();
+  return (
+    <TimelineStep>
+      <Disclosure
+        label={t(streaming ? 'chat.code' : 'chat.log.wroteCode')}
+        detail={
+          <span className={chipClass}>
+            <CodeIcon className="size-3.5" />
+            <span className="tabular-nums">{t('chat.lineCount', { count: lineCount(source) })}</span>
+          </span>
+        }
+        autoOpen={streaming}
+      >
+        <pre className={codeClass}>{source}</pre>
+      </Disclosure>
+    </TimelineStep>
+  );
+}
+
+/** The work of one reply: a toggle and, inside, its steps along a timeline. */
+function WorkLog({
+  label,
+  action,
+  autoOpen,
+  children,
+}: {
+  label: ReactNode;
+  action?: ReactNode;
+  autoOpen: boolean;
+  children: ReactNode;
+}) {
+  return (
+    <Disclosure label={label} action={action} autoOpen={autoOpen}>
+      <ol className="mt-1 ml-3 flex flex-col">{children}</ol>
     </Disclosure>
   );
 }
 
 export function UserBubble({ text }: { text: string }) {
   return (
-    <div className="ml-auto max-w-[88%] rounded-xl bg-primary px-3 py-2 text-control-sm font-normal break-words whitespace-pre-wrap text-primary-foreground">
+    <div className="ml-auto w-fit max-w-full rounded-3xl bg-foreground/[0.07] px-3 py-2.5 text-[14px] leading-6 font-normal break-words whitespace-pre-wrap text-foreground">
       {text}
     </div>
   );
 }
 
-function Meta({ provider, effort }: { provider: string | null | undefined; effort: string | null | undefined }) {
+const proseClass = 'px-1.5 text-[15px] leading-[26px] font-normal break-words whitespace-pre-wrap text-foreground/85';
+
+function AgentHeader({ provider, effort }: { provider: string | null | undefined; effort: string | null | undefined }) {
   const { t } = useTranslation();
   const parts = [
     provider ? providerName(t, provider as AiProvider) : undefined,
     effort ? t(`chat.effort.${effort}`) : undefined,
   ].filter((part): part is string => part !== undefined);
-  return parts.length === 0 ? null : <p className="text-caption">{parts.join(' · ')}</p>;
+  return (
+    <p className="flex items-baseline gap-2 px-1.5">
+      <span className="text-[13px] font-medium">{t('chat.agentName')}</span>
+      {parts.length > 0 && <span className="text-[12px] font-normal text-muted-foreground">{parts.join(' · ')}</span>}
+    </p>
+  );
 }
 
 /** The reply being written: its thinking, its code, and where it stands. */
@@ -132,22 +212,29 @@ export function RunningReply({ run, onStop }: { run: ChatRun; onStop: () => void
   );
   return (
     // Not announced chunk by chunk: the finished reply is.
-    <div aria-live="off" aria-busy="true" className="flex max-w-[94%] flex-col gap-2">
-      <Meta provider={run.provider} effort={run.effort} />
-      {run.thinking !== '' && <ThinkingBlock text={run.thinking} streaming />}
-      {run.text !== '' && <p className="text-control-sm font-normal break-words whitespace-pre-wrap">{run.text}</p>}
-      {source !== '' && <CodeBlock source={source} streaming />}
-      <p className="flex items-center gap-2 text-control-sm font-normal text-muted-foreground">
-        <span>{stage}</span>
-        <Elapsed key={run.startedAt} startedAt={run.startedAt} />
-        <Button variant="ghost" size="sm" className="ml-auto" onClick={onStop}>
-          {t('chat.stop')}
-        </Button>
-      </p>
+    <div aria-live="off" aria-busy="true" className="flex w-full flex-col gap-2">
+      <AgentHeader provider={run.provider} effort={run.effort} />
+      <WorkLog
+        autoOpen
+        label={
+          <>
+            {t('chat.log.working')} <Elapsed key={run.startedAt} startedAt={run.startedAt} />
+          </>
+        }
+        action={
+          <Button variant="ghost" size="sm" className="ml-auto h-7 px-2 text-tiny" onClick={onStop}>
+            {t('chat.stop')}
+          </Button>
+        }
+      >
+        {run.thinking !== '' && <ThinkingStep text={run.thinking} streaming />}
+        {source !== '' && <CodeStep source={source} streaming />}
+        <TextStep pulse>{stage}</TextStep>
+      </WorkLog>
+      {run.text !== '' && <p className={proseClass}>{run.text}</p>}
     </div>
   );
 }
-
 
 function failureOf(t: ReturnType<typeof useTranslation>['t'], message: ChatMessage): UserError {
   const unchanged = message.unchanged === true;
@@ -200,6 +287,7 @@ export function AgentReply({
   const applied = message.outcome === 'applied';
   const reached = reachedCanvas(message);
   const onCanvas = reached && source !== undefined && source === canvasSource;
+  const elapsedMs = message.elapsedMs ?? undefined;
 
   const savePreset = async (event: SyntheticEvent) => {
     event.preventDefault();
@@ -214,21 +302,45 @@ export function AgentReply({
     }
   };
 
+  let logLabel = t('chat.log.details');
+  if (elapsedMs !== undefined) {
+    const { minutes, seconds } = durationParts(elapsedMs);
+    const duration = minutes > 0 ? t('chat.duration.minutes', { minutes, seconds }) : t('chat.duration.seconds', { seconds });
+    logLabel = t('chat.log.worked', { duration });
+  }
+  const showLog = Boolean(message.thinking) || source !== undefined || elapsedMs !== undefined;
+
   return (
-    <div className="flex max-w-[94%] flex-col gap-2">
-      <Meta provider={message.provider} effort={message.effort} />
-      {message.thinking && <ThinkingBlock text={message.thinking} streaming={false} />}
-      {message.text !== '' && <p className="text-control-sm font-normal break-words whitespace-pre-wrap">{message.text}</p>}
-      {source !== undefined && <CodeBlock source={source} streaming={false} />}
+    <div className="flex w-full flex-col gap-2">
+      <AgentHeader provider={message.provider} effort={message.effort} />
+      {showLog && (
+        <WorkLog label={logLabel} autoOpen={false}>
+          {message.thinking && <ThinkingStep text={message.thinking} streaming={false} />}
+          {source !== undefined && <CodeStep source={source} streaming={false} />}
+          {applied ? (
+            <TimelineStep
+              marker={<CheckCircleIcon className="absolute top-1 left-0 size-4 text-success" />}
+            >
+              <p className="flex min-h-6 items-center text-[14px] leading-5 font-normal text-foreground">
+                {t('chat.log.finished')}
+              </p>
+            </TimelineStep>
+          ) : (
+            message.outcome === 'failed' && <TextStep>{t('chat.log.failed')}</TextStep>
+          )}
+          {message.outcome === 'cancelled' && <TextStep>{t('chat.log.stopped')}</TextStep>}
+        </WorkLog>
+      )}
+      {message.text !== '' && <p className={proseClass}>{message.text}</p>}
       {message.outcome === 'failed' && <ErrorNotice error={failureOf(t, message)} />}
       {message.outcome === 'cancelled' && (
-        <p className="text-control-sm font-normal text-muted-foreground">{t('chat.cancelled')}</p>
+        <p className="px-1.5 text-control-sm font-normal text-muted-foreground">{t('chat.cancelled')}</p>
       )}
       {applied && !reached && (
-        <p className="text-control-sm font-normal text-muted-foreground">{t('chat.notApplied')}</p>
+        <p className="px-1.5 text-control-sm font-normal text-muted-foreground">{t('chat.notApplied')}</p>
       )}
       {reached && (
-        <p className="flex items-center gap-2 text-control-sm font-normal">
+        <p className="flex items-center gap-2 px-1.5 text-control-sm font-normal">
           <span className="inline-flex items-center gap-1 text-success">
             <CheckIcon className="size-3.5" />
             {t('chat.applied')}
@@ -237,7 +349,7 @@ export function AgentReply({
         </p>
       )}
       {applied && background && (
-        <div className="flex flex-wrap gap-1.5">
+        <div className="flex flex-wrap gap-1.5 px-1.5">
           {!onCanvas && (
             <Button variant="secondary" size="sm" disabled={busy} onClick={() => { actions.onUseResult(message.id); }}>
               {t('chat.useThis')}
@@ -270,7 +382,7 @@ export function AgentReply({
       )}
       {naming !== null && (
         <form
-          className="flex flex-col gap-2"
+          className="flex flex-col gap-2 px-1.5"
           onSubmit={(event) => { void savePreset(event); }}
           onKeyDown={(event) => {
             if (event.key === 'Escape') {
@@ -297,7 +409,7 @@ export function AgentReply({
           </div>
         </form>
       )}
-      {saved && <p role="status" className="text-control-sm font-normal text-muted-foreground">{t('chat.saved')}</p>}
+      {saved && <p role="status" className="px-1.5 text-control-sm font-normal text-muted-foreground">{t('chat.saved')}</p>}
     </div>
   );
 }

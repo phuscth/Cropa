@@ -245,7 +245,24 @@
       "checking": "Đang kiểm tra nền có chạy được không…",
       "retrying": "Đang thử lại…"
     },
-    "elapsed": "{{seconds}} giây",
+    "agentName": "Cropa AI",
+    "log": {
+      "worked": "Đã làm trong {{duration}}",
+      "working": "Đang làm…",
+      "details": "Nhật ký làm việc",
+      "wroteCode": "Đã viết mã",
+      "finished": "Đã hoàn thành nền",
+      "failed": "Chưa hoàn thành",
+      "stopped": "Đã dừng"
+    },
+    "duration": {
+      "seconds": "{{seconds}} giây",
+      "minutes": "{{minutes}} phút {{seconds}} giây"
+    },
+    "tray": {
+      "thisBackground": "Sửa nền hiện tại",
+      "newBackground": "Tạo nền mới"
+    },
     "applied": "Đã áp dụng",
     "notApplied": "Chưa áp dụng: nền đã thay đổi trong lúc AI đang chạy.",
     "onCanvas": "Đang trên khung",
@@ -261,6 +278,7 @@
     "cancelled": "Đã hủy",
     "effort": {
       "label": "Mức nỗ lực",
+      "picker": "Mức nỗ lực: {{level}}",
       "low": "Thấp",
       "medium": "Vừa",
       "high": "Cao",
