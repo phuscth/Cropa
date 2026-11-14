@@ -1,5 +1,6 @@
 //! System tray: Capture region, History, Open editor, Quit.
 
+use tauri::image::Image;
 use tauri::menu::{Menu, MenuItem, PredefinedMenuItem};
 use tauri::tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent};
 use tauri::{AppHandle, Runtime};
@@ -27,7 +28,10 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
         ],
     )?;
 
-    let mut builder = TrayIconBuilder::with_id("main")
+    TrayIconBuilder::with_id("main")
+        // The small mark at 32 px: Windows halves it to 16 px at 100% scaling. The window icon is the
+        // large mark, which blurs at tray size.
+        .icon(Image::from_bytes(include_bytes!("../icons/tray.png"))?)
         .tooltip(text.tooltip)
         .menu(&menu)
         .show_menu_on_left_click(false)
@@ -48,10 +52,7 @@ pub fn create<R: Runtime>(app: &AppHandle<R>, lang: Lang) -> tauri::Result<()> {
             {
                 show_main(tray.app_handle(), MainView::Editor);
             }
-        });
-    if let Some(icon) = app.default_window_icon() {
-        builder = builder.icon(icon.clone());
-    }
-    builder.build(app)?;
+        })
+        .build(app)?;
     Ok(())
 }
