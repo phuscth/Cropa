@@ -3,11 +3,16 @@
     "name": "Cropa"
   },
   "editor": {
+    "picker": {
+      "title": "Chọn ảnh",
+      "add": "Thêm ảnh",
+      "recentAlt": "Ảnh chụp lúc {{time}}"
+    },
     "drop": {
       "title": "Kéo thả hoặc dán",
       "subtitle": "Hình ảnh",
       "selectTitle": "Chọn ảnh",
-      "selectSubtitle": "Chọn một tệp trên máy tính",
+      "selectSubtitle": "Mở trình chọn ảnh",
       "dropTitle": "Thả để mở",
       "opening": "Đang mở ảnh…"
     },

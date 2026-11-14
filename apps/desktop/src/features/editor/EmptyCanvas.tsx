@@ -1,8 +1,6 @@
 import { AddIcon, Button, CameraIcon, cn, ImageAddIcon, ImageIcon } from '@cropa/ui';
-import { useRef } from 'react';
+import type { Ref } from 'react';
 import { useTranslation } from 'react-i18next';
-
-import { pickImageFile } from './import-image.ts';
 
 interface Props {
   /** The screenshot's rectangle in CSS px, relative to the preview canvas. */
@@ -14,8 +12,10 @@ interface Props {
   /** A file is being opened. */
   importing: boolean;
   shortcut: string | undefined;
-  onFile: (file: File) => void;
+  onOpenPicker: () => void;
   onCapture: () => void;
+  /** The button that opens the picker, so the picker can return focus to it. */
+  buttonRef: Ref<HTMLButtonElement>;
 }
 
 // Both layers share one grid cell, so the column is as tall as the taller of the two.
@@ -27,10 +27,9 @@ const LAYER =
  * drawn the frame around it, so this card is transparent and only holds the
  * invitation to drop, paste or pick an image, and the capture button.
  */
-export function EmptyCanvas({ rect, radius, dragging, importing, shortcut, onFile, onCapture }: Props) {
+export function EmptyCanvas({ rect, radius, dragging, importing, shortcut, onOpenPicker, onCapture, buttonRef }: Props) {
   const { t } = useTranslation();
-  const fileInput = useRef<HTMLInputElement>(null);
-  // While a file is over the window or being opened, the card does not offer the file picker.
+  // While a file is over the window or being opened, the card does not offer the picker.
   const locked = dragging || importing;
   const iconBox = { width: 'clamp(56px, 14cqw, 112px)', height: 'clamp(40px, 10cqw, 80px)' };
   const icon = { width: '58%', height: '58%' };
@@ -53,26 +52,14 @@ export function EmptyCanvas({ rect, radius, dragging, importing, shortcut, onFil
       )}
       style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, borderRadius: radius }}
     >
-      <input
-        ref={fileInput}
-        type="file"
-        accept="image/png,image/jpeg,image/webp"
-        className="hidden"
-        onChange={(event) => {
-          const input = event.target;
-          const file = input.files && pickImageFile(input.files);
-          // Cleared so the same file can be picked again.
-          input.value = '';
-          if (file) onFile(file);
-        }}
-      />
       <button
+        ref={buttonRef}
         type="button"
         disabled={importing}
         aria-label={`${t('editor.drop.selectTitle')}. ${t('editor.drop.selectSubtitle')}`}
         className="peer absolute inset-0 cursor-pointer outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-progress"
         style={{ borderRadius: 'inherit' }}
-        onClick={() => { fileInput.current?.click(); }}
+        onClick={onOpenPicker}
       />
       <div className="pointer-events-none relative z-10 flex max-w-full flex-col items-center gap-[2cqw] text-tertiary-foreground">
         <div className="grid">

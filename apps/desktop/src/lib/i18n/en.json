@@ -3,11 +3,16 @@
     "name": "Cropa"
   },
   "editor": {
+    "picker": {
+      "title": "Choose an image",
+      "add": "Add image",
+      "recentAlt": "Capture from {{time}}"
+    },
     "drop": {
       "title": "Drop or Paste",
       "subtitle": "Images",
       "selectTitle": "Select image",
-      "selectSubtitle": "Choose a file from your computer",
+      "selectSubtitle": "Open the image picker",
       "dropTitle": "Drop to open",
       "opening": "Opening image…"
     },

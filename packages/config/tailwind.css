@@ -183,6 +183,7 @@
   --animate-menu-out: menu-out 140ms var(--ease-enter) forwards;
   --animate-fade-in: fade-in 200ms var(--ease-enter);
   --animate-notice-in: notice-in 200ms var(--ease-enter);
+  --animate-picker-in: picker-in 200ms var(--ease-enter);
   --animate-tab-in: tab-in 200ms var(--ease-enter);
   --animate-tooltip-in: tooltip-in 150ms var(--ease-enter);
 
@@ -227,6 +228,18 @@
   from {
     opacity: 0;
     transform: translateY(var(--motion-rise));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* A panel at the top of the canvas, sliding down into place. */
+@keyframes picker-in {
+  from {
+    opacity: 0;
+    transform: translateY(calc(-1 * var(--motion-rise)));
   }
   to {
     opacity: 1;

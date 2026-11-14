@@ -18,6 +18,7 @@ import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
 import { EXPORT_SIZES, exportPlan, type ExportSize } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { EmptyCanvas } from '../../features/editor/EmptyCanvas.tsx';
+import { ImagePicker } from '../../features/editor/ImagePicker.tsx';
 import { useEmptyBitmap } from '../../features/editor/empty-bitmap.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
 import { isDraggingOut } from '../../features/editor/export/use-export.ts';
@@ -80,6 +81,8 @@ export function EditorView() {
   const [importError, setImportError] = useState<UserError>();
   const [importing, setImporting] = useState(false);
   const [dragging, setDragging] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const pickerAnchor = useRef<HTMLButtonElement>(null);
   const emptyBitmap = useEmptyBitmap();
   const tRef = useRef(t);
   useEffect(() => { tRef.current = t; });
@@ -208,6 +211,7 @@ export function EditorView() {
           }
           setError(undefined);
           endImport();
+          setPickerOpen(false);
           const palette = screenshotPalette(bitmap);
           setLoaded((previous) => ({
             bitmap,
@@ -285,6 +289,7 @@ export function EditorView() {
     if (importRunning.current) return;
     importRunning.current = true;
     setImporting(true);
+    setPickerOpen(false);
     let started = false;
     try {
       const png = await fileToPng(file);
@@ -322,7 +327,10 @@ export function EditorView() {
       if (!carriesFiles(event)) return;
       event.preventDefault();
       depth += 1;
-      if (accepts()) setDragging(true);
+      if (accepts()) {
+        setDragging(true);
+        setPickerOpen(false);
+      }
     };
     const onOver = (event: DragEvent) => {
       if (!carriesFiles(event)) return;
@@ -372,6 +380,11 @@ export function EditorView() {
     return () => { window.removeEventListener('paste', onPaste); };
   }, [active, importFile]);
 
+  const closePicker = useCallback((returnFocus: boolean) => {
+    setPickerOpen(false);
+    if (returnFocus) pickerAnchor.current?.focus();
+  }, []);
+
   const [captureError, setCaptureError] = useState<UserError>();
   const captureRegion = () => {
     requestCaptureAfterPaint().catch((cause: unknown) => {
@@ -381,7 +394,7 @@ export function EditorView() {
 
   // Notices stack at the top centre of the canvas and slide in.
   const notices = (
-    <div className="pointer-events-none absolute top-3 left-1/2 z-10 flex w-[min(28rem,calc(100%-1.5rem))] -translate-x-1/2 flex-col items-stretch gap-2">
+    <div data-picker-keep className="pointer-events-none absolute top-3 left-1/2 z-40 flex w-[min(28rem,calc(100%-1.5rem))] -translate-x-1/2 flex-col items-stretch gap-2">
       {error ? (
         <div className="pointer-events-auto">
           <ErrorNotice error={error} />
@@ -461,11 +474,20 @@ export function EditorView() {
                   dragging={dragging}
                   importing={importing}
                   shortcut={shortcut}
-                  onFile={(file) => { void importFile(file); }}
+                  onOpenPicker={() => { setPickerOpen(true); }}
+                  buttonRef={pickerAnchor}
                   onCapture={captureRegion}
                 />
               );
             }}
+          />
+        )}
+        {pickerOpen && !loaded && !dragging && !importing && (
+          <ImagePicker
+            anchor={pickerAnchor}
+            onClose={closePicker}
+            onFile={(file) => { void importFile(file); }}
+            onError={setImportError}
           />
         )}
         {notices}
