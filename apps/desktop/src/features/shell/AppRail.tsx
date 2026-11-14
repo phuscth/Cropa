@@ -1,13 +1,4 @@
-import {
-  EditorIcon,
-  EditorIconActive,
-  HistoryIcon,
-  HistoryIconActive,
-  NavRail,
-  NavRailItem,
-  SettingsIcon,
-  SettingsIconActive,
-} from '@cropa/ui';
+import { EditorIcon, HistoryIcon, NavRail, NavRailItem, SettingsIcon } from '@cropa/ui';
 import type { ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -23,9 +14,9 @@ interface Props {
 export function AppRail({ current, onSelect }: Props) {
   const { t } = useTranslation();
 
-  const item = (view: MainView, label: string, icon: ReactNode, activeIcon: ReactNode) => (
+  const item = (view: MainView, label: string, icon: ReactNode) => (
     <NavRailItem
-      icon={view === current ? activeIcon : icon}
+      icon={icon}
       label={label}
       active={view === current}
       onClick={() => {
@@ -35,12 +26,9 @@ export function AppRail({ current, onSelect }: Props) {
   );
 
   return (
-    <NavRail
-      aria-label={t('rail.label')}
-      footer={item('Settings', t('rail.settings'), <SettingsIcon />, <SettingsIconActive />)}
-    >
-      {item('Editor', t('rail.editor'), <EditorIcon />, <EditorIconActive />)}
-      {item('History', t('rail.history'), <HistoryIcon />, <HistoryIconActive />)}
+    <NavRail aria-label={t('rail.label')} footer={item('Settings', t('rail.settings'), <SettingsIcon />)}>
+      {item('Editor', t('rail.editor'), <EditorIcon />)}
+      {item('History', t('rail.history'), <HistoryIcon />)}
     </NavRail>
   );
 }

@@ -25,9 +25,6 @@ import { UndoLeftRoundIcon as SolarUndo } from '@solar-icons/react/linear/undo-l
 import { UndoRightRoundIcon as SolarRedo } from '@solar-icons/react/linear/undo-right-round';
 import { UploadMinimalisticIcon as SolarUpload } from '@solar-icons/react/linear/upload-minimalistic';
 import { WaterdropIcon as SolarWaterdrop } from '@solar-icons/react/linear/waterdrop';
-import { CropMinimalisticIcon as SolarCropBold } from '@solar-icons/react/bold/crop-minimalistic';
-import { HistoryIcon as SolarHistoryBold } from '@solar-icons/react/bold/history';
-import { SettingsIcon as SolarSettingsBold } from '@solar-icons/react/bold/settings';
 import { CropMinimalisticIcon as SolarCrop } from '@solar-icons/react/linear/crop-minimalistic';
 import type { Icon } from '@solar-icons/react/lib/types';
 
@@ -71,6 +68,3 @@ export const ChatIcon = linear(SolarChat, 'ChatIcon');
 export const SendIcon = linear(SolarArrowUp, 'SendIcon');
 export const StopIcon = linear(SolarStopCircle, 'StopIcon');
 
-export const EditorIconActive = SolarCropBold;
-export const HistoryIconActive = SolarHistoryBold;
-export const SettingsIconActive = SolarSettingsBold;
