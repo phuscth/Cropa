@@ -34,19 +34,20 @@ export function settleIn(element: HTMLElement): Animation {
 }
 
 /**
- * The AI is working: a soft band of light crosses the screenshot from left to right in 1.4s, then
- * rests for 1s, again and again. Only `transform` moves, so the compositor plays it without
- * repainting the canvas under it. Reduced motion gets no sweep (null): the still veil says enough.
+ * The AI is working: a soft band of light, two fifths of the scene wide, crosses the whole scene
+ * from left to right in 1.8s, then rests for 1s, again and again. Only `transform` moves, so the
+ * compositor plays it without repainting the canvas under it. Reduced motion gets no sweep (null):
+ * the still veil says enough.
  */
 export function workingSweep(band: HTMLElement): Animation | null {
   if (reducedMotion()) return null;
   return band.animate(
     [
       { transform: 'translateX(-100%)', easing: 'cubic-bezier(0.45, 0, 0.25, 1)' },
-      { transform: 'translateX(200%)', offset: 0.58 },
-      { transform: 'translateX(200%)' },
+      { transform: 'translateX(250%)', offset: 0.64 },
+      { transform: 'translateX(250%)' },
     ],
-    { duration: 2400, iterations: Infinity },
+    { duration: 2800, iterations: Infinity },
   );
 }
 

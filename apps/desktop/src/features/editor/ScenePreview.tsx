@@ -3,7 +3,7 @@ import { cn } from '@cropa/ui';
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { useTranslation } from 'react-i18next';
 
-import { shotRectCss, type PreviewGeometry } from './annotate/geometry.ts';
+import type { PreviewGeometry } from './annotate/geometry.ts';
 import {
   closeCodeFrames,
   codeEnv,
@@ -24,7 +24,7 @@ interface Props {
   overlay?: (geometry: PreviewGeometry) => ReactNode;
   /** Space kept free under the image, in CSS px, for toolbars floating over the bottom of the canvas. */
   bottomInset?: number;
-  /** The AI is writing a background: light sweeps over the screenshot until the result shows. */
+  /** The AI is writing a background: light sweeps over the scene until the result shows. */
   working?: boolean;
 }
 
@@ -212,7 +212,6 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0, working 
   const backingW = Math.max(1, current.width);
   const backingH = Math.max(1, current.height);
   const geometry: PreviewGeometry = { css, backing: { width: backingW, height: backingH } };
-  const shot = shotRectCss(scene, geometry);
 
   useEffect(() => {
     if (area.width === 0 || live) return;
@@ -345,30 +344,19 @@ export function ScenePreview({ scene, bitmap, overlay, bottomInset = 0, working 
           className="checkerboard rounded-xl"
           style={{ width: css.width, height: css.height }}
         />
-        <WorkingVeil
-          on={working || holding}
-          rect={shot}
-          radius={scene.frame.radius * (shot.w / scene.screenshot.width)}
-        />
+        <WorkingVeil on={working || holding} />
         {overlay?.(geometry)}
       </div>
     </div>
   );
 }
 
-interface VeilProps {
-  on: boolean;
-  /** The screenshot's rectangle in CSS px, relative to the preview canvas. */
-  rect: { x: number; y: number; w: number; h: number };
-  radius: number;
-}
-
 /**
- * Plays over the screenshot while the AI works: a light veil with a band of light sweeping across
- * it. It is page chrome over the canvas, so it never reaches an exported image. It fades in, and
- * fades out once `on` turns off, staying mounted through the fade.
+ * Plays over the whole scene while the AI works: a light veil with a band of light sweeping across
+ * it, in the canvas's own box and corners. It is page chrome over the canvas, so it never reaches
+ * an exported image. It fades in, and fades out once `on` turns off, staying mounted through the fade.
  */
-function WorkingVeil({ on, rect, radius }: VeilProps) {
+function WorkingVeil({ on }: { on: boolean }) {
   const bandRef = useRef<HTMLDivElement>(null);
   const [mounted, setMounted] = useState(on);
   if (on && !mounted) setMounted(true);
@@ -401,14 +389,13 @@ function WorkingVeil({ on, rect, radius }: VeilProps) {
     <div
       aria-hidden="true"
       className={cn(
-        'pointer-events-none absolute overflow-hidden bg-white/10 transition-opacity duration-200 ease-enter',
+        'pointer-events-none absolute inset-0 overflow-hidden rounded-xl bg-white/10 transition-opacity duration-200 ease-enter',
         visible ? 'opacity-100' : 'opacity-0',
       )}
-      style={{ left: rect.x, top: rect.y, width: rect.w, height: rect.h, borderRadius: radius }}
     >
       <div
         ref={bandRef}
-        className="absolute inset-y-0 left-0 w-1/2"
+        className="absolute inset-y-0 left-0 w-2/5"
         style={{
           // `transform`, not Tailwind's `translate`, which would add to the sweep's own transform.
           transform: 'translateX(-100%)',
