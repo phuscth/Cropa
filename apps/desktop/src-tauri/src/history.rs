@@ -6,6 +6,9 @@
 //! derived from the file names, so nothing custom is written to disk and there
 //! is nothing to migrate.
 //!
+//! A capture's AI chat is `<dir>/chats/<id>.json` (see [`crate::chat`]); it goes
+//! when its capture goes.
+//!
 //! The WebView never passes a path. It passes an id, which [`History`] checks
 //! (ASCII digits only, 1 to 20 of them) before building a path inside its own
 //! folder.
@@ -22,6 +25,8 @@ use serde::Serialize;
 use specta::Type;
 use tauri_specta::Event;
 
+use crate::chat::{self, ChatError, ChatMessage, MigrateError};
+
 /// How many captures are kept.
 pub const KEEP: usize = 50;
 /// How long a capture is kept.
@@ -30,6 +35,7 @@ pub const MAX_AGE: Duration = Duration::from_secs(30 * 24 * 60 * 60);
 pub const THUMBNAIL_MAX: (u32, u32) = (480, 320);
 
 const THUMBNAILS: &str = "thumbnails";
+const CHATS: &str = "chats";
 const MAX_ID_LEN: usize = 20;
 
 /// The history changed: a capture was saved or deleted.
@@ -77,6 +83,58 @@ impl History {
 
     fn thumbnails_dir(&self) -> PathBuf {
         self.dir.join(THUMBNAILS)
+    }
+
+    fn chats_dir(&self) -> PathBuf {
+        self.dir.join(CHATS)
+    }
+
+    fn chat_path(&self, id: &str) -> PathBuf {
+        self.chats_dir().join(format!("{id}.json"))
+    }
+
+    /// The conversation of a capture. A missing file, or one with no usable version or
+    /// shape, is an empty conversation: the next save replaces it.
+    pub fn chat(&self, id: &str) -> Result<Vec<ChatMessage>, ChatError> {
+        let id = valid_id(id).map_err(|_| ChatError::Invalid("historyId"))?;
+        let _guard = self.guard();
+        let raw = match fs::read(self.chat_path(id)) {
+            Ok(raw) => raw,
+            Err(err) if err.kind() == io::ErrorKind::NotFound => return Ok(Vec::new()),
+            Err(err) => return Err(ChatError::Read(err.to_string())),
+        };
+        let parsed = serde_json::from_slice(&raw)
+            .map_err(MigrateError::from)
+            .and_then(chat::migrate);
+        match parsed {
+            Ok(file) => Ok(file.messages),
+            Err(MigrateError::TooNew(_)) => Err(ChatError::TooNew),
+            Err(err) => {
+                log::warn!("chat of capture {id} reset to an empty conversation: {err}");
+                Ok(Vec::new())
+            }
+        }
+    }
+
+    /// Replace the conversation of a capture, dropping the oldest messages over the caps.
+    /// Returns `false`, writing nothing, when the capture is not in the history.
+    pub fn save_chat(&self, id: &str, messages: Vec<ChatMessage>) -> Result<bool, ChatError> {
+        let id = valid_id(id).map_err(|_| ChatError::Invalid("historyId"))?;
+        for message in &messages {
+            chat::validate(message)?;
+        }
+        let bytes = chat::encode_capped(messages)?;
+        let _guard = self.guard();
+        if !self.dir.join(format!("{id}.png")).exists() {
+            return Ok(false);
+        }
+        let save_error = |err: io::Error| ChatError::Save(err.to_string());
+        fs::create_dir_all(self.chats_dir()).map_err(save_error)?;
+        let path = self.chat_path(id);
+        let tmp = self.chats_dir().join(format!("{id}.json.tmp"));
+        fs::write(&tmp, bytes).map_err(save_error)?;
+        fs::rename(&tmp, &path).map_err(save_error)?;
+        Ok(true)
     }
 
     /// Store a capture and its thumbnail, then drop what is over the limits.
@@ -149,18 +207,26 @@ impl History {
         }
     }
 
-    /// Remove one capture and its thumbnail.
+    /// Remove one capture, its thumbnail and its chat.
     pub fn delete(&self, id: &str) -> Result<(), HistoryError> {
         let id = valid_id(id)?;
         let _guard = self.guard();
+        remove_if_present(&self.chat_path(id))?;
         remove(&self.dir.join(format!("{id}.png")))?;
         remove_if_present(&self.thumbnails_dir().join(format!("{id}.png")))?;
         Ok(())
     }
 
-    /// Remove every capture and thumbnail. Other files in the folder stay.
+    /// Remove every capture, thumbnail and chat. Other files in the folder stay.
     pub fn delete_all(&self) -> Result<(), HistoryError> {
         let _guard = self.guard();
+        let chats = self.chats_dir();
+        for (_, id) in ids_with_suffix(&chats, ".json") {
+            remove_if_present(&chats.join(format!("{id}.json")))?;
+        }
+        for (_, id) in ids_with_suffix(&chats, ".json.tmp") {
+            remove_if_present(&chats.join(format!("{id}.json.tmp")))?;
+        }
         for dir in [self.dir.clone(), self.thumbnails_dir()] {
             for (_, id) in ids_in(&dir) {
                 remove_if_present(&dir.join(format!("{id}.png")))?;
@@ -173,7 +239,7 @@ impl History {
     }
 
     /// Keep the [`KEEP`] newest captures that are no older than [`MAX_AGE`], and
-    /// drop thumbnails whose original is gone.
+    /// drop thumbnails and chats whose original is gone.
     pub fn prune(&self, now: SystemTime) {
         let _guard = self.guard();
         self.prune_locked(now);
@@ -188,7 +254,7 @@ impl History {
             if too_old || kept >= KEEP {
                 let original = self.dir.join(format!("{id}.png"));
                 let thumbnail = self.thumbnails_dir().join(format!("{id}.png"));
-                for path in [original, thumbnail] {
+                for path in [original, thumbnail, self.chat_path(&id)] {
                     if let Err(err) = remove_if_present(&path) {
                         log::warn!("could not remove history entry {id}: {err}");
                     }
@@ -202,6 +268,19 @@ impl History {
                 if let Err(err) = remove_if_present(&dir.join(&name)) {
                     log::warn!("could not remove {name}: {err}");
                 }
+            }
+        }
+        let chats = self.chats_dir();
+        for (_, id) in ids_with_suffix(&chats, ".json") {
+            if !self.dir.join(format!("{id}.png")).exists()
+                && let Err(err) = remove_if_present(&chats.join(format!("{id}.json")))
+            {
+                log::warn!("could not remove the chat of capture {id}: {err}");
+            }
+        }
+        for (_, id) in ids_with_suffix(&chats, ".json.tmp") {
+            if let Err(err) = remove_if_present(&chats.join(format!("{id}.json.tmp"))) {
+                log::warn!("could not remove a chat leftover {id}: {err}");
             }
         }
         for (_, id) in ids_in(&self.thumbnails_dir()) {
@@ -224,6 +303,11 @@ impl History {
 #[allow(clippy::cast_precision_loss)]
 pub fn epoch_millis(at: SystemTime) -> f64 {
     unix_millis(at) as f64
+}
+
+/// The id a capture taken at `at` gets, unless another capture took the same millisecond.
+pub fn history_id_at(at: SystemTime) -> String {
+    unix_millis(at).to_string()
 }
 
 fn unix_millis(at: SystemTime) -> u128 {
@@ -340,6 +424,7 @@ mod tests {
     use image::Rgba;
 
     use super::*;
+    use crate::chat;
 
     struct TempDir(PathBuf);
 
@@ -587,5 +672,114 @@ mod tests {
         let bytes = history.thumbnail(&id).unwrap();
         let decoded = image::load_from_memory(&bytes).unwrap();
         assert_eq!((decoded.width(), decoded.height()), (480, 320));
+    }
+
+    fn convo() -> Vec<ChatMessage> {
+        vec![
+            chat::tests::user("u1", "make it blue"),
+            chat::tests::agent("a1", "Done"),
+        ]
+    }
+
+    fn chat_files(history: &History) -> Vec<String> {
+        files(&history.chats_dir())
+    }
+
+    #[test]
+    fn a_conversation_survives_a_restart() {
+        let dir = TempDir::new("chat-restart");
+        let id = history(&dir).save(&tiny(), SystemTime::now()).unwrap();
+        assert!(history(&dir).save_chat(&id, convo()).unwrap());
+
+        let reopened = history(&dir);
+        assert_eq!(reopened.chat(&id).unwrap(), convo());
+        assert_eq!(chat_files(&reopened), [format!("{id}.json")]);
+    }
+
+    #[test]
+    fn a_missing_file_or_one_without_a_version_is_an_empty_conversation() {
+        let dir = TempDir::new("chat-empty");
+        let history = history(&dir);
+        let id = history.save(&tiny(), SystemTime::now()).unwrap();
+        assert_eq!(history.chat(&id).unwrap(), Vec::<ChatMessage>::new());
+
+        fs::create_dir_all(history.chats_dir()).unwrap();
+        fs::write(history.chat_path(&id), r#"{"messages":[]}"#).unwrap();
+        assert_eq!(history.chat(&id).unwrap(), Vec::<ChatMessage>::new());
+        fs::write(history.chat_path(&id), "not json").unwrap();
+        assert_eq!(history.chat(&id).unwrap(), Vec::<ChatMessage>::new());
+        assert!(history.save_chat(&id, convo()).unwrap());
+        assert_eq!(history.chat(&id).unwrap(), convo());
+
+        fs::write(history.chat_path(&id), r#"{"version":2,"messages":[]}"#).unwrap();
+        assert!(matches!(history.chat(&id), Err(ChatError::TooNew)));
+    }
+
+    #[test]
+    fn a_save_for_a_capture_that_is_not_there_writes_nothing() {
+        let dir = TempDir::new("chat-no-capture");
+        let history = history(&dir);
+        assert!(!history.save_chat("123", convo()).unwrap());
+        assert!(!history.chats_dir().exists());
+    }
+
+    #[test]
+    fn a_bad_id_or_an_invalid_message_is_refused_and_touches_nothing() {
+        let dir = TempDir::new("chat-refused");
+        let history = history(&dir);
+        let id = history.save(&tiny(), SystemTime::now()).unwrap();
+        assert!(matches!(
+            history.save_chat("../x", convo()),
+            Err(ChatError::Invalid("historyId"))
+        ));
+        assert!(matches!(
+            history.chat("../x"),
+            Err(ChatError::Invalid("historyId"))
+        ));
+        let long = "x".repeat(2001);
+        assert!(matches!(
+            history.save_chat(&id, vec![chat::tests::user("u1", &long)]),
+            Err(ChatError::Invalid("text"))
+        ));
+        assert!(matches!(
+            history.save_chat(&id, vec![chat::tests::user("bad id", "hi")]),
+            Err(ChatError::Invalid("id"))
+        ));
+        assert!(!history.chats_dir().exists());
+    }
+
+    #[test]
+    fn deleting_a_capture_deletes_its_conversation() {
+        let dir = TempDir::new("chat-delete");
+        let history = history(&dir);
+        let base = SystemTime::now();
+        let first = history.save(&tiny(), base).unwrap();
+        let second = history.save(&tiny(), base + millis(1)).unwrap();
+        history.save_chat(&first, convo()).unwrap();
+        history.save_chat(&second, convo()).unwrap();
+
+        history.delete(&first).unwrap();
+        assert_eq!(chat_files(&history), [format!("{second}.json")]);
+
+        history.delete_all().unwrap();
+        assert_eq!(chat_files(&history), Vec::<String>::new());
+    }
+
+    #[test]
+    fn pruning_removes_the_conversation_of_an_old_capture_and_leftovers() {
+        let dir = TempDir::new("chat-prune");
+        let history = history(&dir);
+        let now = SystemTime::now();
+        let day = Duration::from_secs(24 * 60 * 60);
+        let old = history.save(&tiny(), now - day * 31).unwrap();
+        let recent = history.save(&tiny(), now - day).unwrap();
+        history.save_chat(&old, convo()).unwrap();
+        history.save_chat(&recent, convo()).unwrap();
+        fs::write(history.chats_dir().join("5.json.tmp"), "x").unwrap();
+        fs::write(history.chats_dir().join("9.json"), "{}").unwrap();
+
+        history.prune(now);
+
+        assert_eq!(chat_files(&history), [format!("{recent}.json")]);
     }
 }

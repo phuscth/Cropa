@@ -20,7 +20,7 @@ use tauri::{AppHandle, Manager, Runtime};
 use tauri_specta::Event;
 
 use crate::editor;
-use crate::history::{History, HistoryChanged, epoch_millis};
+use crate::history::{History, HistoryChanged, epoch_millis, history_id_at};
 use crate::i18n::{CaptureFailure, Lang, capture_failed_text, capture_text};
 use crate::platform::{
     self, MonitorInfo, Platform, PreviewAction, PreviewCloser, PreviewHandle, Selection,
@@ -52,6 +52,8 @@ struct PendingPreview {
     actions: Receiver<PreviewAction>,
     image: Arc<RgbaImage>,
     captured_at: SystemTime,
+    /// The history id of this capture when it is being saved to the history.
+    history_id: Option<String>,
 }
 
 /// Clears [`BUSY`] when dropped, including on a panic or an early return.
@@ -180,6 +182,7 @@ fn run<R: Runtime>(app: &AppHandle<R>, pressed: Instant) -> Option<PendingPrevie
                 actions,
                 image,
                 captured_at,
+                history_id: save_history.then(|| history_id_at(captured_at)),
             })
         }
         Err(err) => {
@@ -196,11 +199,12 @@ fn wait_for_choice<R: Runtime>(app: &AppHandle<R>, pending: PendingPreview) {
         actions,
         image,
         captured_at,
+        history_id,
     } = pending;
     // A disconnect means the preview was closed another way: nothing to do.
     if actions.recv() == Ok(PreviewAction::Edit) {
         match encode_png(&image) {
-            Ok(png) => editor::open(app, png, Some(epoch_millis(captured_at))),
+            Ok(png) => editor::open(app, png, Some(epoch_millis(captured_at)), history_id),
             Err(err) => log::warn!("could not open the capture in the editor: {err}"),
         }
     }

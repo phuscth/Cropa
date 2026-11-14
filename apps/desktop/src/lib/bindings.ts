@@ -42,6 +42,13 @@ export const commands = {
 	deleteHistoryImage: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_history_image", { id })),
 	deleteAllHistory: () => typedError<null, CommandError>(__TAURI_INVOKE("delete_all_history")),
 	openHistoryInEditor: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("open_history_in_editor", { id })),
+	/**  The conversation kept for a capture; empty when there is none. */
+	getChat: (historyId: string) => typedError<ChatMessage_Serialize[], CommandError>(__TAURI_INVOKE("get_chat", { historyId })),
+	/**
+	 *  Replaces the conversation kept for a capture. `false` means the capture is not in the
+	 *  history, so nothing was written.
+	 */
+	saveChat: (historyId: string, messages: ChatMessage_Deserialize[]) => typedError<boolean, CommandError>(__TAURI_INVOKE("save_chat", { historyId, messages })),
 	/**  The image the editor shows with its capture time, or `None` when it has none. */
 	getEditorImage: () => typedError<EditorImageData_Serialize | null, CommandError>(__TAURI_INVOKE("get_editor_image")),
 	/**
@@ -230,7 +237,13 @@ export type AiError = { kind: "NotInstalled" } | { kind: "NotLoggedIn" } | { kin
 export type AiErrorKind = "notInstalled" | "notLoggedIn" | "usageLimit" | "unsupported" | "timeout" | "protocol" | "cancelled";
 
 /**  Progress of a run, sent over the channel. */
-export type AiEvent = { kind: "started" } | { kind: "delta"; text: string };
+export type AiEvent = { kind: "started" } | 
+/**  Reply text as it arrives. */
+{ kind: "delta"; text: string } | 
+/**  Reasoning the CLI exposes, as it arrives. */
+{ kind: "thinking"; text: string } | 
+/**  The structured answer as raw JSON text while it is being written. */
+{ kind: "output"; text: string };
 
 /**
  *  What the mock provider does. Only the mock reads it, and the mock exists in
@@ -384,10 +397,76 @@ export type CaptureSource = "Hotkey" | "Tray" |
 "Menu";
 
 /**
+ *  One bubble. The fields after `text` belong to one role: a user message
+ *  carries `mode`, an agent reply the rest.
+ */
+export type ChatMessage = ChatMessage_Serialize | ChatMessage_Deserialize;
+
+/**
+ *  One bubble. The fields after `text` belong to one role: a user message
+ *  carries `mode`, an agent reply the rest.
+ */
+export type ChatMessage_Deserialize = {
+	id: string,
+	role: ChatRole,
+	/**  Milliseconds since the Unix epoch. */
+	at: number | null,
+	/**  What the user typed, or the agent's reply prose. */
+	text: string,
+	mode?: ChatMode | null,
+	provider?: string | null,
+	effort?: AiEffort | null,
+	/**  The reasoning summary the CLI showed. */
+	thinking?: string | null,
+	outcome?: ChatOutcome | null,
+	/**  A short kind of failure, for example `UsageLimit` or `no-webgl`. */
+	error?: string | null,
+	/**  The background before the run stayed on the canvas. */
+	unchanged?: boolean | null,
+	elapsedMs?: number | null,
+	/**  The applied `BackgroundSpec`; the bindings type it as `unknown` and the window validates it. */
+	background?: unknown,
+};
+
+/**
+ *  One bubble. The fields after `text` belong to one role: a user message
+ *  carries `mode`, an agent reply the rest.
+ */
+export type ChatMessage_Serialize = {
+	id: string,
+	role: ChatRole,
+	/**  Milliseconds since the Unix epoch. */
+	at: number | null,
+	/**  What the user typed, or the agent's reply prose. */
+	text: string,
+	mode?: ChatMode,
+	provider?: string,
+	effort?: AiEffort,
+	/**  The reasoning summary the CLI showed. */
+	thinking?: string,
+	outcome?: ChatOutcome,
+	/**  A short kind of failure, for example `UsageLimit` or `no-webgl`. */
+	error?: string,
+	/**  The background before the run stayed on the canvas. */
+	unchanged?: boolean,
+	elapsedMs?: number,
+	/**  The applied `BackgroundSpec`; the bindings type it as `unknown` and the window validates it. */
+	background: unknown,
+};
+
+/**  What a user message asked for. */
+export type ChatMode = "generate" | "refine" | "regenerate";
+
+/**  How an agent reply ended. */
+export type ChatOutcome = "applied" | "failed" | "cancelled";
+
+export type ChatRole = "user" | "agent";
+
+/**
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message (what happened, why, what to do next).
  */
-export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
+export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "ChatInvalid"; detail: string } | { kind: "ChatTooNew" } | { kind: "ChatRead"; detail: string } | { kind: "ChatSave"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "AiProviderUnavailable" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
 
 /**  How a drag out of the editor ended. */
 export type DragResult = "dropped" | "cancelled" | 
@@ -406,6 +485,8 @@ export type EditorImageData_Deserialize = {
 	image: string,
 	/**  Milliseconds since the Unix epoch; `None` when the capture time is unknown. */
 	capturedAt?: number | null,
+	/**  The capture's id in the history, when it is kept there. The chat is stored under it. */
+	historyId?: string | null,
 };
 
 /**  What the editor shows: the image and when it was captured. */
@@ -414,6 +495,8 @@ export type EditorImageData_Serialize = {
 	image: string,
 	/**  Milliseconds since the Unix epoch; `None` when the capture time is unknown. */
 	capturedAt: number | null,
+	/**  The capture's id in the history, when it is kept there. The chat is stored under it. */
+	historyId: string | null,
 };
 
 /**  An image file format the editor can export. */
