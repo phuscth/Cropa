@@ -85,3 +85,11 @@ pub async fn import_editor_image(app: AppHandle, data: String) -> Result<(), Com
     .await
     .map_err(|err| CommandError::ImageImportUnreadable(err.to_string()))?
 }
+
+/// Takes the image out of the editor, which goes back to its empty canvas. The history keeps its captures.
+#[tauri::command]
+#[specta::specta]
+pub async fn clear_editor_image(app: AppHandle) -> Result<(), CommandError> {
+    editor::clear(&app);
+    Ok(())
+}

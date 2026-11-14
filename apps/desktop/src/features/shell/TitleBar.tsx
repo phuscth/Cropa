@@ -30,6 +30,7 @@ import { describeCommandError, describeUnexpected, type UserError } from '../../
 import { toggleChatPanel, useChatPanelOpen } from '../chat/panel-state.ts';
 import { useEditorActions } from './editor-actions.ts';
 import { SavePopover } from './SavePopover.tsx';
+import { StartOverConfirm } from './StartOverConfirm.tsx';
 
 interface Props {
   /** The view on screen. */
@@ -236,6 +237,10 @@ export function TitleBar({ view, onView, onAbout, onError }: Props) {
           >
             <RedoIcon />
           </Button>
+          <StartOverConfirm
+            disabled={!(inEditor && actions?.canStartOver)}
+            onConfirm={() => { actions?.startOver(); }}
+          />
         </div>
       </div>
 

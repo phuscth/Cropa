@@ -58,6 +58,8 @@ export const commands = {
 	 *  checked it is under 50 MB, so Rust accepts only PNG.
 	 */
 	importEditorImage: (data: string) => typedError<null, CommandError>(__TAURI_INVOKE("import_editor_image", { data })),
+	/**  Takes the image out of the editor, which goes back to its empty canvas. The history keeps its captures. */
+	clearEditorImage: () => typedError<null, CommandError>(__TAURI_INVOKE("clear_editor_image")),
 	/**
 	 *  Ctrl+S: save the rendered image (a `data:` URL of `format`) to the save
 	 *  folder, named after the capture time. `session_file` is the id of this

@@ -3,6 +3,13 @@
     "name": "Cropa"
   },
   "editor": {
+    "startOver": {
+      "label": "Start over",
+      "title": "Start over?",
+      "caption": "The image and your edits leave the editor. Your captures stay in History.",
+      "cancel": "Cancel",
+      "confirm": "Start over"
+    },
     "picker": {
       "title": "Choose an image",
       "add": "Add image",

@@ -19,6 +19,7 @@ import { HistoryIcon as SolarHistory } from '@solar-icons/react/linear/history';
 import { ListOrderedIcon as SolarListOrdered } from '@solar-icons/react/linear/list-ordered';
 import { MenuDotsIcon as SolarMenuDots } from '@solar-icons/react/linear/menu-dots';
 import { QuestionCircleIcon as SolarQuestionCircle } from '@solar-icons/react/linear/question-circle';
+import { RestartIcon as SolarRestart } from '@solar-icons/react/linear/restart';
 import { SettingsIcon as SolarSettings } from '@solar-icons/react/linear/settings';
 import { StopIcon as SolarStop } from '@solar-icons/react/linear/stop';
 import { StopCircleIcon as SolarStopCircle } from '@solar-icons/react/linear/stop-circle';
@@ -45,6 +46,7 @@ function linear(Solar: Icon, displayName: string): Icon {
 
 export const UndoIcon = linear(SolarUndo, 'UndoIcon');
 export const RedoIcon = linear(SolarRedo, 'RedoIcon');
+export const RestartIcon = linear(SolarRestart, 'RestartIcon');
 export const DragOutIcon = linear(SolarGallerySend, 'DragOutIcon');
 export const CopyIcon = linear(SolarCopy, 'CopyIcon');
 export const SaveIcon = linear(SolarDownload, 'SaveIcon');

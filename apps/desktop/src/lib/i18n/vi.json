@@ -3,6 +3,13 @@
     "name": "Cropa"
   },
   "editor": {
+    "startOver": {
+      "label": "Bắt đầu lại",
+      "title": "Bắt đầu lại?",
+      "caption": "Ảnh và các chỉnh sửa sẽ rời khỏi trình chỉnh sửa. Ảnh chụp của bạn vẫn còn trong Lịch sử.",
+      "cancel": "Hủy",
+      "confirm": "Bắt đầu lại"
+    },
     "picker": {
       "title": "Chọn ảnh",
       "add": "Thêm ảnh",

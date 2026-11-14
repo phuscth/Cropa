@@ -156,6 +156,8 @@ export function EditorView() {
   }, [history.scene, format, size, imageWidth, imageHeight]);
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
+  // Never reused, so a new image after a start over still resets what is keyed on the id.
+  const imageCount = useRef(0);
   // An import counts as running until the image it opened has loaded, or failed to.
   const importRunning = useRef(false);
   const endImport = useCallback(() => {
@@ -192,6 +194,12 @@ export function EditorView() {
           const data = result.data;
           if (!data) {
             endImport();
+            // The image was taken away: back to the empty canvas.
+            if (hasImageNow.current) {
+              setLoaded(undefined);
+              setError(undefined);
+              load(emptyScene);
+            }
             return;
           }
           const bitmap = await dataUrlToBitmap(data.image).catch((cause: unknown) => {
@@ -213,11 +221,12 @@ export function EditorView() {
           endImport();
           setPickerOpen(false);
           const palette = screenshotPalette(bitmap);
-          setLoaded((previous) => ({
+          const imageId = ++imageCount.current;
+          setLoaded(() => ({
             bitmap,
             edge: findEdgeColor(bitmap),
             palette,
-            imageId: (previous?.imageId ?? 0) + 1,
+            imageId,
             capturedAt: data.capturedAt,
             historyId: data.historyId,
           }));
@@ -267,6 +276,28 @@ export function EditorView() {
     return () => { window.removeEventListener('keydown', onKeyDown); };
   }, [active, undo, redo, quickSaveChosen, saveAsChosen, copy, hasImage]);
 
+  // Clears the image in Rust; the image-changed event then empties the editor.
+  // Through a ref, so `startOver` stays the same function and the title bar is not republished each render.
+  const stopChat = useRef(chat.stop);
+  useEffect(() => { stopChat.current = chat.stop; });
+  const canStartOver = (hasImage || history.canUndo || history.canRedo) && !busy;
+  const startOver = useCallback(() => {
+    stopChat.current();
+    setPickerOpen(false);
+    commands.clearEditorImage().then(
+      (result) => {
+        if (result.status === 'error') {
+          setImportError(describeCommandError(tRef.current, result.error));
+          return;
+        }
+        // Edits made on the empty canvas go too, whether or not an image was loaded.
+        setError(undefined);
+        load(emptyScene);
+      },
+      (cause: unknown) => { setImportError(describeUnexpected(tRef.current, cause)); },
+    );
+  }, [load]);
+
   useEffect(() => {
     publishEditorActions({
       hasImage,
@@ -275,13 +306,15 @@ export function EditorView() {
       canRedo: history.canRedo,
       undo,
       redo,
+      canStartOver,
+      startOver,
       copy: () => { void copy(); },
       quickSave: () => { void quickSaveChosen(); },
       saveAs: () => { void saveAsChosen(); },
       exportOptions,
       dragHandlers,
     });
-  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSaveChosen, saveAsChosen, exportOptions, dragHandlers]);
+  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, canStartOver, startOver, copy, quickSaveChosen, saveAsChosen, exportOptions, dragHandlers]);
   useEffect(() => () => { publishEditorActions(null); }, []);
 
   // Opens a file like a capture: Rust keeps and shows it, and the image-changed event loads it.

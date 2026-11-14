@@ -55,6 +55,13 @@ impl EditorImage {
         });
         self.generation.fetch_add(1, Ordering::SeqCst);
     }
+
+    /// Forget the image. Counts as a replacement, so a save of the old image is refused.
+    fn clear(&self) {
+        let mut slot = self.current.lock().unwrap_or_else(PoisonError::into_inner);
+        *slot = None;
+        self.generation.fetch_add(1, Ordering::SeqCst);
+    }
 }
 
 /// The editor has another image to show.
@@ -76,6 +83,14 @@ pub fn open<R: Runtime>(
         log::warn!("could not emit the editor image change: {err}");
     }
     main_window::show_main(app, MainView::Editor);
+}
+
+/// Take the image out of the editor, which then shows its empty canvas.
+pub fn clear<R: Runtime>(app: &AppHandle<R>) {
+    app.state::<EditorImage>().clear();
+    if let Err(err) = EditorImageChanged.emit(app) {
+        log::warn!("could not emit the editor image change: {err}");
+    }
 }
 
 /// The longest side of an imported image, in pixels. Mirrors `MAX_IMPORT_SIDE` in
@@ -170,6 +185,10 @@ mod tests {
         assert_eq!(current.captured_at, None);
         assert_eq!(current.history_id, None);
         assert_eq!(editor.generation(), generation + 1);
+
+        editor.clear();
+        assert!(editor.get().is_none());
+        assert_eq!(editor.generation(), generation + 2);
     }
     fn png_of(width: u32, height: u32, color: ExtendedColorType, pixels: &[u8]) -> String {
         let mut png = Vec::new();
