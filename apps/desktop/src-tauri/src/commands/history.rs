@@ -8,6 +8,7 @@ use tauri::{AppHandle, Manager};
 use tauri_specta::Event;
 
 use super::{CommandError, png_data_url};
+use crate::chat::{ChatError, ChatMessage};
 use crate::editor;
 use crate::history::{History, HistoryChanged, HistoryError, HistoryItem};
 use crate::platform::{self, Platform};
@@ -24,6 +25,15 @@ fn delete_error(err: HistoryError) -> CommandError {
     match err {
         HistoryError::Missing => CommandError::HistoryMissing,
         other => CommandError::HistoryDelete(other.to_string()),
+    }
+}
+
+fn chat_error(err: ChatError) -> CommandError {
+    match err {
+        ChatError::Invalid(field) => CommandError::ChatInvalid(field.to_owned()),
+        ChatError::TooNew => CommandError::ChatTooNew,
+        ChatError::Read(detail) => CommandError::ChatRead(detail),
+        ChatError::Save(detail) => CommandError::ChatSave(detail),
     }
 }
 
@@ -104,11 +114,39 @@ pub async fn delete_all_history(app: AppHandle) -> Result<(), CommandError> {
 #[tauri::command]
 #[specta::specta]
 pub async fn open_history_in_editor(app: AppHandle, id: String) -> Result<(), CommandError> {
-    let (png, captured_at) = blocking(&app, move |history| {
+    let (png, captured_at, id) = blocking(&app, move |history| {
         let png = history.original(&id).map_err(read_error)?;
-        Ok((png, History::captured_at(&id).ok()))
+        Ok((png, History::captured_at(&id).ok(), id))
     })
     .await?;
-    editor::open(&app, png, captured_at);
+    editor::open(&app, png, captured_at, Some(id));
     Ok(())
+}
+
+/// The conversation kept for a capture; empty when there is none.
+#[tauri::command]
+#[specta::specta]
+pub async fn get_chat(
+    app: AppHandle,
+    history_id: String,
+) -> Result<Vec<ChatMessage>, CommandError> {
+    blocking(&app, move |history| {
+        history.chat(&history_id).map_err(chat_error)
+    })
+    .await
+}
+
+/// Replaces the conversation kept for a capture. `false` means the capture is not in the
+/// history, so nothing was written.
+#[tauri::command]
+#[specta::specta]
+pub async fn save_chat(
+    app: AppHandle,
+    history_id: String,
+    messages: Vec<ChatMessage>,
+) -> Result<bool, CommandError> {
+    blocking(&app, move |history| {
+        history.save_chat(&history_id, messages).map_err(chat_error)
+    })
+    .await
 }

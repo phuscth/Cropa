@@ -14,7 +14,7 @@ import {
 } from '@cropa/core';
 
 import type { AiMockScript_Deserialize } from '../../lib/bindings.ts';
-import { applyBackground, sameBackground } from './scene-edits.ts';
+import { applyBackground, sameBackground } from '../editor/scene-edits.ts';
 import {
   checkModule,
   type CheckModuleOptions,
@@ -93,15 +93,33 @@ export function applyGenerated(scene: Scene, shown: BackgroundSpec, result: Back
   return sameBackground(scene.background, shown) ? applyBackground(scene, result) : scene;
 }
 
-/** What the mock provider answers in development: the first example module after a short wait. */
+/** Cuts `text` into pieces of about `size` characters. */
+function chunks(text: string, size: number): string[] {
+  const pieces: string[] = [];
+  for (let at = 0; at < text.length; at += size) pieces.push(text.slice(at, at + size));
+  return pieces;
+}
+
+/**
+ * What the mock provider does in development: a few lines of thinking, then the first example
+ * module written out in pieces, then the module as the answer, so the chat can be tried without
+ * using any quota.
+ */
 export function backgroundMockScript(): AiMockScript_Deserialize {
   const example = BACKGROUND_EXAMPLES[0];
+  const result = example
+    ? { source: example.source, durationMs: example.durationMs, threeD: example.threeD }
+    : null;
   return {
     delayMs: 1500,
-    events: [{ kind: 'delta', text: '…' }],
-    result: example
-      ? { source: example.source, durationMs: example.durationMs, threeD: example.threeD }
-      : null,
+    events: [
+      { kind: 'thinking', text: 'Picking a calm palette from the screenshot colours.' },
+      { kind: 'thinking', text: ' A slow gradient drift will loop cleanly.' },
+      ...chunks(JSON.stringify(result), Math.max(1, Math.ceil(JSON.stringify(result).length / 12))).map(
+        (text) => ({ kind: 'output' as const, text }),
+      ),
+    ],
+    result,
     error: null,
   };
 }

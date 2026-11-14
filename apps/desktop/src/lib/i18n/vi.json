@@ -12,41 +12,6 @@
       "px": "{{value}} px",
       "deg": "{{value}}°"
     },
-    "aiBackground": {
-      "title": "Nền AI",
-      "label": "Mô tả nền",
-      "placeholder": "Đồng cỏ đung đưa trong gió nhẹ, hoặc đom đóm trên mặt hồ tối",
-      "generate": "Tạo",
-      "cancel": "Hủy",
-      "writing": "Đang viết nền…",
-      "checking": "Đang kiểm tra nền có chạy được không…",
-      "effort": {
-        "label": "Mức nỗ lực",
-        "low": "Thấp",
-        "medium": "Vừa",
-        "high": "Cao",
-        "hint": "Mức cao hơn mất nhiều thời gian hơn và dùng nhiều hạn mức AI của bạn hơn."
-      },
-      "noWebgl": {
-        "what": "Nền này cần đồ họa 3D.",
-        "why": "WebGL không khả dụng trong cửa sổ này nên nền 3D không chạy được.",
-        "next": "Hãy thử một mô tả không có vật thể 3D. Preset gần nhất vẫn được giữ.",
-        "nextKept": "Hãy thử một mô tả không có vật thể 3D. Nền hiện tại của bạn không thay đổi."
-      },
-      "madeWith": "Tạo bằng {{provider}} · Mức nỗ lực: {{effort}}",
-      "changeLabel": "Chỉnh sửa nền",
-      "changePlaceholder": "Gió mạnh hơn, hoặc chuyển sang ban đêm",
-      "apply": "Áp dụng thay đổi",
-      "regenerate": "Tạo lại",
-      "regenerateHint": "Chạy lại cùng mô tả và thay thế nền này.",
-      "startOver": "Làm lại từ đầu",
-      "saveAsPreset": "Lưu thành preset",
-      "presetName": "Tên preset",
-      "save": "Lưu",
-      "saved": "Đã lưu vào preset của bạn.",
-      "elapsed": "{{seconds}} giây",
-      "unchanged": "Nền hiện tại của bạn không thay đổi."
-    },
     "background": {
       "customize": "Tùy chỉnh",
       "type": "Loại",
@@ -237,6 +202,59 @@
       "spacing": "Khoảng cách"
     }
   },
+  "chat": {
+    "title": "Trò chuyện AI",
+    "toggle": "Trò chuyện AI",
+    "toggleHint": "Hiện hoặc ẩn khung trò chuyện AI",
+    "close": "Đóng khung trò chuyện",
+    "emptyHint": "Hãy mô tả một nền và AI của bạn sẽ viết ra. Sau đó bạn có thể yêu cầu chỉnh sửa, chẳng hạn gió mạnh hơn hoặc chuyển sang ban đêm.",
+    "notKept": "Cuộc trò chuyện này không được lưu vì ảnh chụp không nằm trong lịch sử của bạn.",
+    "loading": "Đang mở cuộc trò chuyện…",
+    "placeholder": {
+      "generate": "Mô tả một nền…",
+      "refine": "Chỉnh sửa nền…"
+    },
+    "messageLabel": "Tin nhắn",
+    "send": "Gửi",
+    "stop": "Dừng",
+    "thinking": "Suy nghĩ",
+    "code": "Mã",
+    "lineCount": "Số dòng: {{count}}",
+    "stage": {
+      "starting": "Đang khởi động…",
+      "writing": "Đang viết…",
+      "checking": "Đang kiểm tra nền có chạy được không…",
+      "retrying": "Đang thử lại…"
+    },
+    "elapsed": "{{seconds}} giây",
+    "applied": "Đã áp dụng",
+    "notApplied": "Chưa áp dụng: nền đã thay đổi trong lúc AI đang chạy.",
+    "onCanvas": "Đang trên khung",
+    "useThis": "Dùng nền này",
+    "saveAsPreset": "Lưu thành preset",
+    "presetName": "Tên preset",
+    "save": "Lưu",
+    "cancel": "Hủy",
+    "saved": "Đã lưu vào preset của bạn.",
+    "regenerate": "Tạo lại",
+    "regenerateHint": "Chạy lại cùng mô tả và thay thế nền này.",
+    "startOver": "Làm lại từ đầu",
+    "cancelled": "Đã hủy",
+    "effort": {
+      "label": "Mức nỗ lực",
+      "low": "Thấp",
+      "medium": "Vừa",
+      "high": "Cao",
+      "hint": "Mức cao hơn mất nhiều thời gian hơn và dùng nhiều hạn mức AI của bạn hơn."
+    },
+    "noWebgl": {
+      "what": "Nền này cần đồ họa 3D.",
+      "why": "WebGL không khả dụng trong cửa sổ này nên nền 3D không chạy được.",
+      "next": "Hãy thử một mô tả không có vật thể 3D. Preset gần nhất vẫn được giữ.",
+      "nextKept": "Hãy thử một mô tả không có vật thể 3D. Nền hiện tại của bạn không thay đổi."
+    },
+    "unchanged": "Nền hiện tại của bạn không thay đổi."
+  },
   "rail": {
     "label": "Cropa",
     "editor": "Trình chỉnh sửa",
@@ -357,6 +375,26 @@
       "what": "Không xóa được ảnh chụp.",
       "why": "Windows từ chối thay đổi ({{detail}}).",
       "next": "Đóng ứng dụng đang mở file này rồi thử lại."
+    },
+    "ChatInvalid": {
+      "what": "Không lưu được cuộc trò chuyện.",
+      "why": "Một tin nhắn bị từ chối vì không hợp lệ ({{detail}}).",
+      "next": "Hãy thử gửi lại tin nhắn. Nếu vẫn lỗi, hãy bắt đầu với một ảnh chụp mới."
+    },
+    "ChatTooNew": {
+      "what": "Không mở được cuộc trò chuyện.",
+      "why": "Cuộc trò chuyện được lưu bởi một phiên bản Cropa mới hơn.",
+      "next": "Hãy cập nhật Cropa để đọc nó. Trong lúc đó, cuộc trò chuyện này sẽ không được lưu."
+    },
+    "ChatRead": {
+      "what": "Không mở được cuộc trò chuyện.",
+      "why": "Cropa không đọc được nó từ thư mục lịch sử ({{detail}}).",
+      "next": "Hãy thử mở lại ảnh chụp từ Lịch sử. Tin nhắn mới sẽ không được lưu cho đến khi mở được."
+    },
+    "ChatSave": {
+      "what": "Không lưu được cuộc trò chuyện.",
+      "why": "Cropa không ghi được vào thư mục lịch sử ({{detail}}).",
+      "next": "Hãy kiểm tra thư mục người dùng không bị đầy hoặc chỉ đọc. Tin nhắn vẫn hiện trên màn hình cho đến khi bạn rời khỏi ảnh chụp này."
     },
     "Clipboard": {
       "what": "Không sao chép được ảnh chụp.",

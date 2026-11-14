@@ -138,7 +138,18 @@ impl From<AiEffort> for Effort {
 #[serde(tag = "kind", rename_all = "camelCase")]
 pub enum AiEvent {
     Started,
-    Delta { text: String },
+    /// Reply text as it arrives.
+    Delta {
+        text: String,
+    },
+    /// Reasoning the CLI exposes, as it arrives.
+    Thinking {
+        text: String,
+    },
+    /// The structured answer as raw JSON text while it is being written.
+    Output {
+        text: String,
+    },
 }
 
 /// Why a mock run fails.
@@ -413,6 +424,8 @@ fn mock_script(script: Option<AiMockScript>) -> MockScript {
             .map(|event| match event {
                 AiEvent::Started => Event::Started,
                 AiEvent::Delta { text } => Event::Delta { text },
+                AiEvent::Thinking { text } => Event::Thinking { text },
+                AiEvent::Output { text } => Event::OutputDelta { text },
             })
             .collect(),
         outcome: match script.error {
@@ -426,6 +439,8 @@ fn to_ai_event(event: Event) -> Option<AiEvent> {
     match event {
         Event::Started => Some(AiEvent::Started),
         Event::Delta { text } => Some(AiEvent::Delta { text }),
+        Event::Thinking { text } => Some(AiEvent::Thinking { text }),
+        Event::OutputDelta { text } => Some(AiEvent::Output { text }),
         // A newer kind of event the window does not know yet.
         _ => None,
     }

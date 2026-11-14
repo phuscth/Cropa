@@ -40,6 +40,14 @@ pub enum CommandError {
     HistoryRead(String),
     #[error("could not delete the capture: {0}")]
     HistoryDelete(String),
+    #[error("the chat is not valid: {0}")]
+    ChatInvalid(String),
+    #[error("the chat was written by a newer version of Cropa")]
+    ChatTooNew,
+    #[error("could not read the chat: {0}")]
+    ChatRead(String),
+    #[error("could not save the chat: {0}")]
+    ChatSave(String),
     #[error("could not copy to the clipboard: {0}")]
     Clipboard(String),
     #[error("the image is not a valid picture in the expected format")]

@@ -18,6 +18,8 @@ pub struct Current {
     pub png: Arc<Vec<u8>>,
     /// Milliseconds since the Unix epoch; `None` when the capture time is unknown.
     pub captured_at: Option<f64>,
+    /// The capture's id in the history, when it is kept there.
+    pub history_id: Option<String>,
 }
 
 #[derive(Default)]
@@ -41,11 +43,12 @@ impl EditorImage {
         self.generation.load(Ordering::SeqCst)
     }
 
-    fn set(&self, png: Vec<u8>, captured_at: Option<f64>) {
+    fn set(&self, png: Vec<u8>, captured_at: Option<f64>, history_id: Option<String>) {
         let mut slot = self.current.lock().unwrap_or_else(PoisonError::into_inner);
         *slot = Some(Current {
             png: Arc::new(png),
             captured_at,
+            history_id,
         });
         self.generation.fetch_add(1, Ordering::SeqCst);
     }
@@ -57,9 +60,15 @@ impl EditorImage {
 pub struct EditorImageChanged;
 
 /// Make `png` the editor's image, captured at `captured_at` (milliseconds since
-/// the Unix epoch, if known), and bring the editor to the front.
-pub fn open<R: Runtime>(app: &AppHandle<R>, png: Vec<u8>, captured_at: Option<f64>) {
-    app.state::<EditorImage>().set(png, captured_at);
+/// the Unix epoch, if known) and kept in the history as `history_id` (if it is), and
+/// bring the editor to the front.
+pub fn open<R: Runtime>(
+    app: &AppHandle<R>,
+    png: Vec<u8>,
+    captured_at: Option<f64>,
+    history_id: Option<String>,
+) {
+    app.state::<EditorImage>().set(png, captured_at, history_id);
     if let Err(err) = EditorImageChanged.emit(app) {
         log::warn!("could not emit the editor image change: {err}");
     }
@@ -75,14 +84,21 @@ mod tests {
         let editor = EditorImage::default();
         assert!(editor.get().is_none());
 
-        editor.set(vec![1, 2, 3], Some(1_700_000_000_123.0));
+        editor.set(
+            vec![1, 2, 3],
+            Some(1_700_000_000_123.0),
+            Some("1700000000123".into()),
+        );
         let current = editor.get().expect("an image was set");
         assert_eq!(*current.png, vec![1, 2, 3]);
         assert_eq!(current.captured_at, Some(1_700_000_000_123.0));
+        assert_eq!(current.history_id.as_deref(), Some("1700000000123"));
 
         let generation = editor.generation();
-        editor.set(vec![4], None);
-        assert_eq!(editor.get().expect("an image was set").captured_at, None);
+        editor.set(vec![4], None, None);
+        let current = editor.get().expect("an image was set");
+        assert_eq!(current.captured_at, None);
+        assert_eq!(current.history_id, None);
         assert_eq!(editor.generation(), generation + 1);
     }
 }

@@ -3,6 +3,8 @@ import { ArrowRightUpIcon as SolarArrowRight } from '@solar-icons/react/linear/a
 import { AddIcon as SolarAdd } from '@solar-icons/react/linear/add';
 import { AltArrowDownIcon as SolarChevronDown } from '@solar-icons/react/linear/alt-arrow-down';
 import { AltArrowRightIcon as SolarChevronRight } from '@solar-icons/react/linear/alt-arrow-right';
+import { ArrowUpIcon as SolarArrowUp } from '@solar-icons/react/linear/arrow-up';
+import { ChatSquareIcon as SolarChat } from '@solar-icons/react/linear/chat-square';
 import { CheckIcon as SolarCheck } from '@solar-icons/react/linear/check';
 import { CloseIcon as SolarClose } from '@solar-icons/react/linear/close';
 import { CopyIcon as SolarCopy } from '@solar-icons/react/linear/copy';
@@ -16,6 +18,7 @@ import { ListOrderedIcon as SolarListOrdered } from '@solar-icons/react/linear/l
 import { MenuDotsIcon as SolarMenuDots } from '@solar-icons/react/linear/menu-dots';
 import { SettingsIcon as SolarSettings } from '@solar-icons/react/linear/settings';
 import { StopIcon as SolarStop } from '@solar-icons/react/linear/stop';
+import { StopCircleIcon as SolarStopCircle } from '@solar-icons/react/linear/stop-circle';
 import { TextFormatIcon as SolarTextFormat } from '@solar-icons/react/linear/text-format';
 import { TrashBinMinimalisticIcon as SolarTrash } from '@solar-icons/react/linear/trash-bin-minimalistic';
 import { UndoLeftRoundIcon as SolarUndo } from '@solar-icons/react/linear/undo-left-round';
@@ -64,6 +67,9 @@ export const StepToolIcon = linear(SolarListOrdered, 'StepToolIcon');
 export const BlurToolIcon = linear(SolarWaterdrop, 'BlurToolIcon');
 export const PixelateToolIcon = linear(SolarGrid, 'PixelateToolIcon');
 export const DeleteIcon = linear(SolarTrash, 'DeleteIcon');
+export const ChatIcon = linear(SolarChat, 'ChatIcon');
+export const SendIcon = linear(SolarArrowUp, 'SendIcon');
+export const StopIcon = linear(SolarStopCircle, 'StopIcon');
 
 export const EditorIconActive = SolarCropBold;
 export const HistoryIconActive = SolarHistoryBold;

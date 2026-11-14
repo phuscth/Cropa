@@ -95,6 +95,8 @@ fn build_args(
         "--output-format",
         "stream-json",
         "--verbose",
+        "--include-partial-messages",
+        "--thinking-display=summarized",
         "--tools",
         "",
         "--strict-mcp-config",
@@ -169,10 +171,54 @@ fn user_message(prompt: &str, images: &[Vec<u8>]) -> Vec<u8> {
     line.into_bytes()
 }
 
+/// The content blocks whose deltas become events.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum BlockKind {
+    Thinking,
+    Text,
+    Output,
+}
+
+impl BlockKind {
+    fn of(block_type: &str) -> Option<Self> {
+        match block_type {
+            "thinking" => Some(Self::Thinking),
+            "text" => Some(Self::Text),
+            // The structured answer is the input of the `StructuredOutput` tool call.
+            "tool_use" => Some(Self::Output),
+            _ => None,
+        }
+    }
+
+    fn of_delta(delta_type: &str) -> Option<Self> {
+        match delta_type {
+            "thinking_delta" => Some(Self::Thinking),
+            "text_delta" => Some(Self::Text),
+            "input_json_delta" => Some(Self::Output),
+            _ => None,
+        }
+    }
+
+    /// The prose kinds are joined with a blank line when a second block starts.
+    const fn separated(self) -> Option<usize> {
+        match self {
+            Self::Thinking => Some(0),
+            Self::Text => Some(1),
+            Self::Output => None,
+        }
+    }
+}
+
 /// Reads the stream-json lines of one turn.
 #[derive(Debug, Default)]
 struct ClaudeStream {
     started: bool,
+    /// The kind of each open content block, by its index.
+    blocks: std::collections::HashMap<u64, BlockKind>,
+    /// Whether thinking and reply text were already sent, so a second block of the same kind
+    /// starts after a separator.
+    sent: [bool; 2],
+    owes_separator: [bool; 2],
     rate_limited: bool,
     result: Option<Value>,
     /// One short label per line, for the diagnostic line of a failed turn.
@@ -246,7 +292,10 @@ fn result_summary(line: &Value) -> Value {
 impl ClaudeStream {
     #[cfg(feature = "diagnostics")]
     fn note(&mut self, line: &Value) {
-        if self.events.len() < MAX_EVENT_LABELS {
+        // A partial-message line arrives per delta: only a block start is worth a label.
+        let skipped =
+            line["type"] == "stream_event" && line["event"]["type"] != "content_block_start";
+        if !skipped && self.events.len() < MAX_EVENT_LABELS {
             self.events.push(event_label(line));
         }
         if line["type"] == "result" {
@@ -271,9 +320,73 @@ impl ClaudeStream {
                 self.result = Some(line.clone());
                 return LineFlow::Stop;
             }
+            Some("stream_event") => self.stream_event(&line["event"], on_event),
             _ => {}
         }
         LineFlow::Continue
+    }
+
+    /// Turns the partial-message events into thinking, reply and answer deltas. The full
+    /// `assistant` messages repeat the same text, so they produce no events.
+    fn stream_event(&mut self, event: &Value, on_event: &mut dyn FnMut(Event)) {
+        let Some(index) = event["index"].as_u64() else {
+            return;
+        };
+        match event["type"].as_str() {
+            Some("content_block_start") => {
+                let kind = event["content_block"]["type"]
+                    .as_str()
+                    .and_then(BlockKind::of);
+                match kind {
+                    Some(kind) => {
+                        if let Some(slot) = kind.separated()
+                            && self.sent[slot]
+                        {
+                            self.owes_separator[slot] = true;
+                        }
+                        self.blocks.insert(index, kind);
+                    }
+                    None => {
+                        self.blocks.remove(&index);
+                    }
+                }
+            }
+            Some("content_block_delta") => {
+                let Some(&kind) = self.blocks.get(&index) else {
+                    return;
+                };
+                let delta = &event["delta"];
+                if delta["type"].as_str().and_then(BlockKind::of_delta) != Some(kind) {
+                    return;
+                }
+                let text = match kind {
+                    BlockKind::Thinking => &delta["thinking"],
+                    BlockKind::Text => &delta["text"],
+                    BlockKind::Output => &delta["partial_json"],
+                };
+                let Some(text) = text.as_str().filter(|text| !text.is_empty()) else {
+                    return;
+                };
+                if let Some(slot) = kind.separated() {
+                    if self.owes_separator[slot] {
+                        self.owes_separator[slot] = false;
+                        on_event(Self::event(kind, "\n\n"));
+                    }
+                    self.sent[slot] = true;
+                }
+                on_event(Self::event(kind, text));
+            }
+            _ => {}
+        }
+    }
+
+    fn event(kind: BlockKind, text: &str) -> Event {
+        let text = text.to_owned();
+        match kind {
+            BlockKind::Thinking => Event::Thinking { text },
+            BlockKind::Text => Event::Delta { text },
+            BlockKind::Output => Event::OutputDelta { text },
+        }
     }
 
     fn finish(
@@ -390,6 +503,9 @@ mod tests {
     const SCHEMA_OK: &str = include_str!("../tests/fixtures/claude/stream-schema-ok.jsonl");
     const IMAGE_OK: &str = include_str!("../tests/fixtures/claude/stream-image-ok.jsonl");
     const CANCELLED: &str = include_str!("../tests/fixtures/claude/stream-cancelled.jsonl");
+    const PARTIAL_THINKING: &str =
+        include_str!("../tests/fixtures/claude/stream-partial-thinking.jsonl");
+    const PARTIAL_TEXT: &str = include_str!("../tests/fixtures/claude/stream-partial-text.jsonl");
     const SCHEMA_INVALID: &str =
         include_str!("../tests/fixtures/claude/json-schema-invalid.stderr.txt");
     const AUTH_IN: &str = include_str!("../tests/fixtures/claude/auth-status-logged-in.json");
@@ -424,6 +540,83 @@ mod tests {
         assert_eq!(fed, SCHEMA_OK.lines().count());
         let out = stream.finish(Ok(Finished::default()), true).unwrap();
         assert_eq!(out.json.unwrap()["layers"][0]["kind"], "linear");
+    }
+
+    /// The text of every event one picker selects, in order.
+    fn joined(events: &[Event], pick: fn(&Event) -> Option<&str>) -> String {
+        events.iter().filter_map(pick).collect()
+    }
+
+    fn thinking_of(event: &Event) -> Option<&str> {
+        match event {
+            Event::Thinking { text } => Some(text),
+            _ => None,
+        }
+    }
+
+    fn reply_of(event: &Event) -> Option<&str> {
+        match event {
+            Event::Delta { text } => Some(text),
+            _ => None,
+        }
+    }
+
+    fn output_of(event: &Event) -> Option<&str> {
+        match event {
+            Event::OutputDelta { text } => Some(text),
+            _ => None,
+        }
+    }
+
+    /// The strings of one delta field in the fixture, concatenated.
+    fn fixture_deltas(lines: &str, delta_type: &str, field: &str) -> String {
+        lines
+            .lines()
+            .filter_map(|line| serde_json::from_str::<Value>(line).ok())
+            .filter(|line| line["event"]["delta"]["type"] == delta_type)
+            .filter_map(|line| line["event"]["delta"][field].as_str().map(str::to_owned))
+            .collect()
+    }
+
+    #[test]
+    fn a_partial_thinking_turn_streams_the_summary_and_the_answer() {
+        let (stream, events, _) = feed(PARTIAL_THINKING);
+        assert_eq!(events[0], Event::Started);
+        let thinking = joined(&events, thinking_of);
+        assert!(thinking.starts_with("I'm settling on the background palette"));
+        assert_eq!(
+            thinking,
+            fixture_deltas(PARTIAL_THINKING, "thinking_delta", "thinking")
+        );
+        assert_eq!(joined(&events, reply_of), "");
+
+        let streamed: Value = serde_json::from_str(&joined(&events, output_of)).unwrap();
+        let out = stream.finish(Ok(Finished::default()), true).unwrap();
+        assert_eq!(out.json, Some(streamed));
+    }
+
+    #[test]
+    fn a_partial_text_turn_streams_the_prose_without_thinking() {
+        let (_, events, _) = feed(PARTIAL_TEXT);
+        assert_eq!(joined(&events, thinking_of), "");
+        let prose = joined(&events, reply_of);
+        assert!(prose.starts_with("Colors: deep navy"));
+        assert_eq!(prose, fixture_deltas(PARTIAL_TEXT, "text_delta", "text"));
+        assert!(serde_json::from_str::<Value>(&joined(&events, output_of)).is_ok());
+    }
+
+    #[test]
+    fn a_second_block_of_the_same_kind_starts_after_a_blank_line() {
+        let lines = [
+            r#"{"type":"stream_event","event":{"type":"content_block_start","index":0,"content_block":{"type":"thinking"}}}"#,
+            r#"{"type":"stream_event","event":{"type":"content_block_delta","index":0,"delta":{"type":"thinking_delta","thinking":"one"}}}"#,
+            r#"{"type":"stream_event","event":{"type":"content_block_start","index":1,"content_block":{"type":"thinking"}}}"#,
+            r#"{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"thinking_delta","thinking":""}}}"#,
+            r#"{"type":"stream_event","event":{"type":"content_block_delta","index":1,"delta":{"type":"thinking_delta","thinking":"two"}}}"#,
+        ]
+        .join("\n");
+        let (_, events, _) = feed(&lines);
+        assert_eq!(joined(&events, thinking_of), "one\n\ntwo");
     }
 
     #[test]
@@ -481,6 +674,16 @@ mod tests {
         let (stream, _, _) = feed(SCHEMA_OK);
         assert!(stream.events.contains(&"system/init".to_owned()));
         assert!(stream.events.contains(&"result/success".to_owned()));
+        assert_eq!(stream.events.last().unwrap(), "result/success");
+
+        // Partial-message lines do not fill the label list.
+        let (stream, _, _) = feed(PARTIAL_THINKING);
+        let blocks = stream
+            .events
+            .iter()
+            .filter(|l| *l == "stream_event")
+            .count();
+        assert_eq!(blocks, 2);
         assert_eq!(stream.events.last().unwrap(), "result/success");
 
         let (stream, _, _) = feed(IMAGE_OK);
@@ -544,6 +747,8 @@ mod tests {
             "--output-format",
             "stream-json",
             "--verbose",
+            "--include-partial-messages",
+            "--thinking-display=summarized",
             "--tools",
             "",
             "--strict-mcp-config",
@@ -567,7 +772,7 @@ mod tests {
             build_args(Path::new("/t/system.txt"), None, None, Effort::Low)
                 .unwrap()
                 .len(),
-            18
+            20
         );
     }
 

@@ -3,6 +3,9 @@ import { Button, CloseIcon } from '@cropa/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
+import { ChatPanel } from '../../features/chat/ChatPanel.tsx';
+import { useChatPanelOpen, setChatPanelOpen } from '../../features/chat/panel-state.ts';
+import { useBackgroundChat } from '../../features/chat/use-background-chat.ts';
 import { AnnotationOverlay } from '../../features/editor/annotate/AnnotationOverlay.tsx';
 import { AnnotationProperties } from '../../features/editor/annotate/AnnotationProperties.tsx';
 import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationToolbar.tsx';
@@ -39,9 +42,12 @@ interface Loaded {
   imageId: number;
   /** When the image was captured, in ms since the epoch; null when Rust does not know. */
   capturedAt: number | null;
+  /** The capture's id in the history, when it is kept there. */
+  historyId: string | null;
 }
 
 const placeholder = defaultScene({ width: 1, height: 1 });
+const noPalette: PaletteColour[] = [];
 
 function findEdgeColor(bitmap: ImageBitmap): string | null {
   try {
@@ -101,6 +107,14 @@ export function EditorView() {
           },
     [history.scene, editingIndex],
   );
+  // One chat per editor, so a run goes on while the panel is hidden.
+  const chat = useBackgroundChat({
+    history,
+    palette: loaded?.palette ?? noPalette,
+    imageId: loaded?.imageId ?? 0,
+    historyId: loaded?.historyId ?? null,
+  });
+  const chatOpen = useChatPanelOpen();
   const showProperties = annotate.tool !== 'select' || annotate.selected !== null;
   const exporter = useExport({
     scene: history.scene,
@@ -184,6 +198,7 @@ export function EditorView() {
             palette,
             imageId: (previous?.imageId ?? 0) + 1,
             capturedAt: data.capturedAt,
+            historyId: data.historyId,
           }));
           load(defaultScene({ width: bitmap.width, height: bitmap.height }));
         })
@@ -305,7 +320,7 @@ export function EditorView() {
     <main className="flex min-w-0 flex-1 gap-1.5 p-1.5 pl-0">
       {loaded ? (
         <>
-          <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
+          <EditorSidebar history={history} edgeColor={loaded.edge} />
           <section className="relative flex min-w-0 flex-1 overflow-hidden rounded-2xl bg-canvas">
             <ScenePreview
               scene={displayScene}
@@ -322,6 +337,7 @@ export function EditorView() {
             </div>
             <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
           </section>
+          {chatOpen && <ChatPanel chat={chat} onClose={() => { setChatPanelOpen(false); }} />}
         </>
       ) : (
         <section className="relative flex flex-1 flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl bg-canvas p-8 text-center text-canvas-foreground">

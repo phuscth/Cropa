@@ -21,7 +21,12 @@ export interface TransportOutput {
   image?: string;
 }
 
-/** Progress reported by the CLI, passed through untouched. */
+/**
+ * Progress reported by the CLI, passed through untouched. The desktop transport sends `started`,
+ * `delta` (reply text), `thinking` (the reasoning summary the CLI shows) and `output` (the
+ * structured answer as raw JSON text while it is written, possibly incomplete); each of the last
+ * three carries `text`.
+ */
 export type TransportEvent = { type: string } & Record<string, unknown>;
 
 export interface TransportOptions {

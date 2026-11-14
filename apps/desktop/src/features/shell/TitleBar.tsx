@@ -1,5 +1,6 @@
 import {
   Button,
+  ChatIcon,
   CopyIcon,
   DragOutIcon,
   Menubar,
@@ -27,6 +28,7 @@ import { useTranslation } from 'react-i18next';
 
 import { commands, events, type MainView, type ThemePreference } from '../../lib/bindings.ts';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
+import { toggleChatPanel, useChatPanelOpen } from '../chat/panel-state.ts';
 import { requestCaptureAfterPaint } from './capture.ts';
 import { useEditorActions } from './editor-actions.ts';
 import { SavePopover } from './SavePopover.tsx';
@@ -138,6 +140,7 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
   const [theme, setTheme] = useState<ThemePreference>();
   const [maximized, setMaximized] = useState(false);
   const [saveOpen, setSaveOpen] = useState(false);
+  const chatOpen = useChatPanelOpen();
   // A closing menu hands focus back to its trigger. After an item ran, the item
   // may have moved focus itself (a popover, a dialog, another view), so the menu
   // must not take it back; closing with Escape or a click outside still returns it.
@@ -342,6 +345,19 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
       </div>
 
       <div className="mr-2 flex items-center gap-1">
+        {inEditor && (
+          <Button
+            variant="ghost"
+            size="icon-sm"
+            aria-label={t('chat.toggle')}
+            aria-pressed={chatOpen}
+            title={t('chat.toggleHint')}
+            className={chatOpen ? 'bg-accent text-foreground' : undefined}
+            onClick={toggleChatPanel}
+          >
+            <ChatIcon />
+          </Button>
+        )}
         <Button
           variant="ghost"
           size="icon-sm"
