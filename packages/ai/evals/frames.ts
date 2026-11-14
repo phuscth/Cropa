@@ -67,6 +67,11 @@ const RUNTIME = readFileSync(
   'utf8',
 );
 
+/** The records file's name without its extension. */
+function baseOf(file: string): string {
+  return basename(file).replace(/\.cases\.json$/, '').replace(/\.json$/, '');
+}
+
 function pngBytes(dataUrl: string): Buffer {
   return Buffer.from(dataUrl.slice(dataUrl.indexOf(',') + 1), 'base64');
 }
@@ -129,8 +134,10 @@ export async function renderFrames(files: readonly string[], options: { browser?
     let three: string | null = null;
 
     for (const [group, input] of inputs.entries()) {
-      const base = basename(input.file).replace(/\.cases\.json$/, '').replace(/\.json$/, '');
-      const dir = join(dirname(input.file), 'frames', base);
+      const root = join(dirname(input.file), 'frames');
+      let dir = join(root, baseOf(input.file));
+      // Two inputs with the same name must not overwrite each other's frames.
+      for (let n = 2; frameDirs.includes(dir); n++) dir = join(root, `${baseOf(input.file)}-${String(n)}`);
       mkdirSync(dir, { recursive: true });
       frameDirs.push(dir);
       for (const id of order) {
@@ -171,7 +178,7 @@ export async function renderFrames(files: readonly string[], options: { browser?
     }
 
     const layout = {
-      groups: inputs.map((input) => ({ label: `${input.provider} v${String(input.version)}` })),
+      groups: inputs.map((input) => ({ label: `${input.provider} v${String(input.version)} ${baseOf(input.file)}` })),
       rows: order.map((id) => {
         const c = allCases.get(id);
         const scene = checkScene(c?.input as BackgroundInput);
@@ -196,7 +203,7 @@ export async function renderFrames(files: readonly string[], options: { browser?
     if (!first) throw new Error('unreachable');
     const sheetName =
       inputs.length === 1
-        ? `${basename(first.file).replace(/\.cases\.json$/, '').replace(/\.json$/, '')}.sheet.png`
+        ? `${baseOf(first.file)}.sheet.png`
         : `compare-${new Date().toISOString().replace(/[:.]/g, '-')}.sheet.png`;
     const sheet = join(dirname(first.file), sheetName);
     writeFileSync(sheet, pngBytes(sheetUrl));

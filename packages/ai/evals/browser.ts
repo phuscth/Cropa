@@ -12,7 +12,7 @@ import { delimiter, join } from 'node:path';
 
 const ENV_VAR = 'CROPA_EVAL_BROWSER';
 const START_TIMEOUT_MS = 20_000;
-const DEFAULT_LIFETIME_MS = 15 * 60_000;
+const DEFAULT_CALL_LIMIT_MS = 5 * 60_000;
 
 export interface EvalBrowser {
   /** Evaluates an expression in the blank page, waits for a promise it returns and gives back its value. */
@@ -86,10 +86,10 @@ interface Reply {
 }
 
 /**
- * Starts the browser. It is killed after `lifetimeMs` whatever it is doing, so a hung page cannot
- * keep an eval run alive.
+ * Starts the browser. It is killed when one call (startup or an `evaluate`) takes longer than
+ * `callLimitMs`, so a hung page cannot keep an eval run alive however many jobs a run has.
  */
-export async function launchBrowser(options: { lifetimeMs?: number } = {}): Promise<EvalBrowser> {
+export async function launchBrowser(options: { callLimitMs?: number } = {}): Promise<EvalBrowser> {
   const executable = findBrowser();
   const profile = mkdtempSync(join(tmpdir(), 'cropa-eval-browser-'));
   const child = spawn(
@@ -114,21 +114,43 @@ export async function launchBrowser(options: { lifetimeMs?: number } = {}): Prom
       done();
     });
   });
-  const lifetime = setTimeout(() => {
-    child.kill();
-  }, options.lifetimeMs ?? DEFAULT_LIFETIME_MS);
+  const callLimitMs = options.callLimitMs ?? DEFAULT_CALL_LIMIT_MS;
+  let watchdog: ReturnType<typeof setTimeout> | undefined;
+  const arm = (): void => {
+    clearTimeout(watchdog);
+    watchdog = setTimeout(() => {
+      child.kill();
+    }, callLimitMs);
+  };
+  const disarm = (): void => {
+    clearTimeout(watchdog);
+  };
+  arm();
   let socket: WebSocket | null = null;
+  let askToClose: (() => Promise<unknown>) | null = null;
   let closed = false;
+  const onInterrupt = (): void => {
+    void close().finally(() => process.exit(130));
+  };
+  process.once('SIGINT', onInterrupt);
 
   const close = async (): Promise<void> => {
     if (closed) return;
     closed = true;
-    clearTimeout(lifetime);
+    disarm();
+    process.off('SIGINT', onInterrupt);
+    // Ask politely first, so it can release its profile, then make sure.
+    if (askToClose) await Promise.race([askToClose().catch(() => undefined), sleep(2000)]);
+    await Promise.race([exited, sleep(1500)]);
     socket?.close();
     child.kill();
     await Promise.race([exited, sleep(5000)]);
-    // The browser can hold the profile for a moment after it exits, most of all on Windows.
-    rmSync(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    try {
+      // The browser can hold the profile for a moment after it exits, most of all on Windows.
+      rmSync(profile, { recursive: true, force: true, maxRetries: 20, retryDelay: 250 });
+    } catch (error) {
+      console.warn(`Could not remove the browser profile ${profile}: ${error instanceof Error ? error.message : String(error)}`);
+    }
   };
 
   try {
@@ -167,6 +189,7 @@ export async function launchBrowser(options: { lifetimeMs?: number } = {}): Prom
         ws.send(JSON.stringify({ id, method, params, ...(sessionId === undefined ? {} : { sessionId }) }));
       });
 
+    askToClose = () => send('Browser.close', {});
     const { targetInfos } = (await send('Target.getTargets', {})) as {
       targetInfos: { targetId: string; type: string }[];
     };
@@ -176,14 +199,17 @@ export async function launchBrowser(options: { lifetimeMs?: number } = {}): Prom
       sessionId: string;
     };
 
+    disarm();
     return {
       close,
       async evaluate<T>(expression: string): Promise<T> {
+        arm();
         const reply = (await send(
           'Runtime.evaluate',
           { expression, awaitPromise: true, returnByValue: true },
           sessionId,
         )) as { result: { value?: T }; exceptionDetails?: { text?: string; exception?: { description?: string } } };
+        disarm();
         if (reply.exceptionDetails) {
           const { exception, text } = reply.exceptionDetails;
           throw new Error(exception?.description ?? text ?? 'The page threw.');

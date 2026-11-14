@@ -242,7 +242,12 @@
 
   const materialOf = (material) => {
     if (Array.isArray(material)) return material.map(materialOf);
-    return [material?.color?.getHexString() ?? null, round(material?.opacity ?? 1, 0.01)];
+    return [
+      material?.color?.getHexString() ?? null,
+      round(material?.opacity ?? 1, 0.01),
+      material?.emissive?.getHexString() ?? null,
+      round(material?.emissiveIntensity ?? 1, 0.01),
+    ];
   };
 
   const NOOP = new Proxy(function noop() {}, {
@@ -313,6 +318,10 @@
       scene.updateMatrixWorld(true);
       camera.updateMatrixWorld(true);
       const ops = [['camera', matrixOf(camera.matrixWorld), matrixOf(camera.projectionMatrix)]];
+      const background = scene.background;
+      if (background?.isColor) ops.push(['background', background.getHexString()]);
+      // A texture by its size, not its pixels: a canvas texture may be redrawn without a reset.
+      else if (background?.isTexture) ops.push(['background-texture', background.image?.width ?? null, background.image?.height ?? null]);
       scene.traverseVisible((object) => {
         if (object.isMesh || object.isPoints || object.isLine || object.isSprite) {
           ops.push([
