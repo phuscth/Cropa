@@ -782,10 +782,6 @@ name = "cropa-gif"
 version = "0.0.0"
 
 [[package]]
-name = "cropa-matte"
-version = "0.0.0"
-
-[[package]]
 name = "crossbeam-channel"
 version = "0.5.17"
 source = "registry+https://github.com/rust-lang/crates.io-index"
