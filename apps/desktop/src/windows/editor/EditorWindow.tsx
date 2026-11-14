@@ -9,13 +9,12 @@ import { AnnotationToolbar } from '../../features/editor/annotate/AnnotationTool
 import { useAnnotate } from '../../features/editor/annotate/use-annotate.ts';
 import { screenshotPalette } from '../../features/editor/code-frames.ts';
 import { requestCaptureAfterPaint } from '../../features/shell/capture.ts';
-import { publishEditorActions } from '../../features/shell/editor-actions.ts';
+import { publishEditorActions, type ExportOptions } from '../../features/shell/editor-actions.ts';
 import { useViewActive } from '../../features/shell/view-active.ts';
 import { EditorSidebar } from '../../features/editor/EditorSidebar.tsx';
-import { type ExportScale } from '../../features/editor/export/plan.ts';
+import { exportPlan, resolutionLabel, type ExportScale } from '../../features/editor/export/plan.ts';
 import { useExport } from '../../features/editor/export/use-export.ts';
 import { loadInter } from '../../features/editor/fonts.ts';
-import { LayoutPanel } from '../../features/editor/LayoutPanel.tsx';
 import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
 import { beginBackgroundChange } from '../../features/editor/background-images.ts';
 import { dataUrlToBitmap } from '../../features/editor/load-image.ts';
@@ -121,6 +120,26 @@ export function EditorView() {
   const exportProblem = exporter.error ?? exporter.warning;
   const { busy, quickSave, saveAs, copy, reveal, dragHandlers } = exporter;
   const saveAsChosen = useCallback(() => saveAs(format, scale), [saveAs, format, scale]);
+  const quickSaveChosen = useCallback(() => quickSave(format, scale), [quickSave, format, scale]);
+  const imageWidth = loaded?.bitmap.width ?? 0;
+  const imageHeight = loaded?.bitmap.height ?? 0;
+  const exportOptions = useMemo<ExportOptions>(() => {
+    const output = exportPlan(history.scene, format, scale);
+    return {
+      format,
+      scale,
+      setFormat,
+      setScale,
+      imageSize: { width: imageWidth, height: imageHeight },
+      output: { width: output.width, height: output.height },
+      scaleLabels: {
+        1: resolutionLabel(exportPlan(history.scene, format, 1).width),
+        2: resolutionLabel(exportPlan(history.scene, format, 2).width),
+        3: resolutionLabel(exportPlan(history.scene, format, 3).width),
+      },
+      scaleFixed: history.scene.output.width !== null,
+    };
+  }, [history.scene, format, scale, imageWidth, imageHeight]);
   // Only the newest load may apply: an older decode can finish later.
   const loadId = useRef(0);
 
@@ -201,7 +220,7 @@ export function EditorView() {
       else if (is('s')) {
         if (hasImage) {
           if (event.shiftKey) void saveAsChosen();
-          else void quickSave();
+          else void quickSaveChosen();
         }
       } else if (is('c') && !event.shiftKey) {
         // Leave Ctrl+C alone while text is selected.
@@ -212,7 +231,7 @@ export function EditorView() {
     };
     window.addEventListener('keydown', onKeyDown);
     return () => { window.removeEventListener('keydown', onKeyDown); };
-  }, [active, undo, redo, quickSave, saveAsChosen, copy, hasImage]);
+  }, [active, undo, redo, quickSaveChosen, saveAsChosen, copy, hasImage]);
 
   useEffect(() => {
     publishEditorActions({
@@ -223,10 +242,12 @@ export function EditorView() {
       undo,
       redo,
       copy: () => { void copy(); },
-      quickSave: () => { void quickSave(); },
+      quickSave: () => { void quickSaveChosen(); },
       saveAs: () => { void saveAsChosen(); },
+      exportOptions,
+      dragHandlers,
     });
-  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSave, saveAsChosen]);
+  }, [hasImage, busy, history.canUndo, history.canRedo, undo, redo, copy, quickSaveChosen, saveAsChosen, exportOptions, dragHandlers]);
   useEffect(() => () => { publishEditorActions(null); }, []);
 
   const [captureError, setCaptureError] = useState<UserError>();
@@ -292,7 +313,7 @@ export function EditorView() {
       {loaded ? (
         <>
           <EditorSidebar history={history} edgeColor={loaded.edge} palette={loaded.palette} />
-          <section className="relative flex min-w-0 flex-1 bg-canvas">
+          <section className="relative flex min-w-0 flex-1 overflow-hidden rounded-2xl bg-canvas">
             <ScenePreview
               scene={displayScene}
               bitmap={loaded.bitmap}
@@ -308,20 +329,9 @@ export function EditorView() {
             </div>
             <AnnotationToolbar tool={annotate.tool} onTool={annotate.setTool} disabled={!hasImage} />
           </section>
-          <LayoutPanel
-            history={history}
-            imageSize={{ width: loaded.bitmap.width, height: loaded.bitmap.height }}
-            format={format}
-            onFormat={setFormat}
-            scale={scale}
-            onScale={setScale}
-            busy={busy}
-            onSaveAs={() => { void saveAsChosen(); }}
-            dragHandlers={dragHandlers}
-          />
         </>
       ) : (
-        <section className="relative flex flex-1 flex-col items-center justify-center gap-3 bg-canvas p-8 text-center text-canvas-foreground">
+        <section className="relative flex flex-1 flex-col items-center justify-center gap-3 overflow-hidden rounded-2xl bg-canvas p-8 text-center text-canvas-foreground">
           {notices}
           <EmptyMark />
           <p className="text-heading text-foreground">{t('editor.empty')}</p>

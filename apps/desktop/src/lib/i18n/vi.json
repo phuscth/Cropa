@@ -129,16 +129,12 @@
       "scale": "Tỉ lệ",
       "scaleFixed": "Kích thước theo nền tảng luôn xuất ở 1x ({{width}} × {{height}} px)",
       "saved": "Đã lưu {{fileName}}",
-      "drag": "Kéo",
+      "drag": "Kéo ảnh ra ngoài",
       "dragHold": "Giữ chuột trong khi kéo ảnh ra ngoài",
       "dragHint": "Kéo ảnh vào ứng dụng khác, thư mục hoặc khung chat",
       "copied": "Đã sao chép vào bộ nhớ tạm",
       "openFolder": "Mở thư mục",
-      "title": "Xuất ảnh",
-      "saveAsOptions": "Áp dụng cho Lưu thành",
-      "saveQuick": "Lưu PNG ở 2×",
-      "saveAsFormat": "Định dạng khi lưu thành",
-      "saveAsScale": "Tỉ lệ khi lưu thành"
+      "saveOptions": "Tùy chọn lưu (Ctrl+S để lưu ngay)"
     },
     "presets": {
       "saveCurrent": "Lưu nền hiện tại",
@@ -212,18 +208,16 @@
     "panel": {
       "label": "Cài đặt trình chỉnh sửa",
       "tabs": "Nhóm cài đặt",
-      "background": "Nền",
+      "mockup": "Mockup",
       "frame": "Khung",
       "presetOpen": "Chọn preset, đang dùng: {{name}}"
     },
     "details": {
       "image": "Ảnh",
-      "saveAs": "Lưu thành",
+      "output": "Ảnh xuất",
       "size": "{{width}} × {{height}} px"
     },
     "layout": {
-      "title": "Bố cục",
-      "label": "Bố cục và xuất ảnh",
       "spacing": "Khoảng cách"
     }
   },

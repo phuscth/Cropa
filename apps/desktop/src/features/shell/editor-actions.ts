@@ -1,4 +1,29 @@
-import { useSyncExternalStore } from 'react';
+import { useSyncExternalStore, type ComponentProps } from 'react';
+
+import type { ExportFormat } from '../../lib/bindings.ts';
+import type { ExportScale } from '../editor/export/plan.ts';
+
+/** Pointer handlers of the drag-out handle. */
+export type DragHandlers = Pick<
+  ComponentProps<'button'>,
+  'onPointerDown' | 'onPointerMove' | 'onPointerUp' | 'onPointerCancel' | 'onLostPointerCapture'
+>;
+
+/** The export choices shown in the Save popover and the sizes they give. */
+export interface ExportOptions {
+  format: ExportFormat;
+  scale: ExportScale;
+  setFormat: (format: ExportFormat) => void;
+  setScale: (scale: ExportScale) => void;
+  /** The screenshot's size in pixels. */
+  imageSize: { width: number; height: number };
+  /** The output size for the chosen format and scale. */
+  output: { width: number; height: number };
+  /** The resolution label ("4K"…) per scale for the chosen format, or undefined. */
+  scaleLabels: Record<ExportScale, string | undefined>;
+  /** Platform sizes always export at 1x, so the scale choice is off. */
+  scaleFixed: boolean;
+}
 
 /**
  * What the editor can do right now, published for the title bar's menus. The
@@ -14,9 +39,12 @@ export interface EditorActions {
   undo: () => void;
   redo: () => void;
   copy: () => void;
+  /** Saves right away with the format and scale chosen in the Save popover. */
   quickSave: () => void;
-  /** Opens the native save dialog with the format and scale chosen in the export section. */
+  /** Opens the native save dialog with the format and scale chosen in the Save popover. */
   saveAs: () => void;
+  exportOptions: ExportOptions;
+  dragHandlers: DragHandlers;
 }
 
 type Listener = () => void;

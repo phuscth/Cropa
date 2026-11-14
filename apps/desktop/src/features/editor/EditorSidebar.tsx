@@ -45,11 +45,12 @@ import { beginBackgroundChange } from './background-images.ts';
 import { ShadowThumb, SliderRow } from './panel-parts.tsx';
 import { readCustomizeOpen, writeCustomizeOpen } from './panel-state.ts';
 import { PresetPicker } from './presets/PresetPicker.tsx';
+import { LayoutSections } from './LayoutSections.tsx';
 import { CollapsibleSection, Row, Section } from './Section.tsx';
 import type { SceneHistory } from './use-scene-history.ts';
 
-type Tab = 'background' | 'frame';
-const TABS: readonly Tab[] = ['background', 'frame'];
+type Tab = 'mockup' | 'frame';
+const TABS: readonly Tab[] = ['mockup', 'frame'];
 
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'blocked' | 'edit' | 'preview' | 'commit'>;
@@ -59,10 +60,10 @@ interface Props {
   palette: readonly PaletteColour[];
 }
 
-/** The editor's left panel: the Background and Frame tabs. */
+/** The editor's left panel: the Mockup and Frame tabs. */
 export function EditorSidebar({ history, edgeColor, palette }: Props) {
   const { t } = useTranslation();
-  const [tab, setTab] = useState<Tab>('background');
+  const [tab, setTab] = useState<Tab>('mockup');
   // Which way the content slides in: from the right when the tab is further along.
   const [direction, setDirection] = useState<1 | -1>(1);
   const [customizeOpen, setCustomizeOpen] = useState(readCustomizeOpen);
@@ -117,14 +118,98 @@ export function EditorSidebar({ history, edgeColor, palette }: Props) {
 
         {/* Both tabs stay mounted, so a half-written AI description and the preset list survive a switch. */}
         <div
-          id={panelId('background')}
+          id={panelId('mockup')}
           role="group"
-          aria-labelledby={tabId('background')}
-          hidden={tab !== 'background'}
+          aria-labelledby={tabId('mockup')}
+          hidden={tab !== 'mockup'}
           style={slideFrom}
           className="flex animate-tab-in flex-col gap-5"
         >
-          <PresetPicker history={history} onExport={() => { setTab('background'); }} />
+          <Section title={t('editor.frame.corners')}>
+            <SliderRow
+              label={t('editor.frame.radius')}
+              value={px(frame.radius)}
+              current={frame.radius}
+              range={ranges.radius}
+              onPreview={(next) => { preview((s) => setRadius(s, next)); }}
+              onCommit={commit}
+            />
+          </Section>
+
+          <Section title={t('editor.frame.shadow')}>
+            <TileGroup
+              aria-label={t('editor.frame.shadow')}
+              value={level ?? undefined}
+              onValueChange={(next) => { edit((s) => setShadowLevel(s, next as ShadowLevel)); }}
+              className="grid-cols-4"
+            >
+              {SHADOW_LEVELS.map((l) => (
+                <Tile key={l} value={l} label={t(`editor.frame.shadowLevel.${l}`)}>
+                  <ShadowThumb level={l} />
+                </Tile>
+              ))}
+            </TileGroup>
+          </Section>
+
+          <Section title={t('editor.frame.border')}>
+            <div className="flex flex-col gap-2.5">
+              <SliderRow
+                label={t('editor.frame.border')}
+                value={px(frame.border?.width ?? 0)}
+                current={frame.border?.width ?? 0}
+                range={ranges.border}
+                onPreview={(next) => { preview((s) => setBorderWidth(s, next, borderColor)); }}
+                onCommit={commit}
+              />
+              <Row label={t('editor.frame.borderColor')}>
+                <ColorInput
+                  value={frame.border?.color ?? '#ffffff'}
+                  swatchLabel={t('editor.frame.borderColorPicker')}
+                  textLabel={t('editor.frame.borderColorHex')}
+                  onValueChange={(hex) => { preview((s) => setBorderColor(s, hex)); }}
+                  onValueCommit={(hex) => { edit((s) => setBorderColor(s, hex)); }}
+                />
+              </Row>
+            </div>
+          </Section>
+
+          <Section title={t('editor.frame.insetColor')}>
+            <div className="flex flex-col gap-2.5">
+              <SegmentedControl
+                aria-label={t('editor.frame.insetColor')}
+                value={frame.insetColor === 'auto' ? 'auto' : 'custom'}
+                onValueChange={(next) => {
+                  edit((s) => setInsetColor(s, next === 'auto' ? 'auto' : (edgeColor ?? '#ffffff')));
+                }}
+              >
+                <SegmentedControlItem value="auto">{t('editor.frame.insetAuto')}</SegmentedControlItem>
+                <SegmentedControlItem value="custom">
+                  {t('editor.frame.insetCustom')}
+                </SegmentedControlItem>
+              </SegmentedControl>
+              {frame.insetColor !== 'auto' && (
+                <ColorInput
+                  value={frame.insetColor}
+                  swatchLabel={t('editor.frame.insetColorPicker')}
+                  textLabel={t('editor.frame.insetColorHex')}
+                  onValueChange={(hex) => { preview((s) => setInsetColor(s, hex)); }}
+                  onValueCommit={(hex) => { edit((s) => setInsetColor(s, hex)); }}
+                />
+              )}
+            </div>
+          </Section>
+          <LayoutSections history={history} />
+        </div>
+
+        <div
+          id={panelId('frame')}
+          role="group"
+          aria-labelledby={tabId('frame')}
+          hidden={tab !== 'frame'}
+          style={slideFrom}
+          className="flex animate-tab-in flex-col gap-5"
+        >
+          <PresetPicker history={history} onExport={() => { setTab('frame'); }} />
           <AiBackground history={history} palette={palette} />
           <CollapsibleSection
             title={t('editor.background.customize')}
@@ -202,89 +287,6 @@ export function EditorSidebar({ history, edgeColor, palette }: Props) {
               </Section>
             )}
           </CollapsibleSection>
-        </div>
-
-        <div
-          id={panelId('frame')}
-          role="group"
-          aria-labelledby={tabId('frame')}
-          hidden={tab !== 'frame'}
-          style={slideFrom}
-          className="flex animate-tab-in flex-col gap-5"
-        >
-          <Section title={t('editor.frame.corners')}>
-            <SliderRow
-              label={t('editor.frame.radius')}
-              value={px(frame.radius)}
-              current={frame.radius}
-              range={ranges.radius}
-              onPreview={(next) => { preview((s) => setRadius(s, next)); }}
-              onCommit={commit}
-            />
-          </Section>
-
-          <Section title={t('editor.frame.shadow')}>
-            <TileGroup
-              aria-label={t('editor.frame.shadow')}
-              value={level ?? undefined}
-              onValueChange={(next) => { edit((s) => setShadowLevel(s, next as ShadowLevel)); }}
-              className="grid-cols-4"
-            >
-              {SHADOW_LEVELS.map((l) => (
-                <Tile key={l} value={l} label={t(`editor.frame.shadowLevel.${l}`)}>
-                  <ShadowThumb level={l} />
-                </Tile>
-              ))}
-            </TileGroup>
-          </Section>
-
-          <Section title={t('editor.frame.border')}>
-            <div className="flex flex-col gap-2.5">
-              <SliderRow
-                label={t('editor.frame.border')}
-                value={px(frame.border?.width ?? 0)}
-                current={frame.border?.width ?? 0}
-                range={ranges.border}
-                onPreview={(next) => { preview((s) => setBorderWidth(s, next, borderColor)); }}
-                onCommit={commit}
-              />
-              <Row label={t('editor.frame.borderColor')}>
-                <ColorInput
-                  value={frame.border?.color ?? '#ffffff'}
-                  swatchLabel={t('editor.frame.borderColorPicker')}
-                  textLabel={t('editor.frame.borderColorHex')}
-                  onValueChange={(hex) => { preview((s) => setBorderColor(s, hex)); }}
-                  onValueCommit={(hex) => { edit((s) => setBorderColor(s, hex)); }}
-                />
-              </Row>
-            </div>
-          </Section>
-
-          <Section title={t('editor.frame.insetColor')}>
-            <div className="flex flex-col gap-2.5">
-              <SegmentedControl
-                aria-label={t('editor.frame.insetColor')}
-                value={frame.insetColor === 'auto' ? 'auto' : 'custom'}
-                onValueChange={(next) => {
-                  edit((s) => setInsetColor(s, next === 'auto' ? 'auto' : (edgeColor ?? '#ffffff')));
-                }}
-              >
-                <SegmentedControlItem value="auto">{t('editor.frame.insetAuto')}</SegmentedControlItem>
-                <SegmentedControlItem value="custom">
-                  {t('editor.frame.insetCustom')}
-                </SegmentedControlItem>
-              </SegmentedControl>
-              {frame.insetColor !== 'auto' && (
-                <ColorInput
-                  value={frame.insetColor}
-                  swatchLabel={t('editor.frame.insetColorPicker')}
-                  textLabel={t('editor.frame.insetColorHex')}
-                  onValueChange={(hex) => { preview((s) => setInsetColor(s, hex)); }}
-                  onValueCommit={(hex) => { edit((s) => setInsetColor(s, hex)); }}
-                />
-              )}
-            </div>
-          </Section>
         </div>
       </div>
     </aside>
