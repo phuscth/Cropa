@@ -189,12 +189,19 @@
   --animate-confirm-out: confirm-out 160ms var(--ease-enter) forwards;
   --animate-tab-in: tab-in 200ms var(--ease-enter);
   --animate-tooltip-in: tooltip-in 150ms var(--ease-enter);
+  --animate-view-in: view-in 240ms var(--ease-enter);
+  --animate-chat-space-in: chat-space-in 220ms var(--ease-enter);
+  --animate-chat-space-out: chat-space-out 220ms var(--ease-enter) forwards;
+  --animate-chat-in: chat-in 220ms var(--ease-enter);
+  --animate-chat-out: chat-out 220ms var(--ease-enter) forwards;
 
   /* Movement distances, zeroed under reduced motion so only the fades remain. */
   --motion-scale-from: 0.96;
   --motion-pop-from: 0.9;
   --motion-rise: 8px;
   --motion-slide: 6px;
+  --motion-view: 20px;
+  --motion-panel: 24px;
 }
 
 @keyframes menu-in {
@@ -307,12 +314,68 @@
   }
 }
 
+/* A main view entering from the side it comes from: `--view-from` is -1 or 1 times the distance. */
+@keyframes view-in {
+  from {
+    opacity: 0;
+    transform: translateX(var(--view-from, 0px));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+/* The chat panel's space: 340 px panel plus the 6 px gap that separates it from the canvas. */
+@keyframes chat-space-in {
+  from {
+    width: var(--dock-from, 0px);
+  }
+  to {
+    width: 346px;
+  }
+}
+
+@keyframes chat-space-out {
+  from {
+    width: var(--dock-from, 346px);
+  }
+  to {
+    width: 0;
+  }
+}
+
+/* The chat panel itself, sliding in from the window's right edge. */
+@keyframes chat-in {
+  from {
+    opacity: var(--panel-opacity, 0);
+    transform: translateX(var(--panel-x, var(--motion-panel)));
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes chat-out {
+  from {
+    opacity: var(--panel-opacity, 1);
+    transform: translateX(var(--panel-x, 0px));
+  }
+  to {
+    opacity: 0;
+    transform: translateX(var(--motion-panel));
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   :root {
     --motion-scale-from: 1;
     --motion-pop-from: 1;
     --motion-rise: 0px;
     --motion-slide: 0px;
+    --motion-view: 0px;
+    --motion-panel: 0px;
     --press-scale: 1;
   }
   /* Indicators, lifts and presses change at once; fades keep their duration through animations. */
