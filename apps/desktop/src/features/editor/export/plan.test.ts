@@ -1,7 +1,7 @@
 import { applyPlatformSize, defaultScene } from '@cropa/core';
 import { describe, expect, it } from 'vitest';
 
-import { captureFileStem, exportPlan, MAX_EXPORT_SIDE } from './plan.ts';
+import { captureFileStem, exportPlan, MAX_EXPORT_SIDE, resolutionLabel } from './plan.ts';
 
 describe('exportPlan', () => {
   const scene = defaultScene({ width: 800, height: 600 });
@@ -20,6 +20,13 @@ describe('exportPlan', () => {
     expect(two.height).toBe(one.height * 2);
   });
 
+  it('triples the size at scale 3', () => {
+    const one = exportPlan(scene, 'png', 1);
+    const three = exportPlan(scene, 'png', 3);
+    expect(three.scale).toBe(3);
+    expect(three.width).toBe(one.width * 3);
+  });
+
   it('exports a platform size at exactly that size, whatever the scale', () => {
     const facebook = applyPlatformSize(scene, 'facebook');
     expect(exportPlan(facebook, 'png', 2)).toMatchObject({ width: 1440, height: 1800, scale: 1 });
@@ -30,6 +37,17 @@ describe('exportPlan', () => {
     const plan = exportPlan(large, 'png', 2);
     expect(plan.scale).toBeLessThan(2);
     expect(Math.max(plan.width, plan.height)).toBeLessThanOrEqual(MAX_EXPORT_SIDE);
+  });
+});
+
+describe('resolutionLabel', () => {
+  it('names the size class a full-HD capture reaches at 2x and 3x', () => {
+    expect(resolutionLabel(3840)).toBe('4K');
+    expect(resolutionLabel(5760)).toBe('6K');
+  });
+
+  it('gives no label to a small export', () => {
+    expect(resolutionLabel(1200)).toBeUndefined();
   });
 });
 
