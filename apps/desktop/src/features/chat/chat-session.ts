@@ -139,6 +139,11 @@ function cutBytes(text: string, max: number): string {
   return cut.replace(/�+$/, '');
 }
 
+/** A reply whose background was put on the canvas when it arrived. */
+export function reachedCanvas(message: ChatMessage): boolean {
+  return message.role === 'agent' && message.outcome === 'applied' && message.unchanged !== true;
+}
+
 /** The background a reply carries; the window checked it against the schema when it read it. */
 export function messageBackground(message: ChatMessage): BackgroundSpec | undefined {
   const value = message.background;
@@ -294,7 +299,9 @@ export function createChatSession(deps: ChatDeps): ChatSession {
         }
         // Another background chosen meanwhile keeps the canvas as it is; the result stays in the
         // conversation and can be put back from there.
-        reply = { outcome: 'applied', background: applied };
+        reply = untouched
+          ? { outcome: 'applied', background: applied }
+          : { outcome: 'applied', background: applied, unchanged: true };
       } else {
         // The preset that stays on screen becomes a normal undo step.
         if (previewed && sameBackground(history.scene().background, shown)) history.commit();
@@ -352,7 +359,9 @@ export function createChatSession(deps: ChatDeps): ChatSession {
   };
 
   const lastDescription = (): string | undefined => {
-    for (let i = state.messages.length - 1; i >= 0; i -= 1) {
+    // A later request that failed or was stopped does not change what the canvas shows.
+    const from = state.messages.findLastIndex(reachedCanvas);
+    for (let i = from === -1 ? state.messages.length - 1 : from; i >= 0; i -= 1) {
       const message = state.messages[i];
       if (message?.role === 'user' && message.mode !== 'refine') return message.text;
     }

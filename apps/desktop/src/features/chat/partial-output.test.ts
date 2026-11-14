@@ -36,6 +36,13 @@ describe('partialSource', () => {
     expect(partialSource('{"source":"a\\')).toBe('a');
   });
 
+  it('shows the newest answer when a second one follows the first in the stream', () => {
+    const two = JSON.stringify({ source: 'first', durationMs: 1 }) + JSON.stringify({ source: 'second' });
+    expect(partialSource(two)).toBe('second');
+    expect(partialSource(two.slice(0, two.indexOf('second') + 3))).toBe('sec');
+    expect(partialSource(`${JSON.stringify({ source: 'first' })}{"sou`)).toBe('first');
+  });
+
   it('does not take a source key that sits inside another string', () => {
     const text = JSON.stringify({ note: '"source": "fake"', source: 'real' });
     expect(partialSource(text)).toBe('real');

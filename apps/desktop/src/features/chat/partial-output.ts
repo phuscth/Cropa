@@ -1,4 +1,6 @@
-const SOURCE_KEY = /"source"\s*:\s*"/;
+// A real key follows the opening brace or a comma; the newest one wins, so a second answer in the
+// same stream takes over from the first.
+const SOURCE_KEY = /[{,]\s*"source"\s*:\s*"/g;
 
 const SIMPLE_ESCAPES: Record<string, string> = {
   '"': '"',
@@ -24,7 +26,7 @@ function unicodeEscape(raw: string, at: number): number | undefined {
  * before the field began. What can be decoded is returned; the rest waits for the next chunk.
  */
 export function partialSource(raw: string): string {
-  const key = SOURCE_KEY.exec(raw);
+  const key = Array.from(raw.matchAll(SOURCE_KEY)).at(-1);
   if (!key) return '';
   let out = '';
   let i = key.index + key[0].length;

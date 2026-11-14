@@ -6,6 +6,7 @@ import type { AiEffort } from '../../lib/bindings.ts';
 import { ErrorNotice } from '../../lib/ErrorNotice.tsx';
 import { AiGate } from '../ai/AiGate.tsx';
 import { AgentReply, RunningReply, UserBubble, type ReplyActions } from './ChatParts.tsx';
+import { reachedCanvas } from './chat-session.ts';
 import type { ChatController } from './use-background-chat.ts';
 
 const EFFORTS: readonly AiEffort[] = ['low', 'medium', 'high'];
@@ -128,7 +129,7 @@ export function ChatPanel({ chat, onClose }: { chat: ChatController; onClose: ()
   // Whether the list follows new content; the user scrolling up lets go of it.
   const follow = useRef(true);
 
-  const lastApplied = messages.findLastIndex((message) => message.role === 'agent' && message.outcome === 'applied');
+  const lastApplied = messages.findLastIndex(reachedCanvas);
   const actions: ReplyActions = {
     onUseResult: chat.useResult,
     onRegenerate: chat.regenerate,

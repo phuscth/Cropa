@@ -76,10 +76,13 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
   const access = useAiAccess();
   // A failure is worded when it is shown, and goes when another image is loaded.
   const [raised, setRaised] = useState<ChatFailure>();
+  // Set once Rust reports that the capture is gone from the history, so nothing is kept.
+  const [dropped, setDropped] = useState(false);
   const [shownFor, setShownFor] = useState(imageId);
   if (shownFor !== imageId) {
     setShownFor(imageId);
     setRaised(undefined);
+    setDropped(false);
   }
   const report = setRaised;
   const notice = raised && describeFailure(t, raised);
@@ -87,11 +90,14 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
   const key = `${String(imageId)}:${historyId ?? ''}`;
   const [read, setRead] = useState<{ key: string; kept: boolean }>();
   const loading = imageId !== 0 && historyId !== null && read?.key !== key;
-  const kept = read?.key === key && read.kept;
+  const kept = read?.key === key && read.kept && !dropped;
   // The choice made in this session; until then, the one saved in settings.
   const [chosen, setChosen] = useState<AiEffort>();
   const effort = chosen ?? access.effort;
 
+  const [saver] = useState(() =>
+    createChatSaver({ onError: setRaised, onNotKept: () => { setDropped(true); } }),
+  );
   const [session] = useState<ChatSession>(() =>
     createChatSession({
       start: ({ input, check, provider, effort: level, signal, onEvent }) => {
@@ -113,7 +119,7 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
       history: historyAccess(history),
       beginBackgroundChange,
       onApplied: announceAiBackgroundReveal,
-      save: createChatSaver(report),
+      save: saver.save,
       newId: () => crypto.randomUUID(),
       now: () => Date.now(),
     }),
@@ -129,8 +135,10 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
     let current = true;
     session.load(null, []);
     if (historyId !== null) {
-      commands
-        .getChat(historyId)
+      // Waits for a reply still being saved, so reopening a capture never reads an older file.
+      saver
+        .settled()
+        .then(() => commands.getChat(historyId))
         .then((result) => {
           if (!current) return;
           if (result.status === 'error') {
@@ -152,7 +160,7 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
       current = false;
       session.dispose();
     };
-  }, [session, imageId, historyId, key, report]);
+  }, [session, saver, imageId, historyId, key, report]);
 
   const provider = access.provider;
   const context = useCallback(

@@ -11,6 +11,7 @@ import {
   createChatSession,
   descriptionFor,
   isRefining,
+  reachedCanvas,
   type AiRunRequest,
   type ChatMessage,
   type SendContext,
@@ -217,6 +218,19 @@ describe('chat session', () => {
     expect(s.messages().at(-2)).toMatchObject({ role: 'user', mode: 'regenerate', text: 'rain' });
   });
 
+  it('regenerates what is on the canvas, not a later request that failed or was stopped', async () => {
+    const s = setup();
+    send(s, 'rain');
+    await s.answer(done(withCode(srcA)));
+    send(s, 'snow');
+    await s.answer(failed('Timeout'));
+    s.session.regenerate(ctx);
+    expect(s.requests[2]?.input).toMatchObject({ description: 'rain' });
+    await s.answer(failed('Cancelled'));
+    s.session.regenerate(ctx);
+    expect(s.requests[3]?.input).toMatchObject({ description: 'rain' });
+  });
+
   it('regenerates the description, not a change, after a refinement', async () => {
     const s = setup();
     send(s, 'fireflies');
@@ -303,7 +317,8 @@ describe('chat session', () => {
     expect([...past, present].some((scene) => codeSourceOf(scene.background) !== undefined)).toBe(false);
 
     const reply = s.messages().at(-1);
-    expect(reply).toMatchObject({ outcome: 'applied' });
+    expect(reply).toMatchObject({ outcome: 'applied', unchanged: true });
+    expect(reachedCanvas(reply as ChatMessage)).toBe(false);
     s.session.useResult(reply?.id ?? '');
     expect(codeSourceOf(s.history().present.background)).toBe(srcA);
   });
@@ -413,9 +428,9 @@ describe('chat saver', () => {
       });
     });
     const onError = vi.fn();
-    const saver = createChatSaver(onError, save);
-    saver('1', []);
-    saver('2', []);
+    const saver = createChatSaver({ onError, onNotKept: vi.fn() }, save);
+    saver.save('1', []);
+    saver.save('2', []);
     await flushPromises();
     expect(order).toEqual(['start 1']);
     releases[0]?.();
@@ -425,10 +440,20 @@ describe('chat saver', () => {
     await flushPromises();
     expect(onError).not.toHaveBeenCalled();
 
-    const failing = createChatSaver(onError, () => Promise.reject(new Error('disk')));
-    failing('3', []);
-    await flushPromises();
+    await saver.settled();
+
+    const failing = createChatSaver({ onError, onNotKept: vi.fn() }, () => Promise.reject(new Error('disk')));
+    failing.save('3', []);
+    await failing.settled();
     expect(onError).toHaveBeenCalledTimes(1);
+  });
+
+  it('says so when the capture is gone and nothing was written', async () => {
+    const onNotKept = vi.fn();
+    const gone = createChatSaver({ onError: vi.fn(), onNotKept }, () => Promise.resolve({ status: 'ok', data: false }));
+    gone.save('4', []);
+    await gone.settled();
+    expect(onNotKept).toHaveBeenCalledTimes(1);
   });
 });
 

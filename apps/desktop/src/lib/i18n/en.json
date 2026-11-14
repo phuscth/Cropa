@@ -228,6 +228,7 @@
     },
     "elapsed": "{{seconds}} s",
     "applied": "Applied",
+    "notApplied": "Not applied: the background changed while it ran.",
     "onCanvas": "On canvas",
     "useThis": "Use this",
     "saveAsPreset": "Save as preset",

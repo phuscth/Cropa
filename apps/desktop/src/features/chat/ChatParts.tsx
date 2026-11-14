@@ -9,7 +9,7 @@ import type { UserError } from '../../lib/errors.ts';
 import { describeAiError } from '../ai/errors.ts';
 import { providerName } from '../ai/providers.ts';
 import { codeSourceOf, PRESET_NAME_MAX, presetNameFrom } from './ai-background.ts';
-import { descriptionFor, messageBackground, type ChatMessage, type ChatRun } from './chat-session.ts';
+import { descriptionFor, messageBackground, reachedCanvas, type ChatMessage, type ChatRun } from './chat-session.ts';
 import { partialSource } from './partial-output.ts';
 
 const KNOWN_ERRORS: readonly string[] = [...AGENT_ERROR_KINDS, ...TASK_ERROR_KINDS];
@@ -207,7 +207,8 @@ export function AgentReply({
   const background = messageBackground(message);
   const source = background && codeSourceOf(background);
   const applied = message.outcome === 'applied';
-  const onCanvas = applied && source !== undefined && source === canvasSource;
+  const reached = reachedCanvas(message);
+  const onCanvas = reached && source !== undefined && source === canvasSource;
 
   const savePreset = async (event: SyntheticEvent) => {
     event.preventDefault();
@@ -232,7 +233,10 @@ export function AgentReply({
       {message.outcome === 'cancelled' && (
         <p className="text-control-sm font-normal text-muted-foreground">{t('chat.cancelled')}</p>
       )}
-      {applied && (
+      {applied && !reached && (
+        <p className="text-control-sm font-normal text-muted-foreground">{t('chat.notApplied')}</p>
+      )}
+      {reached && (
         <p className="flex items-center gap-2 text-control-sm font-normal">
           <span className="inline-flex items-center gap-1 text-success">
             <svg viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.75" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">

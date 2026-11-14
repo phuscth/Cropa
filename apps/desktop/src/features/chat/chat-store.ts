@@ -30,24 +30,36 @@ export function failureOf(result: { status: 'error'; error: CommandError }): Cha
   return { kind: 'command', error: result.error };
 }
 
+export interface ChatSaver {
+  /** Saves a conversation after the ones queued before it. */
+  save: (historyId: string, messages: readonly ChatMessage[]) => void;
+  /** Resolves once everything queued so far has been written; never rejects. */
+  settled: () => Promise<unknown>;
+}
+
 /**
  * Saves a conversation per call, one after the other, so an older conversation never lands after
- * a newer one. A failure is reported once through `onError`; the conversation stays on screen.
+ * a newer one. A failure is reported once through `onError`; `onNotKept` is called when Rust
+ * wrote nothing because the capture is no longer in the history.
  */
 export function createChatSaver(
-  onError: (failure: ChatFailure) => void,
+  handlers: { onError: (failure: ChatFailure) => void; onNotKept: () => void },
   save: typeof commands.saveChat = commands.saveChat,
-): (historyId: string, messages: readonly ChatMessage[]) => void {
+): ChatSaver {
   let last: Promise<unknown> = Promise.resolve();
-  return (historyId, messages) => {
-    const list = [...messages];
-    last = last.then(() =>
-      save(historyId, list).then(
-        (result) => {
-          if (result.status === 'error') onError(failureOf(result));
-        },
-        (cause: unknown) => { onError({ kind: 'unexpected', cause }); },
-      ),
-    );
+  return {
+    save: (historyId, messages) => {
+      const list = [...messages];
+      last = last.then(() =>
+        save(historyId, list).then(
+          (result) => {
+            if (result.status === 'error') handlers.onError(failureOf(result));
+            else if (!result.data) handlers.onNotKept();
+          },
+          (cause: unknown) => { handlers.onError({ kind: 'unexpected', cause }); },
+        ),
+      );
+    },
+    settled: () => last,
   };
 }
