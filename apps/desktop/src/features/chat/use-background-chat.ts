@@ -135,7 +135,7 @@ export function useBackgroundChat({ history, palette, imageId, historyId }: Opti
           validate: validator.validate,
           onEvent,
         });
-        return { fallback: run.fallback, done: run.done, noWebgl: validator.noWebgl };
+        return { done: run.done, noWebgl: validator.noWebgl };
       },
       history: historyAccess(history),
       beginBackgroundChange,

@@ -24,6 +24,8 @@ interface Args {
   imageId: number;
   /** When the image was captured, in ms since the epoch; null when unknown. */
   capturedAt: number | null;
+  /** The AI is writing a background: nothing is exported until its result is on the canvas. */
+  locked: boolean;
 }
 
 const NOTICE_MS = 6000;
@@ -53,7 +55,7 @@ interface DragStart {
 
 type Result<T> = { status: 'ok'; data: T } | { status: 'error'; error: CommandError };
 
-export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
+export function useExport({ scene, bitmap, imageId, capturedAt, locked }: Args) {
   const { t } = useTranslation();
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState<ExportNotice>();
@@ -62,8 +64,8 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
   const [warning, setWarning] = useState<UserError>();
 
   // The latest values, so the keyboard handler and the actions stay stable across edits.
-  const latest = useRef({ scene, bitmap, imageId, capturedAt, t });
-  useEffect(() => { latest.current = { scene, bitmap, imageId, capturedAt, t }; });
+  const latest = useRef({ scene, bitmap, imageId, capturedAt, locked, t });
+  useEffect(() => { latest.current = { scene, bitmap, imageId, capturedAt, locked, t }; });
   const running = useRef(false);
   const sessionFile = useRef(initialSessionFile(imageId));
   const timer = useRef<number>(undefined);
@@ -83,11 +85,11 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
     timer.current = window.setTimeout(() => { setNotice(undefined); }, NOTICE_MS);
   }, []);
 
-  /** Runs one export at a time; a second call while one runs is ignored. */
+  /** Runs one export at a time; a second call while one runs, or one while locked, is ignored. */
   const run = useCallback(
     async (job: (current: typeof latest.current & { bitmap: ImageBitmap }) => Promise<void>) => {
       const current = latest.current;
-      if (running.current || !current.bitmap) return;
+      if (running.current || current.locked || !current.bitmap) return;
       running.current = true;
       setBusy(true);
       setWarning(undefined);
@@ -187,7 +189,7 @@ export function useExport({ scene, bitmap, imageId, capturedAt }: Args) {
   const onDragPointerDown = useCallback(
     (event: PointerEvent<HTMLElement>) => {
       const current = latest.current;
-      if (event.button !== 0 || running.current || !current.bitmap) return;
+      if (event.button !== 0 || running.current || current.locked || !current.bitmap) return;
       event.preventDefault();
       event.currentTarget.setPointerCapture(event.pointerId);
       dragStart.current = {

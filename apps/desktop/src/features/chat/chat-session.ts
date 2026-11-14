@@ -5,12 +5,7 @@ import type { AiEffort, AiProvider, ChatMessage_Deserialize, ChatOutcome } from 
 import type { CodeScene } from '../code-sandbox/index.ts';
 import { applyBackground, sameBackground } from '../editor/scene-edits.ts';
 import type { SceneEdit } from '../editor/use-scene-history.ts';
-import {
-  backgroundRequest,
-  backgroundWhileWaiting,
-  codeSourceOf,
-  replaceCodeLayer,
-} from './ai-background.ts';
+import { backgroundRequest, codeSourceOf, replaceCodeLayer } from './ai-background.ts';
 
 /** One bubble of the conversation, as it is kept on disk. */
 export type ChatMessage = ChatMessage_Deserialize;
@@ -72,8 +67,6 @@ export interface AiRunRequest {
 }
 
 export interface AiRunHandle {
-  /** The closest preset, ready at once. */
-  fallback: BackgroundSpec;
   done: Promise<TaskResult<BackgroundSpec>>;
   /** True once a check found that this window has no WebGL. */
   noWebgl: () => boolean;
@@ -190,8 +183,8 @@ const IDLE: ChatState = { messages: [], run: null, startedOverFrom: null };
 
 /**
  * The state of the AI chat: at most one run at a time, and one undo step per applied result.
- * While a run waits, the closest preset is a live change with no step of its own; the result
- * then closes it, so a single undo goes back to what was there before.
+ * The background on screen stays as it is while a run works; the result replaces it as one step,
+ * so a single undo goes back to what was there before.
  *
  * A finished reply, and the message it answers, are appended to the conversation and handed to
  * `deps.save` when the conversation has a history id.
@@ -288,11 +281,8 @@ export function createChatSession(deps: ChatDeps): ChatSession {
       },
     });
 
-    // A refinement changes nothing on screen until it is done. Otherwise the closest preset shows
-    // while the AI works, unless the scene already has generated code: that stays.
-    const shown = kind === 'refine' ? before.background : backgroundWhileWaiting(before.background, handle.fallback);
-    const previewed = !sameBackground(before.background, shown);
-    history.preview((s) => applyBackground(s, shown));
+    // Nothing on screen changes until the result is applied, and nothing at all when the run fails.
+    const shown = before.background;
 
     void handle.done.then((out) => {
       // The session was disposed, or loaded with another conversation: nothing to record.
@@ -316,13 +306,9 @@ export function createChatSession(deps: ChatDeps): ChatSession {
           ? { outcome: 'applied', background: applied }
           : { outcome: 'applied', background: applied, unchanged: true };
       } else {
-        // The preset that stays on screen becomes a normal undo step.
-        if (previewed && sameBackground(history.scene().background, shown)) history.commit();
         const cancelled = abort.signal.aborted || out.notice?.kind === 'Cancelled';
         const error = handle.noWebgl() ? 'no-webgl' : (out.notice?.kind ?? 'Protocol');
-        reply = cancelled
-          ? { outcome: 'cancelled', unchanged: !previewed }
-          : { outcome: 'failed', error, unchanged: !previewed };
+        reply = cancelled ? { outcome: 'cancelled', unchanged: true } : { outcome: 'failed', error, unchanged: true };
       }
       finish(run, reply, untouched && out.source === 'ai');
     });
