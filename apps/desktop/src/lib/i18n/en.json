@@ -391,7 +391,8 @@
     "about": {
       "title": "About",
       "version": "Cropa {{version}}",
-      "sponsor": "Support Cropa on GitHub Sponsors"
+      "sponsor": "Support Cropa on GitHub Sponsors",
+      "iconCredit": "Icons: Solar by 480 Design (CC BY 4.0), logos: Lobe Icons (MIT)"
     }
   },
   "errors": {

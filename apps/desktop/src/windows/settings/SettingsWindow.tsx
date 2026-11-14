@@ -539,6 +539,10 @@ export function SettingsView() {
                   {t('settings.about.sponsor')}
                 </Button>
               </SettingRow>
+              {/* Its own full-width line, so it stays on one row at the window's minimum width. */}
+              <p className="px-5 py-3 text-[13px] leading-snug text-muted-foreground">
+                {t('settings.about.iconCredit')}
+              </p>
             </SettingsSection>,
           )}
         </div>

@@ -391,7 +391,8 @@
     "about": {
       "title": "Giới thiệu",
       "version": "Cropa {{version}}",
-      "sponsor": "Ủng hộ Cropa trên GitHub Sponsors"
+      "sponsor": "Ủng hộ Cropa trên GitHub Sponsors",
+      "iconCredit": "Biểu tượng: Solar của 480 Design (CC BY 4.0), logo: Lobe Icons (MIT)"
     }
   },
   "errors": {
