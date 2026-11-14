@@ -58,7 +58,7 @@ function Logo() {
       alt=""
       aria-hidden="true"
       draggable={false}
-      className="pointer-events-none size-6 select-none"
+      className="pointer-events-none size-9 select-none"
     />
   );
 }
