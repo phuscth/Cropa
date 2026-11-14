@@ -2,12 +2,12 @@ import { z } from 'zod';
 
 import { Annotation, migrateAnnotation } from './annotation.ts';
 import { BACKGROUND_VERSION, BackgroundSpec, migrateBackground } from './background.ts';
-import { Hex, Ref } from './color.ts';
+import { Hex, MaskRef } from './color.ts';
 import { outputSize } from '../render/layout.ts';
 import { parseWith, prefixIssue, upgrade } from './migrate.ts';
 import type { MigrateResult, UpgradeStep } from './migrate.ts';
 
-export const SCENE_VERSION = 1;
+export const SCENE_VERSION = 2;
 
 /** Longest side of an exported image that a browser canvas can still draw. */
 const MAX_OUTPUT_SIDE = 16384;
@@ -27,7 +27,13 @@ export const Scene = z.strictObject({
   screenshot: z.strictObject({
     width: z.number().int().min(1).max(16384),
     height: z.number().int().min(1).max(16384),
-    mask: z.strictObject({ ref: Ref }).nullable(),
+    /**
+     * The cut-out of the screenshot: its own pixels with the background removed, the
+     * same size as the screenshot. `ref` names that image, which the app resolves
+     * through `env.image`. When set and resolved, the cut-out is drawn in place of the
+     * screenshot and the frame takes its shape.
+     */
+    mask: z.strictObject({ ref: MaskRef }).nullable(),
   }),
   frame: z.strictObject({
     padding: num(0, 8192),
@@ -48,8 +54,17 @@ export const Scene = z.strictObject({
 });
 export type Scene = z.infer<typeof Scene>;
 
-/** `steps[v]` upgrades version `v` to `v + 1`. Empty until a second version exists. */
-const steps: Record<number, UpgradeStep> = {};
+/**
+ * `steps[v]` upgrades version `v` to `v + 1`. Version 1 could only name a background
+ * image in `mask`, never a cut-out, so the upgrade clears it.
+ */
+const steps: Record<number, UpgradeStep> = {
+  1: (doc) => {
+    const screenshot = doc.screenshot;
+    if (typeof screenshot !== 'object' || screenshot === null || Array.isArray(screenshot)) return doc;
+    return { ...doc, screenshot: { ...screenshot, mask: null } };
+  },
+};
 
 export function migrateScene(input: unknown): MigrateResult<Scene> {
   const upgraded = upgrade(input, SCENE_VERSION, steps);

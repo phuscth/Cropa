@@ -30,6 +30,7 @@ sys-locale = "0.3.2"
 log = "0.4"
 base64 = "0.23"
 cropa-agent = { path = "../../../crates/cropa-agent" }
+cropa-matte = { path = "../../../crates/cropa-matte" }
 image = { version = "0.25", default-features = false, features = ["png"] }
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
 

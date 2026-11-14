@@ -207,6 +207,8 @@ pub struct Probe {
     pub login_args: &'static [&'static str],
     /// Reads the login state from the exit code, stdout and stderr.
     pub parse_login: fn(Option<i32>, &str, &str) -> Option<bool>,
+    /// Whether a supported version can return a picture.
+    pub image_out: bool,
 }
 
 fn capture(executable: &Path, args: &[&str], env: &[(OsString, OsString)]) -> Option<Captured> {
@@ -247,7 +249,7 @@ pub fn detect(executable: Option<PathBuf>, probe: &Probe) -> Detection {
         version_supported: supported,
         logged_in,
         image_in: supported == Some(true),
-        image_out: false,
+        image_out: probe.image_out && supported == Some(true),
     }
 }
 

@@ -149,12 +149,17 @@ pub async fn delete_all_history(app: AppHandle) -> Result<(), CommandError> {
 #[tauri::command]
 #[specta::specta]
 pub async fn open_history_in_editor(app: AppHandle, id: String) -> Result<(), CommandError> {
-    let (png, captured_at, id) = blocking(&app, move |history| {
+    let (png, captured_at, cutout, id) = blocking(&app, move |history| {
         let png = history.original(&id).map_err(read_error)?;
-        Ok((png, History::captured_at(&id).ok(), id))
+        // A cut-out that cannot be read leaves the capture as it was taken.
+        let cutout = history.cutout(&id).unwrap_or_else(|err| {
+            log::warn!("could not read the cut-out of capture {id}: {err}");
+            None
+        });
+        Ok((png, History::captured_at(&id).ok(), cutout, id))
     })
     .await?;
-    editor::open(&app, png, captured_at, Some(id));
+    editor::open_with_cutout(&app, png, captured_at, Some(id), cutout);
     Ok(())
 }
 

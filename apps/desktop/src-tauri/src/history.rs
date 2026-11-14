@@ -7,7 +7,8 @@
 //! is nothing to migrate.
 //!
 //! A capture's AI chat is `<dir>/chats/<id>.json` (see [`crate::chat`]); it goes
-//! when its capture goes.
+//! when its capture goes. So does its background cut-out, `<dir>/cutouts/<id>.png`:
+//! the original's pixels with the background removed, same size as the capture.
 //!
 //! The WebView never passes a path. It passes an id, which [`History`] checks
 //! (ASCII digits only, 1 to 20 of them) before building a path inside its own
@@ -36,6 +37,7 @@ pub const THUMBNAIL_MAX: (u32, u32) = (480, 320);
 
 const THUMBNAILS: &str = "thumbnails";
 const CHATS: &str = "chats";
+const CUTOUTS: &str = "cutouts";
 const MAX_ID_LEN: usize = 20;
 
 /// The history changed: a capture was saved or deleted.
@@ -89,6 +91,14 @@ impl History {
         self.dir.join(CHATS)
     }
 
+    fn cutouts_dir(&self) -> PathBuf {
+        self.dir.join(CUTOUTS)
+    }
+
+    fn cutout_path(&self, id: &str) -> PathBuf {
+        self.cutouts_dir().join(format!("{id}.png"))
+    }
+
     fn chat_path(&self, id: &str) -> PathBuf {
         self.chats_dir().join(format!("{id}.json"))
     }
@@ -139,6 +149,38 @@ impl History {
         fs::write(&tmp, bytes).map_err(save_error)?;
         fs::rename(&tmp, &path).map_err(save_error)?;
         Ok(true)
+    }
+
+    /// Keep `png` as the background cut-out of a capture, replacing the one it had.
+    /// Returns `false`, writing nothing, when the capture is not in the history.
+    pub fn save_cutout(&self, id: &str, png: &[u8]) -> Result<bool, HistoryError> {
+        let id = valid_id(id)?;
+        let _guard = self.guard();
+        if !self.dir.join(format!("{id}.png")).exists() {
+            return Ok(false);
+        }
+        fs::create_dir_all(self.cutouts_dir())?;
+        write_atomic(&self.cutout_path(id), png)?;
+        Ok(true)
+    }
+
+    /// The PNG bytes of a capture's cut-out, or `None` when it has none.
+    pub fn cutout(&self, id: &str) -> Result<Option<Vec<u8>>, HistoryError> {
+        let id = valid_id(id)?;
+        let _guard = self.guard();
+        match fs::read(self.cutout_path(id)) {
+            Ok(bytes) => Ok(Some(bytes)),
+            Err(err) if err.kind() == io::ErrorKind::NotFound => Ok(None),
+            Err(err) => Err(err.into()),
+        }
+    }
+
+    /// Remove a capture's cut-out; a capture with none is fine.
+    pub fn delete_cutout(&self, id: &str) -> Result<(), HistoryError> {
+        let id = valid_id(id)?;
+        let _guard = self.guard();
+        remove_if_present(&self.cutout_path(id))?;
+        Ok(())
     }
 
     /// Store a capture and its thumbnail, then drop what is over the limits.
@@ -211,7 +253,7 @@ impl History {
         }
     }
 
-    /// Remove one capture, its thumbnail and its chat.
+    /// Remove one capture, its thumbnail, its cut-out and its chat.
     pub fn delete(&self, id: &str) -> Result<(), HistoryError> {
         let id = valid_id(id)?;
         let _guard = self.guard();
@@ -221,6 +263,7 @@ impl History {
             return original;
         }
         remove_if_present(&self.thumbnails_dir().join(format!("{id}.png")))?;
+        remove_if_present(&self.cutout_path(id))?;
         remove_if_present(&self.chat_path(id))?;
         original
     }
@@ -233,10 +276,10 @@ impl History {
             .collect()
     }
 
-    /// Remove every capture, thumbnail and chat. Other files in the folder stay.
+    /// Remove every capture, thumbnail, cut-out and chat. Other files in the folder stay.
     pub fn delete_all(&self) -> Result<(), HistoryError> {
         let _guard = self.guard();
-        for dir in [self.dir.clone(), self.thumbnails_dir()] {
+        for dir in [self.dir.clone(), self.thumbnails_dir(), self.cutouts_dir()] {
             for (_, id) in ids_in(&dir) {
                 remove_if_present(&dir.join(format!("{id}.png")))?;
             }
@@ -256,7 +299,7 @@ impl History {
     }
 
     /// Keep the [`KEEP`] newest captures that are no older than [`MAX_AGE`], and
-    /// drop thumbnails and chats whose original is gone.
+    /// drop thumbnails, cut-outs and chats whose original is gone.
     pub fn prune(&self, now: SystemTime) {
         let _guard = self.guard();
         self.prune_locked(now);
@@ -271,7 +314,12 @@ impl History {
             if too_old || kept >= KEEP {
                 let original = self.dir.join(format!("{id}.png"));
                 let thumbnail = self.thumbnails_dir().join(format!("{id}.png"));
-                for path in [original, thumbnail, self.chat_path(&id)] {
+                for path in [
+                    original,
+                    thumbnail,
+                    self.cutout_path(&id),
+                    self.chat_path(&id),
+                ] {
                     if let Err(err) = remove_if_present(&path) {
                         log::warn!("could not remove history entry {id}: {err}");
                     }
@@ -280,7 +328,7 @@ impl History {
                 kept += 1;
             }
         }
-        for dir in [self.dir.clone(), self.thumbnails_dir()] {
+        for dir in [self.dir.clone(), self.thumbnails_dir(), self.cutouts_dir()] {
             for name in leftovers_in(&dir) {
                 if let Err(err) = remove_if_present(&dir.join(&name)) {
                     log::warn!("could not remove {name}: {err}");
@@ -306,6 +354,13 @@ impl History {
                     remove_if_present(&self.thumbnails_dir().join(format!("{id}.png")))
             {
                 log::warn!("could not remove history thumbnail {id}: {err}");
+            }
+        }
+        for (_, id) in ids_in(&self.cutouts_dir()) {
+            if !self.dir.join(format!("{id}.png")).exists()
+                && let Err(err) = remove_if_present(&self.cutout_path(&id))
+            {
+                log::warn!("could not remove the cut-out of capture {id}: {err}");
             }
         }
     }
@@ -428,6 +483,11 @@ fn write_png(path: &Path, image: &RgbaImage) -> Result<(), HistoryError> {
             ExtendedColorType::Rgba8,
         )
         .map_err(|err| HistoryError::Image(err.to_string()))?;
+    write_atomic(path, &bytes)
+}
+
+/// Write `bytes` next to `path`, then rename, so a crash never leaves a half-written file.
+fn write_atomic(path: &Path, bytes: &[u8]) -> Result<(), HistoryError> {
     let mut tmp = path.as_os_str().to_owned();
     tmp.push(".tmp");
     let tmp = PathBuf::from(tmp);
@@ -689,6 +749,81 @@ mod tests {
         let bytes = history.thumbnail(&id).unwrap();
         let decoded = image::load_from_memory(&bytes).unwrap();
         assert_eq!((decoded.width(), decoded.height()), (480, 320));
+    }
+
+    #[test]
+    fn a_cutout_is_stored_per_capture_and_goes_with_it() {
+        let dir = TempDir::new("cutout");
+        let history = history(&dir);
+        let base = SystemTime::now();
+        let first = history.save(&tiny(), base).unwrap();
+        let second = history.save(&tiny(), base + millis(1)).unwrap();
+
+        assert_eq!(history.cutout(&first).unwrap(), None);
+        assert!(history.save_cutout(&first, b"one").unwrap());
+        assert!(history.save_cutout(&second, b"two").unwrap());
+        assert_eq!(
+            history.cutout(&first).unwrap().as_deref(),
+            Some(&b"one"[..])
+        );
+        assert!(history.save_cutout(&first, b"three").unwrap());
+        assert_eq!(
+            history.cutout(&first).unwrap().as_deref(),
+            Some(&b"three"[..])
+        );
+
+        history.delete_cutout(&first).unwrap();
+        assert_eq!(history.cutout(&first).unwrap(), None);
+        history.delete_cutout(&first).unwrap();
+        assert!(history.cutout(&second).unwrap().is_some());
+
+        history.delete(&second).unwrap();
+        assert!(!history.cutout_path(&second).exists());
+    }
+
+    #[test]
+    fn a_cutout_for_a_capture_that_is_not_there_writes_nothing() {
+        let dir = TempDir::new("cutout-missing");
+        let history = history(&dir);
+
+        assert!(!history.save_cutout("123", b"x").unwrap());
+        assert!(!history.cutouts_dir().exists());
+        assert!(matches!(
+            history.save_cutout("../x", b"x"),
+            Err(HistoryError::Missing)
+        ));
+        assert!(matches!(history.cutout("../x"), Err(HistoryError::Missing)));
+    }
+
+    #[test]
+    fn delete_all_and_prune_remove_cutouts() {
+        let dir = TempDir::new("cutout-bulk");
+        let history = history(&dir);
+        let now = SystemTime::now();
+        let kept = history.save(&tiny(), now).unwrap();
+        // A cut-out whose capture is gone, and a write that never reached its rename.
+        fs::create_dir_all(history.cutouts_dir()).unwrap();
+        fs::write(history.cutout_path("111"), "x").unwrap();
+        fs::write(history.cutouts_dir().join("222.png.tmp"), "x").unwrap();
+        assert!(history.save_cutout(&kept, b"keep").unwrap());
+
+        history.prune(now);
+        assert!(!history.cutout_path("111").exists());
+        assert!(!history.cutouts_dir().join("222.png.tmp").exists());
+        assert!(history.cutout_path(&kept).exists());
+
+        let old = history
+            .save(&tiny(), now - Duration::from_secs(31 * 24 * 60 * 60))
+            .unwrap();
+        assert!(history.save_cutout(&old, b"old").unwrap());
+        history.prune(now);
+        assert!(
+            !history.cutout_path(&old).exists(),
+            "an expired capture takes its cut-out"
+        );
+
+        history.delete_all().unwrap();
+        assert_eq!(files(&history.cutouts_dir()).len(), 0);
     }
 
     fn convo() -> Vec<ChatMessage> {

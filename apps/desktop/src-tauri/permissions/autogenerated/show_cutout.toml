@@ -1,0 +1,11 @@
+# Automatically generated - DO NOT EDIT!
+
+[[permission]]
+identifier = "allow-show-cutout"
+description = "Enables the show_cutout command without any pre-configured scope."
+commands.allow = ["show_cutout"]
+
+[[permission]]
+identifier = "deny-show-cutout"
+description = "Denies the show_cutout command without any pre-configured scope."
+commands.deny = ["show_cutout"]

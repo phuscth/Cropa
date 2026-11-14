@@ -52,6 +52,8 @@ import { beginBackgroundChange } from './background-images.ts';
 import { ShadowThumb, SliderRow, StyleThumb } from './panel-parts.tsx';
 import { readCustomizeOpen, writeCustomizeOpen } from './panel-state.ts';
 import { PresetPicker } from './presets/PresetPicker.tsx';
+import { RemoveBackgroundSection } from './remove-background/RemoveBackgroundSection.tsx';
+import type { RemoveBackgroundController } from './remove-background/use-remove-background.ts';
 import { LayoutSections } from './LayoutSections.tsx';
 import { CollapsibleSection, Row, Section } from './Section.tsx';
 import type { SceneHistory } from './use-scene-history.ts';
@@ -66,10 +68,12 @@ interface Props {
   history: Pick<SceneHistory, 'scene' | 'blocked' | 'edit' | 'preview' | 'commit'>;
   /** The colour found at the screenshot's edges, or null when it has none. */
   edgeColor: string | null;
+  /** Background removal for the open image; its state outlives this panel being hidden. */
+  removeBackground: RemoveBackgroundController;
 }
 
 /** The editor's left panel: the Mockup and Frame tabs. */
-export function EditorSidebar({ history, edgeColor }: Props) {
+export function EditorSidebar({ history, edgeColor, removeBackground }: Props) {
   const { t } = useTranslation();
   const [tab, setTab] = useState<Tab>('mockup');
   // Which way the content slides in: from the right when the tab is further along.
@@ -137,6 +141,8 @@ export function EditorSidebar({ history, edgeColor }: Props) {
           style={slideFrom}
           className="flex animate-tab-in flex-col gap-5"
         >
+          <RemoveBackgroundSection controller={removeBackground} />
+
           <Section title={t('editor.frame.style')}>
             <TileGroup
               aria-label={t('editor.frame.style')}

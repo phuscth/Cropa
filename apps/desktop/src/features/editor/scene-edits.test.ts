@@ -42,6 +42,8 @@ import {
   setShadowLevel,
   shadowLevel,
   SHADOW_LEVELS,
+  maskName,
+  setMask,
 } from './scene-edits.ts';
 import { canUndo, historyReducer, initHistory } from './history.ts';
 
@@ -532,5 +534,48 @@ describe('scene for a new image', () => {
 
   it('starts over when the editor had an image', () => {
     expect(sceneForNewImage(null, size)).toEqual(defaultScene(size));
+  });
+});
+
+describe('cut-out', () => {
+  it('sets the mask by name and clears it, changing nothing else', () => {
+    const scene = fresh();
+    expect(maskName(scene)).toBeNull();
+
+    const masked = expectValid(setMask(scene, '3-1'));
+    expect(masked.screenshot.mask).toEqual({ ref: 'mask:3-1' });
+    expect(maskName(masked)).toBe('3-1');
+    expect({ ...masked, screenshot: { ...masked.screenshot, mask: null } }).toEqual(scene);
+
+    const restored = setMask(masked, null);
+    expect(restored).toEqual(scene);
+    expect(maskName(restored)).toBeNull();
+  });
+
+  it('returns the same scene when the mask is already as asked', () => {
+    const scene = fresh();
+    expect(setMask(scene, null)).toBe(scene);
+    const masked = setMask(scene, 'a');
+    expect(setMask(masked, 'a')).toBe(masked);
+  });
+
+  it('is one undo step each way', () => {
+    const scene = fresh();
+    const masked = accept(scene, setMask(scene, '1-1'));
+    let h = historyReducer(initHistory(scene), { type: 'edit', scene: masked });
+    h = historyReducer(h, { type: 'edit', scene: (s) => setMask(s, null) });
+    expect(maskName(h.present)).toBeNull();
+    h = historyReducer(h, { type: 'undo' });
+    expect(maskName(h.present)).toBe('1-1');
+    h = historyReducer(h, { type: 'undo' });
+    expect(maskName(h.present)).toBeNull();
+    expect(canUndo(h)).toBe(false);
+    h = historyReducer(h, { type: 'redo' });
+    expect(maskName(h.present)).toBe('1-1');
+  });
+
+  it('refuses a name the scene schema rejects', () => {
+    const scene = fresh();
+    expect(accept(scene, setMask(scene, '../x'))).toBe(scene);
   });
 });

@@ -1,7 +1,9 @@
 //! The image the editor view shows. It lives in memory as PNG bytes, with the
 //! time it was captured: the editor asks for them when it opens and again
-//! whenever the image changes.
+//! whenever the image changes. The background cut-outs made for it live beside it,
+//! by name, until the image is replaced.
 
+use std::collections::HashMap;
 use std::io::Cursor;
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, PoisonError};
@@ -23,6 +25,18 @@ pub struct Current {
     pub captured_at: Option<f64>,
     /// The capture's id in the history, when it is kept there.
     pub history_id: Option<String>,
+    /// Which image this is: it changes whenever the editor's image is replaced.
+    pub generation: u64,
+    /// The cut-out PNGs made for this image, by name. The one the history kept for the
+    /// capture, if any, is named `<generation>-history`; the ones made here `<generation>-<n>`.
+    pub cutouts: HashMap<String, Arc<Vec<u8>>>,
+}
+
+impl Current {
+    /// The name of the cut-out the history kept for this capture.
+    pub fn history_cutout_name(&self) -> String {
+        format!("{}-history", self.generation)
+    }
 }
 
 #[derive(Default)]
@@ -46,14 +60,40 @@ impl EditorImage {
         self.generation.load(Ordering::SeqCst)
     }
 
-    fn set(&self, png: Vec<u8>, captured_at: Option<f64>, history_id: Option<String>) {
+    fn set(
+        &self,
+        png: Vec<u8>,
+        captured_at: Option<f64>,
+        history_id: Option<String>,
+        history_cutout: Option<Vec<u8>>,
+    ) {
         let mut slot = self.current.lock().unwrap_or_else(PoisonError::into_inner);
-        *slot = Some(Current {
+        let generation = self.generation.fetch_add(1, Ordering::SeqCst) + 1;
+        let mut current = Current {
             png: Arc::new(png),
             captured_at,
             history_id,
-        });
-        self.generation.fetch_add(1, Ordering::SeqCst);
+            generation,
+            cutouts: HashMap::new(),
+        };
+        if let Some(cutout) = history_cutout {
+            current
+                .cutouts
+                .insert(current.history_cutout_name(), Arc::new(cutout));
+        }
+        *slot = Some(current);
+    }
+
+    /// Keep a cut-out made for the image of `generation` and return its name. `None` when the
+    /// editor's image has been replaced since, so a late result is never attached to another image.
+    pub fn add_cutout(&self, generation: u64, png: Vec<u8>) -> Option<String> {
+        let mut slot = self.current.lock().unwrap_or_else(PoisonError::into_inner);
+        let current = slot
+            .as_mut()
+            .filter(|current| current.generation == generation)?;
+        let name = format!("{generation}-{}", current.cutouts.len() + 1);
+        current.cutouts.insert(name.clone(), Arc::new(png));
+        Some(name)
     }
 
     /// Forget the image. Counts as a replacement, so a save of the old image is refused.
@@ -78,7 +118,19 @@ pub fn open<R: Runtime>(
     captured_at: Option<f64>,
     history_id: Option<String>,
 ) {
-    app.state::<EditorImage>().set(png, captured_at, history_id);
+    open_with_cutout(app, png, captured_at, history_id, None);
+}
+
+/// Like [`open`], for a capture whose history kept a background cut-out: the editor shows it.
+pub fn open_with_cutout<R: Runtime>(
+    app: &AppHandle<R>,
+    png: Vec<u8>,
+    captured_at: Option<f64>,
+    history_id: Option<String>,
+    cutout: Option<Vec<u8>>,
+) {
+    app.state::<EditorImage>()
+        .set(png, captured_at, history_id, cutout);
     if let Err(err) = EditorImageChanged.emit(app) {
         log::warn!("could not emit the editor image change: {err}");
     }
@@ -173,6 +225,7 @@ mod tests {
             vec![1, 2, 3],
             Some(1_700_000_000_123.0),
             Some("1700000000123".into()),
+            None,
         );
         let current = editor.get().expect("an image was set");
         assert_eq!(*current.png, vec![1, 2, 3]);
@@ -180,7 +233,7 @@ mod tests {
         assert_eq!(current.history_id.as_deref(), Some("1700000000123"));
 
         let generation = editor.generation();
-        editor.set(vec![4], None, None);
+        editor.set(vec![4], None, None, None);
         let current = editor.get().expect("an image was set");
         assert_eq!(current.captured_at, None);
         assert_eq!(current.history_id, None);
@@ -190,6 +243,40 @@ mod tests {
         assert!(editor.get().is_none());
         assert_eq!(editor.generation(), generation + 2);
     }
+
+    #[test]
+    fn a_cutout_belongs_to_the_image_it_was_made_for() {
+        let editor = EditorImage::default();
+        editor.set(vec![1], None, Some("5".into()), Some(vec![9]));
+        let first = editor.get().expect("an image was set");
+        assert_eq!(first.generation, editor.generation());
+        assert_eq!(
+            first
+                .cutouts
+                .get(&first.history_cutout_name())
+                .map(|png| png.as_slice()),
+            Some(&[9_u8][..]),
+            "the history's cut-out comes with the image"
+        );
+
+        let name = editor
+            .add_cutout(first.generation, vec![7])
+            .expect("current image");
+        assert!(name.starts_with(&format!("{}-", first.generation)));
+        let again = editor
+            .add_cutout(first.generation, vec![8])
+            .expect("current image");
+        assert_ne!(name, again, "every cut-out gets its own name");
+        let current = editor.get().unwrap();
+        assert_eq!(current.cutouts[&name].as_slice(), &[7]);
+
+        editor.set(vec![2], None, None, None);
+        assert_eq!(editor.add_cutout(first.generation, vec![1]), None);
+        assert!(editor.get().unwrap().cutouts.is_empty());
+        editor.clear();
+        assert_eq!(editor.add_cutout(editor.generation(), vec![1]), None);
+    }
+
     fn png_of(width: u32, height: u32, color: ExtendedColorType, pixels: &[u8]) -> String {
         let mut png = Vec::new();
         PngEncoder::new(&mut png)

@@ -5,7 +5,7 @@ import { drawAnnotations } from './annotations.ts';
 import { edgeColor } from './edge-color.ts';
 import type { Placement } from './layout.ts';
 import { frameBoxes, placeFrame } from './layout.ts';
-import { redactScreenshot } from './redact.ts';
+import { maskImage, redactScreenshot } from './redact.ts';
 import { roundedRect } from './shapes.ts';
 
 /**
@@ -20,8 +20,11 @@ import { roundedRect } from './shapes.ts';
  *
  * `t` is the animation time in [0, 1); a still image uses 0. A code layer draws what
  * `env.code` returns for it; without that, or without a bitmap, it draws nothing. The
- * background animation and the mask are not drawn yet. The scene is not validated: pass
- * the output of `migrateScene`. Throws a RangeError when `t` is outside [0, 1).
+ * background animation is not drawn yet. When `scene.screenshot.mask` is set and
+ * `env.image` resolves its ref, that cut-out is drawn in place of the screenshot (redactions
+ * apply to it) and the frame takes its shape: no border, inset or rounded clip, and the
+ * shadows follow its alpha. A ref `env.image` cannot resolve draws the screenshot as if
+ * there were no mask. The scene is not validated: pass the output of `migrateScene`. Throws a RangeError when `t` is outside [0, 1).
  */
 export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): void {
   if (!(t >= 0 && t < 1)) {
@@ -45,7 +48,12 @@ export function render(scene: Scene, t: number, ctx: Canvas2D, env: RenderEnv): 
     ctx.clearRect(0, 0, cw, ch);
 
     renderBackground(scene.background, ctx, env, cw, ch, t);
-    drawFrame(scene, placement, redactScreenshot(scene, env) ?? env.screenshot, ctx, env);
+    const cutout = maskImage(scene, env);
+    if (cutout) {
+      drawCutout(scene, placement, redactScreenshot(scene, env, cutout) ?? cutout, ctx);
+    } else {
+      drawFrame(scene, placement, redactScreenshot(scene, env) ?? env.screenshot, ctx, env);
+    }
     drawCodeFronts(scene, t, ctx, env, cw, ch);
     drawAnnotations(scene, placement.shot, ctx);
   } finally {
@@ -67,6 +75,32 @@ function drawCodeFronts(
     const img = env.code(layer, 'front', t);
     if (img) ctx.drawImage(img, 0, 0, cw, ch);
   }
+}
+
+/**
+ * Draws the cut-out as the frame's own shape: no border, inset or rounded clip, and
+ * each shadow is cast by the cut-out's alpha. As in `drawFrame`, the shadow's source
+ * is drawn far to the left of the canvas and the offset brings only the shadow back,
+ * so no source pixel sits under the cut-out's edge; the cut-out is then drawn once
+ * at the screenshot's place, with no other pixel change at a 1:1 scale.
+ */
+function drawCutout(scene: Scene, placement: Placement, source: CanvasImage, ctx: Canvas2D): void {
+  const { s, shot } = placement;
+
+  for (const shadow of scene.frame.shadows) {
+    const blur = shadow.blur * s;
+    const offsetX = shadow.x * s;
+    const away = Math.ceil(shot.x + shot.w + 3 * blur + Math.abs(offsetX)) + 1;
+    ctx.save();
+    ctx.shadowColor = shadow.color;
+    ctx.shadowBlur = blur;
+    ctx.shadowOffsetX = offsetX + away;
+    ctx.shadowOffsetY = shadow.y * s;
+    ctx.drawImage(source, shot.x - away, shot.y, shot.w, shot.h);
+    ctx.restore();
+  }
+
+  ctx.drawImage(source, shot.x, shot.y, shot.w, shot.h);
 }
 
 function drawFrame(

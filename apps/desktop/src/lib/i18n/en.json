@@ -804,8 +804,8 @@
       "next": "Pick another provider in Settings → AI, or update Cropa."
     },
     "Timeout": {
-      "what": "{{provider}} didn't answer within 60 seconds.",
-      "why": "It may be busy or offline.",
+      "what": "{{provider}} didn't answer in time.",
+      "why": "It may be busy or offline, or the task took longer than Cropa waits.",
       "next": "Check your internet connection and try again."
     },
     "Protocol": {
@@ -818,6 +818,11 @@
       "why": "It was stopped before {{provider}} finished.",
       "next": "Run it again when you are ready."
     },
+    "NoImage": {
+      "what": "{{provider}} finished without an image.",
+      "why": "Your plan may not include image generation, or {{provider}} declined.",
+      "next": "Try again later or check your {{provider}} plan."
+    },
     "InvalidOutput": {
       "what": "{{provider}}'s answer was malformed.",
       "why": "It didn't match the expected format, even after a second try.",
@@ -827,6 +832,67 @@
       "what": "{{provider}} can't do this.",
       "why": "This task needs a feature that {{provider}} does not offer.",
       "next": "Pick another provider in Settings → AI."
+    }
+  },
+  "removeBackground": {
+    "title": "Remove background",
+    "button": "Remove background",
+    "hint": "Takes 30 to 60 seconds. Hair and fur are best effort.",
+    "working": "Removing the background…",
+    "workingHint": "This takes 30 to 60 seconds.",
+    "elapsed": "{{seconds}} s",
+    "cancel": "Cancel",
+    "done": "Background removed",
+    "note": "Hair and fur are best effort.",
+    "restore": "Restore background",
+    "confirmNote": "Codex also keeps a copy of the cut-out in its own folder on this computer. Cropa does not delete it.",
+    "lock": {
+      "noImage": "Open or capture an image first.",
+      "checking": "Checking for the Codex CLI…",
+      "needsCodex": "Background removal needs the Codex CLI, installed and signed in. Set it up in Settings › AI.",
+      "imagesOff": "Turn on “Allow sending images to AI” in Settings › AI to remove backgrounds."
+    },
+    "errors": {
+      "ImageTooLarge": {
+        "what": "The image is too large to send.",
+        "why": "Background removal sends the picture to Codex, which accepts up to {{limit}} MB.",
+        "next": "Crop or resize the picture, then try again."
+      },
+      "Unreadable": {
+        "what": "Cropa could not read the cut-out.",
+        "why": "The picture Codex returned was not a usable image.",
+        "next": "Nothing was changed. Try again."
+      },
+      "TooLarge": {
+        "what": "The picture is too large to cut out.",
+        "why": "Cropa cuts out images up to 25 megapixels.",
+        "next": "Nothing was changed. Resize the picture and try again."
+      },
+      "NoSubject": {
+        "what": "Codex found no subject to keep.",
+        "why": "Its cut-out was empty, so there was nothing to put on a new background.",
+        "next": "Nothing was changed. Try a picture with a clear main subject."
+      },
+      "NoBackground": {
+        "what": "Codex did not remove anything.",
+        "why": "Its cut-out kept the whole picture, so the background is still there.",
+        "next": "Nothing was changed. Try again, or try a picture with a clearer subject."
+      },
+      "Misaligned": {
+        "what": "Codex moved the picture while cutting it out.",
+        "why": "Its mask would not line up with your screenshot.",
+        "next": "Nothing was changed. Try again."
+      },
+      "WeakAlignment": {
+        "what": "Codex moved the picture while cutting it out.",
+        "why": "Its mask would not line up with your screenshot.",
+        "next": "Nothing was changed. Try again."
+      },
+      "Save": {
+        "what": "Cropa could not keep the cut-out with this capture.",
+        "why": "{{detail}}",
+        "next": "The cut-out still shows, but it will not be there when you reopen the capture from History."
+      }
     }
   },
   "onboarding": {

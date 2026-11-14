@@ -18,7 +18,7 @@ export { frameGeometry, outputSize, outputSizeAtLongEdge, screenshotRect } from 
 export type { FrameGeometry } from './render/layout.ts';
 export { ANNOTATION_DEFAULTS, ANNOTATION_FONT } from './render/annotations.ts';
 export { annotationBounds, hitTest } from './render/hit-test.ts';
-export { isRedaction, redactScreenshot } from './render/redact.ts';
+export { isRedaction, maskImage, redactScreenshot } from './render/redact.ts';
 export { edgeColor } from './render/edge-color.ts';
 export { extractPalette } from './colour/palette.ts';
 export type { PaletteColour, PaletteOptions, Pixels } from './colour/palette.ts';

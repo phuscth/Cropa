@@ -8,23 +8,40 @@ export function isRedaction(a: Annotation): boolean {
 }
 
 /**
+ * The cut-out the scene draws in place of the screenshot: the image `env.image`
+ * returns for `scene.screenshot.mask`. Undefined when there is no mask or the app
+ * cannot resolve it, in which case the screenshot is drawn as if there were no mask.
+ */
+export function maskImage(scene: Scene, env: RenderEnv): CanvasImage | undefined {
+  const mask = scene.screenshot.mask;
+  return mask ? env.image?.(mask.ref) : undefined;
+}
+
+/**
  * Returns a copy of the screenshot, at its own resolution, with every blur and
  * pixelate annotation applied in array order, or null when the scene has none.
  * The frame draws this copy instead of the original, so no original pixel under a
  * box reaches the output whatever the output scale or resampling.
+ *
+ * `base` is the image the effects are applied to: the screenshot by default, or the
+ * cut-out when the scene draws one in its place (see `maskImage`).
  *
  * Both effects are computed in plain arithmetic on the pixels inside the box
  * (never `ctx.filter` or `drawImage` downscaling), so the WebView and Node give the
  * same result and the result depends on nothing outside the box. A small pixelate
  * block over large text can still be guessed; the strength is the user's choice.
  */
-export function redactScreenshot(scene: Scene, env: RenderEnv): CanvasImage | null {
+export function redactScreenshot(
+  scene: Scene,
+  env: RenderEnv,
+  base: CanvasImage = env.screenshot,
+): CanvasImage | null {
   const redactions = scene.annotations.filter(isRedaction);
   if (redactions.length === 0) return null;
 
   const { width, height } = scene.screenshot;
   const out = env.createContext(width, height);
-  out.drawImage(env.screenshot, 0, 0, width, height);
+  out.drawImage(base, 0, 0, width, height);
 
   for (const a of redactions) {
     const b = normalizeBox(a.box);

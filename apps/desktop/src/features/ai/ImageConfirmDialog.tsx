@@ -10,6 +10,8 @@ interface DialogProps {
   allowImages: boolean;
   providerName: string;
   vendorName: string;
+  /** An extra line under the body, when the answer needs one. */
+  note?: string | undefined;
   onAnswer: (send: boolean) => void;
 }
 
@@ -22,6 +24,7 @@ export function ImageConfirmDialog({
   allowImages,
   providerName,
   vendorName,
+  note,
   onAnswer,
 }: DialogProps) {
   const { t } = useTranslation();
@@ -50,6 +53,7 @@ export function ImageConfirmDialog({
         <p className="text-muted-foreground">
           {allowImages ? t('ai.imageConfirm.body', vars) : t('ai.imageConfirm.offBody')}
         </p>
+        {allowImages && note !== undefined && <p className="text-muted-foreground">{note}</p>}
         <div className="flex justify-end gap-2">
           {allowImages ? (
             <>
@@ -79,6 +83,7 @@ export function useImageConfirm(
   access: AiAccess,
   providerName: string,
   vendorName: string,
+  note?: string,
 ): {
   confirmImages: (images: readonly string[]) => Promise<boolean>;
   /** Closes the dialog and answers "don't send"; call it when the run is aborted. */
@@ -120,6 +125,7 @@ export function useImageConfirm(
       allowImages={access.allowImages}
       providerName={providerName}
       vendorName={vendorName}
+      note={note}
       onAnswer={answer}
     />
   );

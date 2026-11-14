@@ -44,8 +44,8 @@ pub struct RunRequest {
 #[derive(Debug, Clone, Default)]
 pub struct RunOutput {
     pub json: Option<serde_json::Value>,
-    /// A picture the CLI produced. The caller reads it and deletes it.
-    pub image: Option<PathBuf>,
+    /// The PNG the CLI produced. Cropa reads it and leaves the file where the CLI wrote it.
+    pub image: Option<Vec<u8>>,
 }
 
 /// Why a turn did not produce an output. `Protocol` carries a short fixed
@@ -66,6 +66,8 @@ pub enum AgentError {
     Protocol(String),
     #[error("the run was cancelled")]
     Cancelled,
+    #[error("the CLI finished without an image")]
+    NoImage,
 }
 
 /// What a provider can do on this machine.

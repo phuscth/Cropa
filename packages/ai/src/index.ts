@@ -38,6 +38,9 @@ export type {
 export { paletteNameTask } from './tasks/palette-name.ts';
 export type { PaletteName, PaletteNameInput } from './tasks/palette-name.ts';
 
+export { removeBackgroundTask } from './tasks/remove-background.ts';
+export type { RemoveBackgroundInput, RemoveBackgroundResult } from './tasks/remove-background.ts';
+
 export {
   backgroundTask,
   judgeModuleCheck,

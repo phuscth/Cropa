@@ -115,6 +115,37 @@ describe('field ranges', () => {
   });
 });
 
+describe('scene mask', () => {
+  const withMask = (mask: unknown) => {
+    const s = scene();
+    return { ...s, screenshot: { ...s.screenshot, mask } };
+  };
+
+  it.each([
+    ['without a mask', null],
+    ['with a v1 background-image mask', { ref: 'user:photo' }],
+  ])('upgrades a v1 scene %s to v2 with no mask', (_label, mask) => {
+    const result = migrateScene({ ...withMask(mask), version: 1 });
+    expect(result).toEqual({ ok: true, value: scene() });
+  });
+
+  it('parses a cut-out mask', () => {
+    const doc = withMask({ ref: 'mask:abc-1' });
+    expect(migrateScene(doc)).toEqual({ ok: true, value: doc });
+  });
+
+  it.each(['user:x', 'builtin:x', 'mask:', 'mask:../x', 'mask:a b'])('rejects the mask ref %s', (ref) => {
+    expect(invalidIssues(migrateScene(withMask({ ref }))).join('\n')).toContain('screenshot.mask.ref');
+  });
+
+  it('reports a v3 scene as too-new', () => {
+    expect(migrateScene({ ...scene(), version: 3 })).toEqual({
+      ok: false,
+      error: { kind: 'too-new', version: 3, supported: 2 },
+    });
+  });
+});
+
 describe('annotation style', () => {
   const styled = (style: object) => ({ ...annotation(), style });
 

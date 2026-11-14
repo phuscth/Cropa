@@ -1,12 +1,31 @@
 import { defaultScene, type Annotation, type Scene } from '@cropa/core';
 import { describe, expect, it } from 'vitest';
 
-import { redactionKey } from './redaction-cache.ts';
+import { createRedactionCache, redactionKey } from './redaction-cache.ts';
 
 const mark = (type: Annotation['type'], box: Annotation['box']): Annotation => ({
   version: 1,
   type,
   box,
+});
+
+describe('createRedactionCache', () => {
+  it('leaves the redactions in a scene that shows a cut-out', () => {
+    const scene: Scene = {
+      ...defaultScene({ width: 40, height: 30 }),
+      annotations: [mark('blur', [0, 0, 20, 20])],
+    };
+    const masked: Scene = { ...scene, screenshot: { ...scene.screenshot, mask: { ref: 'mask:a-1' } } };
+    const env = {
+      screenshot: { width: 40, height: 30 },
+      createContext: () => {
+        throw new Error('the renderer redacts a cut-out itself');
+      },
+    };
+    const out = createRedactionCache().scene(masked, env);
+    expect(out.scene).toBe(masked);
+    expect(out.env).toBe(env);
+  });
 });
 
 describe('redactionKey', () => {

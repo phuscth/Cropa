@@ -24,6 +24,20 @@ pub struct EditorImageData {
     pub captured_at: Option<f64>,
     /// The capture's id in the history, when it is kept there. The chat is stored under it.
     pub history_id: Option<String>,
+    /// Names this image for `apply_cutout` and `show_cutout`; it changes whenever the image does.
+    pub image_key: String,
+    /// The background cut-out the history kept for this capture, when it has one.
+    pub cutout: Option<EditorCutout>,
+}
+
+/// A background cut-out the editor shows from the start.
+#[derive(Serialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorCutout {
+    /// The name the scene refers to it by, as `mask:<name>`.
+    pub name: String,
+    /// A `data:` URL of the cut-out.
+    pub image: String,
 }
 
 /// The image the editor shows with its capture time, or `None` when it has none.
@@ -31,13 +45,20 @@ pub struct EditorImageData {
 #[specta::specta]
 pub async fn get_editor_image(app: AppHandle) -> Result<Option<EditorImageData>, CommandError> {
     tauri::async_runtime::spawn_blocking(move || {
-        app.state::<EditorImage>()
-            .get()
-            .map(|current| EditorImageData {
+        app.state::<EditorImage>().get().map(|current| {
+            let name = current.history_cutout_name();
+            let cutout = current.cutouts.get(&name).map(|png| EditorCutout {
+                name,
+                image: png_data_url(png),
+            });
+            EditorImageData {
                 image: png_data_url(&current.png),
                 captured_at: current.captured_at,
                 history_id: current.history_id,
-            })
+                image_key: current.generation.to_string(),
+                cutout,
+            }
+        })
     })
     .await
     .map_err(|err| CommandError::HistoryRead(err.to_string()))

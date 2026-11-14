@@ -6,6 +6,7 @@ mod background_images;
 mod capture;
 mod chat;
 mod commands;
+mod cutout;
 mod e2e;
 mod editor;
 mod export;
@@ -51,6 +52,8 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::editor::get_editor_image,
             commands::editor::import_editor_image,
             commands::editor::clear_editor_image,
+            commands::cutout::apply_cutout,
+            commands::cutout::show_cutout,
             commands::export::quick_save,
             commands::export::choose_save_as_path,
             commands::export::write_save_as,

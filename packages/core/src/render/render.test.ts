@@ -263,6 +263,142 @@ describe('outputSizeAtLongEdge', () => {
   });
 });
 
+describe('cut-out', () => {
+  const DISC = [225, 29, 72, 255];
+  const DOT = [14, 165, 233, 255];
+  const CORNER = [124, 58, 237, 255];
+
+  // A cut-out the size of the screenshot: an opaque disc with a dot in it and a square
+  // block in the top-left corner, transparent everywhere else.
+  function makeCutout(): Canvas {
+    const canvas = createCanvas(160, 100);
+    const ctx = canvas.getContext('2d');
+    ctx.fillStyle = 'rgb(225,29,72)';
+    ctx.beginPath();
+    ctx.arc(80, 50, 30, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = 'rgb(14,165,233)';
+    ctx.fillRect(78, 48, 4, 4);
+    ctx.fillStyle = 'rgb(124,58,237)';
+    ctx.fillRect(0, 0, 4, 4);
+    return canvas;
+  }
+  const cutout = makeCutout();
+  const nothing = createCanvas(160, 100);
+
+  const maskEnv = (image: Canvas | undefined): RenderEnv => ({
+    ...env,
+    image: (ref) => {
+      if (ref === 'mask:disc') return image;
+      return ref === 'builtin:checker' ? checker : undefined;
+    },
+  });
+  const masked = (patch: Parameters<typeof sceneWith>[0] = {}): Scene => {
+    const s = sceneWith(patch);
+    return { ...s, screenshot: { ...s.screenshot, mask: { ref: 'mask:disc' } } };
+  };
+  const draw = (scene: Scene, image: Canvas | null = cutout): Canvas => {
+    const size = outputSize(scene, 1);
+    const canvas = createCanvas(size.width, size.height);
+    render(scene, 0, canvas.getContext('2d'), maskEnv(image ?? undefined));
+    return canvas;
+  };
+  const at = (canvas: Canvas, x: number, y: number): number[] =>
+    Array.from(canvas.getContext('2d').getImageData(x, y, 1, 1).data);
+
+  const backgrounds: [string, BackgroundLayer[]][] = [
+    [
+      'a gradient',
+      [
+        {
+          type: 'linear',
+          angle: 90,
+          stops: [
+            { offset: 0, color: '#065f46' },
+            { offset: 1, color: '#fde68a' },
+          ],
+        },
+      ],
+    ],
+    ['an image', [{ type: 'image', ref: 'builtin:checker', fit: 'cover' }]],
+  ];
+
+  it.each(backgrounds)('draws the cut-out pixels unchanged over %s', (_name, layers) => {
+    const out = draw(masked({ layers }));
+    // The screenshot sits at (20, 20) in the 200 x 140 output.
+    expect(at(out, 20 + 80, 20 + 50)).toEqual(DOT);
+    expect(at(out, 20 + 80 + 20, 20 + 50)).toEqual(DISC);
+    expect(at(out, 20 + 80 - 20, 20 + 50)).toEqual(DISC);
+    const got = out.getContext('2d').getImageData(20, 20, 160, 100).data;
+    const want = cutout.getContext('2d').getImageData(0, 0, 160, 100).data;
+    for (let i = 0; i < want.length; i += 4) {
+      if (want[i + 3] === 255) {
+        expect(Array.from(got.slice(i, i + 4))).toEqual(Array.from(want.slice(i, i + 4)));
+      }
+    }
+  });
+
+  it.each(backgrounds)('shows %s, not the screenshot, outside the cut-out', (_name, layers) => {
+    const withCutout = draw(masked({ layers }));
+    const reference = draw(masked({ layers }), nothing);
+    const shotPixel = at(renderScene(sceneWith({ layers })), 20 + 140, 20 + 90);
+    for (const [x, y] of [
+      [20 + 140, 20 + 90],
+      [20 + 10, 20 + 60],
+    ] as const) {
+      expect(at(withCutout, x, y)).toEqual(at(reference, x, y));
+    }
+    expect(at(withCutout, 20 + 140, 20 + 90)).not.toEqual(shotPixel);
+  });
+
+  it('casts the shadow from the cut-out alpha, not from the frame rectangle', () => {
+    const shadow = { x: 0, y: 10, blur: 4, color: '#000000ff' };
+    const layers: BackgroundLayer[] = [{ type: 'solid', color: '#ffffff' }];
+    const out = draw(masked({ layers, frame: { shadows: [shadow] } }));
+    const below = at(out, 20 + 80, 20 + 50 + 30 + 4);
+    expect(below[0]).toBeLessThan(120);
+    // Bottom-left of the screenshot rectangle, far from the disc: no shadow there.
+    expect(at(out, 20 + 20, 20 + 90)).toEqual([255, 255, 255, 255]);
+    expect(at(out, 20 + 150, 20 + 95)).toEqual([255, 255, 255, 255]);
+  });
+
+  it('skips the border, the inset and the rounded clip', () => {
+    const scene = masked({
+      layers: [{ type: 'solid', color: '#ffffff' }],
+      frame: { radius: 24, inset: 8, insetColor: '#00ff00', border: { width: 6, color: '#ff0000' } },
+    });
+    const out = draw(scene);
+    const rect = screenshotRect(scene, out.width, out.height);
+    const data = pixels(out);
+    for (let i = 0; i < data.length; i += 4) {
+      const p = Array.from(data.slice(i, i + 4));
+      expect(p).not.toEqual([255, 0, 0, 255]);
+      expect(p).not.toEqual([0, 255, 0, 255]);
+    }
+    // The cut-out's own top-left pixel survives although the frame radius would clip it.
+    expect(at(out, rect.x, rect.y)).toEqual(CORNER);
+  });
+
+  it('draws the screenshot as if there were no mask when the ref cannot be resolved', () => {
+    const layers: BackgroundLayer[] = [{ type: 'solid', color: '#6366f1' }];
+    const frame = { radius: 10, shadows: [{ x: 0, y: 6, blur: 8, color: '#00000066' }] };
+    const unresolved = draw(masked({ layers, frame }), null);
+    const plain = draw(sceneWith({ layers, frame }));
+    expect(Buffer.from(pixels(unresolved)).equals(Buffer.from(pixels(plain)))).toBe(true);
+  });
+
+  it('applies redactions to the cut-out', () => {
+    const scene = masked({ layers: [{ type: 'solid', color: '#ffffff' }] });
+    scene.annotations = [
+      { version: 1, type: 'pixelate', box: [60, 30, 40, 40], style: { strength: 256 } },
+    ];
+    const out = draw(scene);
+    expect(at(out, 20 + 80, 20 + 50)).not.toEqual(DOT);
+    // The disc pixel outside the box still comes straight from the cut-out.
+    expect(at(out, 20 + 80 + 28, 20 + 50)).toEqual(DISC);
+  });
+});
+
 describe('render', () => {
   it('rejects a time outside [0, 1)', () => {
     const ctx = createCanvas(10, 10).getContext('2d');

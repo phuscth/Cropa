@@ -638,3 +638,24 @@ export function withoutMissingImages(spec: BackgroundSpec, missing: readonly str
     ),
   };
 }
+
+// ---------------------------------------------------------------- cut-out
+
+const MASK_PREFIX = 'mask:';
+
+/** The name of the cut-out the screenshot is drawn as, or null when it is drawn whole. */
+export function maskName(scene: Scene): string | null {
+  const ref = scene.screenshot.mask?.ref;
+  return ref?.startsWith(MASK_PREFIX) ? ref.slice(MASK_PREFIX.length) : null;
+}
+
+/** The image ref the renderer asks for to draw the cut-out `name`. */
+export function maskRef(name: string): string {
+  return `${MASK_PREFIX}${name}`;
+}
+
+/** Draws the screenshot as the cut-out `name`, or whole again with null; changes nothing else. */
+export function setMask(scene: Scene, name: string | null): Scene {
+  if (maskName(scene) === name) return scene;
+  return { ...scene, screenshot: { ...scene.screenshot, mask: name === null ? null : { ref: maskRef(name) } } };
+}

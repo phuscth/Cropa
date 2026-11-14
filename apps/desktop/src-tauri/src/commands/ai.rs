@@ -162,6 +162,7 @@ pub enum AiErrorKind {
     Timeout,
     Protocol,
     Cancelled,
+    NoImage,
 }
 
 /// What the mock provider does. Only the mock reads it, and the mock exists in
@@ -205,6 +206,8 @@ pub enum AiError {
     Protocol(String),
     #[error("the run was cancelled")]
     Cancelled,
+    #[error("the CLI finished without an image")]
+    NoImage,
     #[error("the request is not valid: {0}")]
     InvalidRequest(String),
     #[error("a run with that id is already in progress")]
@@ -221,6 +224,7 @@ impl From<AgentError> for AiError {
             AgentError::Timeout => Self::Timeout,
             AgentError::Protocol(text) => Self::Protocol(text),
             AgentError::Cancelled => Self::Cancelled,
+            AgentError::NoImage => Self::NoImage,
         }
     }
 }
@@ -236,6 +240,7 @@ impl AiError {
             Self::Timeout => "timeout",
             Self::Protocol(_) => "protocol",
             Self::Cancelled => "cancelled",
+            Self::NoImage => "no-image",
             Self::InvalidRequest(_) => "invalid-request",
             Self::RunIdInUse => "run-id-in-use",
         }
@@ -252,6 +257,7 @@ impl From<AiErrorKind> for AgentError {
             AiErrorKind::Timeout => Self::Timeout,
             AiErrorKind::Protocol => Self::Protocol("scripted failure".to_owned()),
             AiErrorKind::Cancelled => Self::Cancelled,
+            AiErrorKind::NoImage => Self::NoImage,
         }
     }
 }
@@ -456,15 +462,6 @@ fn write_images(dir: &TurnDir, images: &[Vec<u8>]) -> Result<Vec<std::path::Path
         .collect()
 }
 
-/// An output picture as a PNG data URL; the file is deleted either way.
-fn take_output_image(path: &std::path::Path) -> Result<String, AiError> {
-    let bytes = std::fs::read(path);
-    let _ = std::fs::remove_file(path);
-    bytes
-        .map(|bytes| png_data_url(&bytes))
-        .map_err(|_| AiError::Protocol("could not read the output picture".to_owned()))
-}
-
 struct Checked {
     request: AiRequest,
     images: Vec<Vec<u8>>,
@@ -524,7 +521,7 @@ fn run_turn(
             let _ = on_event.send(event);
         }
     })?;
-    let image = image.as_deref().map(take_output_image).transpose()?;
+    let image = image.as_deref().map(png_data_url);
     Ok(AiOutput { json, image })
 }
 
@@ -781,5 +778,6 @@ mod tests {
             AiError::Protocol("exit code 3".to_owned())
         );
         assert_eq!(AiError::from(AgentError::Cancelled), AiError::Cancelled);
+        assert_eq!(AiError::from(AgentError::NoImage), AiError::NoImage);
     }
 }

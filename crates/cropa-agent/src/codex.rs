@@ -2,11 +2,19 @@
 //! sandbox read-only and every tool, plugin and user setting switched off. The
 //! prompt goes on stdin.
 //!
-//! Logs hold the provider and the outcome kind, never a prompt or output.
+//! An image turn leaves the image tool on. The stream never names the file the
+//! tool writes, so after `turn.completed` the adapter reads the one PNG in
+//! `<Codex home>/generated_images/<thread id>/`, where the thread id is the one
+//! of this turn. Nothing else under the Codex home is read, and nothing there
+//! is ever deleted.
+//!
+//! Logs hold the provider and the outcome kind, never a prompt, an output or
+//! the path or bytes of an image.
 
 use std::ffi::OsString;
+use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::time::Instant;
+use std::time::{Instant, SystemTime};
 
 use serde::Deserialize;
 use serde_json::{Map, Value, json};
@@ -59,6 +67,7 @@ const PROBE: Probe = Probe {
     login_env: LOGIN_ENV,
     login_args: &["login", "status"],
     parse_login,
+    image_out: true,
 };
 
 /// `codex login status` prints on stderr: exit 0 when logged in, exit 1 and
@@ -101,11 +110,13 @@ impl CodexExec {
 /// The arguments of one turn. There is no positional prompt: `--image` takes
 /// many values and would swallow it, so the prompt goes on stdin. Values from
 /// the request use the `--opt=value` form so they can never be read as a flag.
+/// `image_generation` leaves the image tool on; every other feature stays off.
 fn build_args(
     schema_file: Option<&Path>,
     images: &[PathBuf],
     model: Option<&str>,
     effort: Effort,
+    image_generation: bool,
 ) -> Vec<OsString> {
     let mut args: Vec<OsString> = [
         "exec",
@@ -130,6 +141,9 @@ fn build_args(
     args.push("-c".into());
     args.push(format!("model_reasoning_effort=\"{}\"", effort.as_arg()).into());
     for feature in DISABLED_FEATURES {
+        if image_generation && *feature == "image_generation" {
+            continue;
+        }
         args.push("--disable".into());
         args.push((*feature).into());
     }
@@ -383,12 +397,122 @@ pub fn strip_added_nulls(original: &Value, output: Value) -> Value {
     strip(original, original, output, 0)
 }
 
+// --- The generated image
+
+/// The largest PNG file read from the Codex home.
+const MAX_IMAGE_BYTES: u64 = 32 * 1024 * 1024;
+/// The side limits and the area limit of that PNG.
+const IMAGE_SIDE: std::ops::RangeInclusive<u32> = 64..=8192;
+const MAX_IMAGE_PIXELS: u64 = 16_000_000;
+const PNG_SIGNATURE: &[u8] = b"\x89PNG\r\n\x1a\n";
+
+/// A thread id is 1 to 64 characters of `[0-9A-Za-z-]`, so it can only ever
+/// name one folder.
+fn valid_thread_id(id: &str) -> bool {
+    (1..=64).contains(&id.len()) && id.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'-')
+}
+
+/// The Codex home from the values of `CODEX_HOME` and the user's home folder:
+/// `CODEX_HOME` when it is set and absolute, else `.codex` in the home folder.
+fn codex_home_from(codex_home: Option<OsString>, home: Option<OsString>) -> Option<PathBuf> {
+    codex_home
+        .map(PathBuf::from)
+        .filter(|path| path.is_absolute())
+        .or_else(|| {
+            let home = PathBuf::from(home?);
+            home.is_absolute().then(|| home.join(".codex"))
+        })
+}
+
+/// The Codex home of this process: `USERPROFILE` is the home folder on
+/// Windows, `HOME` elsewhere.
+fn codex_home() -> Option<PathBuf> {
+    let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    codex_home_from(std::env::var_os(LOGIN_ENV), std::env::var_os(home_var))
+}
+
+fn not_a_png() -> AgentError {
+    AgentError::Protocol("the CLI's image is not a usable PNG".to_owned())
+}
+
+/// Checks the signature and the `IHDR` size of a PNG without decoding it.
+fn check_png(bytes: &[u8]) -> Result<(), AgentError> {
+    if bytes.len() < 24 || !bytes.starts_with(PNG_SIGNATURE) || &bytes[12..16] != b"IHDR" {
+        return Err(not_a_png());
+    }
+    let side =
+        |at: usize| u32::from_be_bytes([bytes[at], bytes[at + 1], bytes[at + 2], bytes[at + 3]]);
+    let (width, height) = (side(16), side(20));
+    if !IMAGE_SIDE.contains(&width)
+        || !IMAGE_SIDE.contains(&height)
+        || u64::from(width) * u64::from(height) > MAX_IMAGE_PIXELS
+    {
+        return Err(not_a_png());
+    }
+    Ok(())
+}
+
+/// Reads the PNG a turn generated: the most recently modified regular `.png`
+/// file in `<codex_home>/generated_images/<thread_id>/`. Only that one folder
+/// is listed, a symbolic link is never followed, and the file is left where it
+/// is. No folder or no PNG in it is [`AgentError::NoImage`].
+fn read_generated_image(codex_home: &Path, thread_id: &str) -> Result<Vec<u8>, AgentError> {
+    if !valid_thread_id(thread_id) {
+        return Err(AgentError::Protocol("unexpected thread id".to_owned()));
+    }
+    let dir = codex_home.join("generated_images").join(thread_id);
+    let is_real_dir = std::fs::symlink_metadata(&dir).is_ok_and(|meta| meta.is_dir());
+    if !is_real_dir {
+        return Err(AgentError::NoImage);
+    }
+    let entries = std::fs::read_dir(&dir).map_err(|_| AgentError::NoImage)?;
+    let mut newest: Option<(SystemTime, PathBuf, u64)> = None;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        let is_png = path
+            .extension()
+            .is_some_and(|ext| ext.eq_ignore_ascii_case("png"));
+        // `DirEntry::metadata` does not follow a symbolic link, so a link is not a file.
+        let Ok(meta) = entry.metadata() else { continue };
+        if !is_png || !meta.is_file() {
+            continue;
+        }
+        let modified = meta.modified().unwrap_or(SystemTime::UNIX_EPOCH);
+        if newest.as_ref().is_none_or(|(best, _, _)| modified > *best) {
+            newest = Some((modified, path, meta.len()));
+        }
+    }
+    let (_, path, len) = newest.ok_or(AgentError::NoImage)?;
+    if len > MAX_IMAGE_BYTES {
+        return Err(not_a_png());
+    }
+    let mut bytes = Vec::new();
+    std::fs::File::open(&path)
+        .and_then(|file| file.take(MAX_IMAGE_BYTES + 1).read_to_end(&mut bytes))
+        .map_err(|_| AgentError::Protocol("could not read the CLI's image".to_owned()))?;
+    if bytes.len() as u64 > MAX_IMAGE_BYTES {
+        return Err(not_a_png());
+    }
+    check_png(&bytes)?;
+    Ok(bytes)
+}
+
 // --- The event stream
 
 #[derive(Debug)]
 enum Final {
     Completed,
     Failed(String),
+}
+
+/// The thread of a turn, from `thread.started`.
+#[derive(Debug, Default)]
+enum Thread {
+    #[default]
+    Unknown,
+    Id(String),
+    /// The id is not safe to put in a path.
+    Refused,
 }
 
 /// Reads the JSON lines of one turn.
@@ -398,6 +522,7 @@ struct CodexStream {
     /// answer, not prose.
     wants_schema: bool,
     started: bool,
+    thread: Thread,
     /// Whether a reasoning summary was already sent, so the next one follows a blank line.
     thinking_sent: bool,
     last_text: Option<String>,
@@ -461,6 +586,13 @@ impl CodexStream {
             self.events.push(event_label(line));
         }
         match line["type"].as_str() {
+            Some("thread.started") => match line["thread_id"].as_str() {
+                Some(id) if valid_thread_id(id) => self.thread = Thread::Id(id.to_owned()),
+                _ => {
+                    self.thread = Thread::Refused;
+                    return LineFlow::Stop;
+                }
+            },
             Some("item.completed") if line["item"]["type"] == "agent_message" => {
                 if let Some(text) = line["item"]["text"].as_str() {
                     self.last_text = Some(text.to_owned());
@@ -505,13 +637,30 @@ impl CodexStream {
         LineFlow::Continue
     }
 
+    /// The result of the turn. `image_home` is the Codex home of an image
+    /// turn, whose answer is the PNG the CLI generated; its reply text is
+    /// optional. The folder is read only after `turn.completed`.
     fn finish(
         self,
         process: Result<Finished, ProcessError>,
         schema: Option<&Value>,
+        image_home: Option<&Path>,
     ) -> Result<RunOutput, AgentError> {
+        if matches!(self.thread, Thread::Refused) {
+            return Err(AgentError::Protocol("unexpected thread id".to_owned()));
+        }
         let earlier: Vec<&str> = self.errors.iter().map(String::as_str).collect();
         match self.end {
+            Some(Final::Completed) if image_home.is_some() => {
+                let Thread::Id(thread_id) = self.thread else {
+                    return Err(AgentError::Protocol("no thread id".to_owned()));
+                };
+                let image = read_generated_image(image_home.unwrap_or(Path::new("")), &thread_id)?;
+                Ok(RunOutput {
+                    json: self.last_text.map(Value::String),
+                    image: Some(image),
+                })
+            }
             Some(Final::Completed) => {
                 let text = self
                     .last_text
@@ -715,11 +864,23 @@ impl AgentCli for CodexExec {
         cancel: &CancelToken,
         on_event: &mut dyn FnMut(Event),
     ) -> Result<RunOutput, AgentError> {
-        if req.want_image {
-            return Err(AgentError::Unsupported);
-        }
         check_model(req.model.as_deref())?;
         let executable = self.find().ok_or(AgentError::NotInstalled)?;
+        // The image is the answer of an image turn, so it has no schema; the
+        // Codex home is found before the turn so a failure here costs no quota.
+        let schema = if req.want_image {
+            None
+        } else {
+            req.schema.as_ref()
+        };
+        let image_home =
+            if req.want_image {
+                Some(codex_home().ok_or_else(|| {
+                    AgentError::Protocol("could not find the Codex home".to_owned())
+                })?)
+            } else {
+                None
+            };
         let images = req
             .images
             .iter()
@@ -728,7 +889,7 @@ impl AgentCli for CodexExec {
 
         let dir = scratch_dir()?;
         let write_error = |_| AgentError::Protocol("could not write a file for the CLI".to_owned());
-        let schema_file = match &req.schema {
+        let schema_file = match schema {
             Some(schema) => {
                 let path = dir.path().join("output-schema.json");
                 std::fs::write(&path, strict_schema(schema).to_string()).map_err(write_error)?;
@@ -750,13 +911,14 @@ impl AgentCli for CodexExec {
                 &image_files,
                 req.model.as_deref(),
                 req.effort,
+                req.want_image,
             ),
             env: adapter_env(&[LOGIN_ENV]),
             stdin: Some(stdin_text(&req.system, &req.prompt)),
             keep_stdin_open: false,
             timeout: req.timeout,
         };
-        let mut stream = CodexStream::new(req.schema.is_some());
+        let mut stream = CodexStream::new(schema.is_some());
         let process = run_process(&spec, dir.path(), cancel, &mut |line| {
             stream.push(&line, &mut *on_event)
         });
@@ -766,7 +928,7 @@ impl AgentCli for CodexExec {
             stream.failure_summary(),
             crate::diag::stderr_of(&process),
         );
-        let result = stream.finish(process, req.schema.as_ref());
+        let result = stream.finish(process, schema, image_home.as_deref());
         #[cfg(feature = "diagnostics")]
         if let Err(error) = &result {
             crate::diag::report("codex", error, &events, Some(&summary), &stderr_tail);
@@ -786,9 +948,13 @@ mod tests {
     use serde_json::json;
 
     use super::*;
+    use crate::turn_dir::TurnDir;
 
     const SCHEMA_OK: &str = include_str!("../tests/fixtures/codex/exec-schema-ok.jsonl");
     const IMAGE_OK: &str = include_str!("../tests/fixtures/codex/exec-image-ok.jsonl");
+    const IMAGE_GENERATION: &str =
+        include_str!("../tests/fixtures/codex/exec-image-generation-ok.jsonl");
+    const THREAD: &str = "00000000-0000-0000-0000-000000000000";
     const REASONING: &str = include_str!("../tests/fixtures/codex/exec-reasoning-summary.jsonl");
     const REJECTED: &str = include_str!("../tests/fixtures/codex/exec-schema-rejected.jsonl");
     const CANCELLED: &str = include_str!("../tests/fixtures/codex/exec-cancelled.jsonl");
@@ -936,7 +1102,7 @@ mod tests {
         assert_eq!(events[0], Event::Started);
         assert!(matches!(&events[1], Event::OutputDelta { text } if text.starts_with('{')));
         assert_eq!(fed, SCHEMA_OK.lines().count());
-        let out = stream.finish(ok(), Some(&schema)).unwrap();
+        let out = stream.finish(ok(), Some(&schema), None).unwrap();
         assert_eq!(out.json.unwrap()["layers"][1]["kind"], "radial");
     }
 
@@ -957,7 +1123,7 @@ mod tests {
                 },
             ]
         );
-        let out = stream.finish(ok(), Some(&schema)).unwrap();
+        let out = stream.finish(ok(), Some(&schema), None).unwrap();
         assert_eq!(out.json, serde_json::from_str(&final_text).ok());
     }
 
@@ -984,7 +1150,7 @@ mod tests {
     #[test]
     fn a_turn_without_a_schema_returns_the_text() {
         let (stream, _, _) = feed(IMAGE_OK);
-        let out = stream.finish(ok(), None).unwrap();
+        let out = stream.finish(ok(), None, None).unwrap();
         assert_eq!(out.json, Some(json!("left=red right=blue")));
     }
 
@@ -993,7 +1159,7 @@ mod tests {
         let (stream, _, _) = feed(IMAGE_OK);
         assert_eq!(
             stream
-                .finish(ok(), Some(&json!({"type": "object"})))
+                .finish(ok(), Some(&json!({"type": "object"})), None)
                 .unwrap_err(),
             AgentError::Protocol("the reply was not JSON".to_owned())
         );
@@ -1006,7 +1172,7 @@ mod tests {
         // last line, `turn.failed`.
         assert_eq!(fed, REJECTED.lines().count());
         assert_eq!(
-            stream.finish(ok(), Some(&json!({}))).unwrap_err(),
+            stream.finish(ok(), Some(&json!({})), None).unwrap_err(),
             AgentError::Protocol("the CLI refused the schema".to_owned())
         );
     }
@@ -1016,7 +1182,7 @@ mod tests {
         let finish = |process| {
             let (stream, _, fed) = feed(CANCELLED);
             assert_eq!(fed, CANCELLED.lines().count());
-            stream.finish(process, None).unwrap_err()
+            stream.finish(process, None, None).unwrap_err()
         };
         assert_eq!(finish(Err(ProcessError::Cancelled)), AgentError::Cancelled);
         assert_eq!(finish(Err(ProcessError::Timeout)), AgentError::Timeout);
@@ -1062,7 +1228,7 @@ mod tests {
         .join("\n");
         let (stream, _, _) = feed(&lines);
         assert_eq!(
-            stream.finish(ok(), None).unwrap_err(),
+            stream.finish(ok(), None, None).unwrap_err(),
             AgentError::UsageLimit
         );
     }
@@ -1076,7 +1242,7 @@ mod tests {
         .join("\n");
         let (stream, _, _) = feed(&lines);
         assert_eq!(
-            stream.finish(ok(), None).unwrap_err(),
+            stream.finish(ok(), None, None).unwrap_err(),
             AgentError::UsageLimit
         );
     }
@@ -1092,7 +1258,10 @@ mod tests {
         .join("\n");
         let (stream, _, fed) = feed(&lines);
         assert_eq!(fed, 4);
-        assert_eq!(stream.finish(ok(), None).unwrap().json, Some(json!("done")));
+        assert_eq!(
+            stream.finish(ok(), None, None).unwrap().json,
+            Some(json!("done"))
+        );
     }
 
     #[test]
@@ -1102,6 +1271,7 @@ mod tests {
             &[PathBuf::from("/t/input-0.png")],
             Some("gpt-5"),
             Effort::Low,
+            false,
         );
         let mut expected: Vec<String> = [
             "exec",
@@ -1140,13 +1310,287 @@ mod tests {
     }
 
     #[test]
+    fn an_image_turn_differs_only_by_the_image_tool_being_on() {
+        let schema = Path::new("/t/output-schema.json");
+        let images = [PathBuf::from("/t/input-0.png")];
+        let normal = build_args(Some(schema), &images, Some("gpt-5"), Effort::Low, false);
+        // An image turn has no schema: the image is the answer.
+        let image = build_args(None, &images, Some("gpt-5"), Effort::Low, true);
+        let strings = |args: &[OsString]| -> Vec<String> {
+            args.iter()
+                .map(|a| a.to_str().unwrap().to_owned())
+                .collect()
+        };
+        let mut expected = strings(&normal);
+        let at = expected
+            .iter()
+            .position(|a| a == "image_generation")
+            .unwrap();
+        assert_eq!(expected[at - 1], "--disable");
+        expected.drain(at - 1..=at);
+        expected.retain(|a| !a.starts_with("--output-schema="));
+        let image = strings(&image);
+        assert_eq!(image, expected);
+        assert!(image.contains(&"--image=/t/input-0.png".to_owned()));
+        assert!(image.contains(&"--sandbox".to_owned()));
+        assert!(image.contains(&"--ignore-user-config".to_owned()));
+        assert!(!image.iter().any(|a| a == "image_generation"));
+        // Every other feature is still off.
+        for feature in DISABLED_FEATURES
+            .iter()
+            .filter(|f| **f != "image_generation")
+        {
+            assert!(image.contains(&(*feature).to_owned()), "{feature}");
+        }
+    }
+
+    // --- The generated image
+
+    /// A PNG header of the given size: enough for the checks, which do not decode.
+    fn png(width: u32, height: u32) -> Vec<u8> {
+        let mut bytes = PNG_SIGNATURE.to_vec();
+        bytes.extend_from_slice(&13u32.to_be_bytes());
+        bytes.extend_from_slice(b"IHDR");
+        bytes.extend_from_slice(&width.to_be_bytes());
+        bytes.extend_from_slice(&height.to_be_bytes());
+        bytes.extend_from_slice(&[8, 6, 0, 0, 0, 0, 0, 0, 0, 1, 2, 3]);
+        bytes
+    }
+
+    /// A temporary Codex home holding `generated_images/<THREAD>/`.
+    fn home_with(files: &[(&str, &[u8])]) -> TurnDir {
+        let home = scratch_dir().unwrap();
+        let dir = home.path().join("generated_images").join(THREAD);
+        std::fs::create_dir_all(&dir).unwrap();
+        for (name, bytes) in files {
+            std::fs::write(dir.join(name), bytes).unwrap();
+        }
+        home
+    }
+
+    fn image_turn(lines: &str, home: &Path) -> Result<RunOutput, AgentError> {
+        let (stream, _, _) = feed(lines);
+        stream.finish(ok(), None, Some(home))
+    }
+
+    #[test]
+    fn the_stream_keeps_the_thread_id() {
+        let (stream, _, fed) = feed(IMAGE_GENERATION);
+        assert!(matches!(&stream.thread, Thread::Id(id) if id == THREAD));
+        assert_eq!(fed, IMAGE_GENERATION.lines().count());
+    }
+
+    #[test]
+    fn an_image_turn_returns_the_png_and_leaves_the_file() {
+        let bytes = png(1200, 800);
+        let home = home_with(&[("exec-x.png", &bytes)]);
+        let out = image_turn(IMAGE_GENERATION, home.path()).unwrap();
+        assert_eq!(out.image.as_deref(), Some(bytes.as_slice()));
+        assert_eq!(out.json, Some(json!("done")));
+        let file = home
+            .path()
+            .join("generated_images")
+            .join(THREAD)
+            .join("exec-x.png");
+        assert!(file.is_file());
+    }
+
+    #[test]
+    fn an_image_turn_needs_no_reply_text_when_the_image_is_there() {
+        let lines = [
+            format!(r#"{{"type":"thread.started","thread_id":"{THREAD}"}}"#),
+            r#"{"type":"turn.completed"}"#.to_owned(),
+        ]
+        .join("\n");
+        let home = home_with(&[("a.png", &png(64, 64))]);
+        let out = image_turn(&lines, home.path()).unwrap();
+        assert!(out.image.is_some());
+        assert_eq!(out.json, None);
+    }
+
+    #[test]
+    fn the_newest_png_wins_and_other_files_are_ignored() {
+        let (old, new) = (png(100, 100), png(200, 200));
+        let home = home_with(&[
+            ("old.png", &old),
+            ("new.PNG", &new),
+            ("notes.txt", b"x"),
+            ("auth.json", b"{}"),
+        ]);
+        let dir = home.path().join("generated_images").join(THREAD);
+        let time = |secs| SystemTime::UNIX_EPOCH + std::time::Duration::from_secs(secs);
+        std::fs::File::options()
+            .write(true)
+            .open(dir.join("old.png"))
+            .unwrap()
+            .set_modified(time(1_000))
+            .unwrap();
+        std::fs::File::options()
+            .write(true)
+            .open(dir.join("new.PNG"))
+            .unwrap()
+            .set_modified(time(2_000))
+            .unwrap();
+        assert_eq!(read_generated_image(home.path(), THREAD).unwrap(), new);
+        // A folder named like a PNG is not a file.
+        let only_dir = scratch_dir().unwrap();
+        std::fs::create_dir_all(
+            only_dir
+                .path()
+                .join("generated_images")
+                .join(THREAD)
+                .join("x.png"),
+        )
+        .unwrap();
+        assert_eq!(
+            read_generated_image(only_dir.path(), THREAD),
+            Err(AgentError::NoImage)
+        );
+    }
+
+    #[test]
+    fn no_folder_or_no_png_is_no_image() {
+        let none = scratch_dir().unwrap();
+        assert_eq!(
+            image_turn(IMAGE_GENERATION, none.path()).unwrap_err(),
+            AgentError::NoImage
+        );
+        let empty = home_with(&[]);
+        assert_eq!(
+            image_turn(IMAGE_GENERATION, empty.path()).unwrap_err(),
+            AgentError::NoImage
+        );
+        let text_only = home_with(&[("a.txt", b"x")]);
+        assert_eq!(
+            image_turn(IMAGE_GENERATION, text_only.path()).unwrap_err(),
+            AgentError::NoImage
+        );
+    }
+
+    #[test]
+    fn a_file_that_is_not_a_usable_png_is_a_protocol_error() {
+        let unusable = AgentError::Protocol("the CLI's image is not a usable PNG".to_owned());
+        let cases: Vec<(&str, Vec<u8>)> = vec![
+            ("not a png", b"hello, this is not a png at all".to_vec()),
+            ("too small", png(10, 10)),
+            ("too wide", png(9000, 100)),
+            ("too many pixels", png(8192, 8192)),
+            ("truncated", PNG_SIGNATURE.to_vec()),
+        ];
+        for (name, bytes) in cases {
+            let home = home_with(&[("exec-x.png", &bytes)]);
+            assert_eq!(
+                image_turn(IMAGE_GENERATION, home.path()).unwrap_err(),
+                unusable,
+                "{name}"
+            );
+        }
+    }
+
+    #[test]
+    fn a_thread_id_that_is_not_plain_is_refused_and_nothing_is_read() {
+        let home = home_with(&[("exec-x.png", &png(100, 100))]);
+        for bad in ["../x", "a/b", "a\\b", "", "..", "x y", &"a".repeat(65)] {
+            let lines = [
+                format!(r#"{{"type":"thread.started","thread_id":{}}}"#, json!(bad)),
+                r#"{"type":"turn.completed"}"#.to_owned(),
+            ]
+            .join("\n");
+            let (_, _, fed) = feed(&lines);
+            assert_eq!(fed, 1, "the stream stops at the bad id: {bad:?}");
+            assert_eq!(
+                image_turn(&lines, home.path()).unwrap_err(),
+                AgentError::Protocol("unexpected thread id".to_owned()),
+                "{bad:?}"
+            );
+            assert_eq!(
+                read_generated_image(home.path(), bad).unwrap_err(),
+                AgentError::Protocol("unexpected thread id".to_owned()),
+                "{bad:?}"
+            );
+        }
+        assert!(valid_thread_id(THREAD));
+        assert!(valid_thread_id("a"));
+        assert!(valid_thread_id(&"a".repeat(64)));
+    }
+
+    #[test]
+    fn a_turn_without_a_thread_id_has_no_image_to_read() {
+        let home = home_with(&[("exec-x.png", &png(100, 100))]);
+        let lines = r#"{"type":"turn.completed"}"#;
+        assert_eq!(
+            image_turn(lines, home.path()).unwrap_err(),
+            AgentError::Protocol("no thread id".to_owned())
+        );
+    }
+
+    #[test]
+    fn a_failed_or_cut_image_turn_reads_nothing() {
+        let home = home_with(&[("exec-x.png", &png(100, 100))]);
+        let failed = [
+            format!(r#"{{"type":"thread.started","thread_id":"{THREAD}"}}"#),
+            r#"{"type":"turn.failed","error":{"message":"boom"}}"#.to_owned(),
+        ]
+        .join("\n");
+        assert_eq!(
+            image_turn(&failed, home.path()).unwrap_err(),
+            AgentError::Protocol("the turn failed".to_owned())
+        );
+        let limit = [
+            format!(r#"{{"type":"thread.started","thread_id":"{THREAD}"}}"#),
+            r#"{"type":"turn.failed","error":{"message":"usage_limit_reached"}}"#.to_owned(),
+        ]
+        .join("\n");
+        assert_eq!(
+            image_turn(&limit, home.path()).unwrap_err(),
+            AgentError::UsageLimit
+        );
+        // The stream ends before `turn.completed`: cancelled, not an image.
+        let cut = format!(r#"{{"type":"thread.started","thread_id":"{THREAD}"}}"#);
+        let (stream, _, _) = feed(&cut);
+        assert_eq!(
+            stream
+                .finish(Err(ProcessError::Cancelled), None, Some(home.path()))
+                .unwrap_err(),
+            AgentError::Cancelled
+        );
+    }
+
+    #[test]
+    fn the_codex_home_comes_from_codex_home_or_the_home_folder() {
+        let os = |s: &str| Some(OsString::from(s));
+        let abs = if cfg!(windows) { "C:\\codex" } else { "/codex" };
+        let home = if cfg!(windows) {
+            "C:\\Users\\a"
+        } else {
+            "/home/a"
+        };
+        assert_eq!(codex_home_from(os(abs), os(home)), Some(PathBuf::from(abs)));
+        assert_eq!(
+            codex_home_from(None, os(home)),
+            Some(PathBuf::from(home).join(".codex"))
+        );
+        // A relative `CODEX_HOME` is not trusted.
+        assert_eq!(
+            codex_home_from(os("relative/codex"), os(home)),
+            Some(PathBuf::from(home).join(".codex"))
+        );
+        assert_eq!(
+            codex_home_from(os(""), os(home)),
+            codex_home_from(None, os(home))
+        );
+        assert_eq!(codex_home_from(None, os("relative")), None);
+        assert_eq!(codex_home_from(None, None), None);
+    }
+
+    #[test]
     fn each_effort_becomes_its_own_fixed_reasoning_setting() {
         for (effort, word) in [
             (Effort::Low, "low"),
             (Effort::Medium, "medium"),
             (Effort::High, "high"),
         ] {
-            let args = build_args(None, &[], None, effort);
+            let args = build_args(None, &[], None, effort, false);
             let settings: Vec<&str> = args
                 .iter()
                 .filter_map(|a| a.to_str())

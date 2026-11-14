@@ -804,8 +804,8 @@
       "next": "Chọn nhà cung cấp khác trong Cài đặt → AI, hoặc cập nhật Cropa."
     },
     "Timeout": {
-      "what": "{{provider}} không trả lời trong 60 giây.",
-      "why": "Có thể nó đang bận hoặc mất kết nối.",
+      "what": "{{provider}} không trả lời kịp thời gian.",
+      "why": "Có thể nó đang bận hoặc mất kết nối, hoặc tác vụ mất nhiều thời gian hơn mức Cropa chờ.",
       "next": "Kiểm tra kết nối internet rồi thử lại."
     },
     "Protocol": {
@@ -818,6 +818,11 @@
       "why": "Nó bị dừng trước khi {{provider}} hoàn thành.",
       "next": "Hãy chạy lại khi bạn sẵn sàng."
     },
+    "NoImage": {
+      "what": "{{provider}} đã kết thúc mà không tạo ra ảnh.",
+      "why": "Gói của bạn có thể không bao gồm tạo ảnh, hoặc {{provider}} đã từ chối.",
+      "next": "Hãy thử lại sau hoặc kiểm tra gói {{provider}} của bạn."
+    },
     "InvalidOutput": {
       "what": "Câu trả lời của {{provider}} sai định dạng.",
       "why": "Nó không khớp định dạng mong đợi, kể cả sau lần thử thứ hai.",
@@ -827,6 +832,67 @@
       "what": "{{provider}} không làm được việc này.",
       "why": "Tác vụ này cần một tính năng mà {{provider}} không có.",
       "next": "Chọn nhà cung cấp khác trong Cài đặt → AI."
+    }
+  },
+  "removeBackground": {
+    "title": "Xóa nền",
+    "button": "Xóa nền",
+    "hint": "Mất 30 đến 60 giây. Tóc và lông chỉ được xử lý ở mức tốt nhất có thể.",
+    "working": "Đang xóa nền…",
+    "workingHint": "Việc này mất 30 đến 60 giây.",
+    "elapsed": "{{seconds}} giây",
+    "cancel": "Hủy",
+    "done": "Đã xóa nền",
+    "note": "Tóc và lông chỉ được xử lý ở mức tốt nhất có thể.",
+    "restore": "Khôi phục nền",
+    "confirmNote": "Codex cũng giữ một bản sao của ảnh đã tách nền trong thư mục riêng của nó trên máy này. Cropa không xóa bản sao đó.",
+    "lock": {
+      "noImage": "Hãy mở hoặc chụp một ảnh trước.",
+      "checking": "Đang kiểm tra Codex CLI…",
+      "needsCodex": "Xóa nền cần Codex CLI đã được cài đặt và đăng nhập. Hãy thiết lập trong Cài đặt › AI.",
+      "imagesOff": "Hãy bật “Cho phép gửi ảnh cho AI” trong Cài đặt › AI để xóa nền."
+    },
+    "errors": {
+      "ImageTooLarge": {
+        "what": "Ảnh quá lớn để gửi.",
+        "why": "Xóa nền gửi ảnh cho Codex, và Codex chỉ nhận tối đa {{limit}} MB.",
+        "next": "Hãy cắt hoặc thu nhỏ ảnh rồi thử lại."
+      },
+      "Unreadable": {
+        "what": "Cropa không đọc được ảnh đã tách nền.",
+        "why": "Ảnh Codex trả về không phải là một ảnh dùng được.",
+        "next": "Không có gì bị thay đổi. Hãy thử lại."
+      },
+      "TooLarge": {
+        "what": "Ảnh quá lớn để tách nền.",
+        "why": "Cropa tách nền được ảnh tối đa 25 megapixel.",
+        "next": "Không có gì bị thay đổi. Hãy thu nhỏ ảnh rồi thử lại."
+      },
+      "NoSubject": {
+        "what": "Codex không tìm thấy chủ thể nào để giữ lại.",
+        "why": "Ảnh tách nền của nó trống, nên không có gì để đặt lên nền mới.",
+        "next": "Không có gì bị thay đổi. Hãy thử một ảnh có chủ thể chính rõ ràng."
+      },
+      "NoBackground": {
+        "what": "Codex đã không xóa gì cả.",
+        "why": "Ảnh tách nền của nó giữ lại toàn bộ bức ảnh, nên nền vẫn còn đó.",
+        "next": "Không có gì bị thay đổi. Hãy thử lại, hoặc thử một ảnh có chủ thể rõ hơn."
+      },
+      "Misaligned": {
+        "what": "Codex đã làm lệch ảnh khi tách nền.",
+        "why": "Mặt nạ của nó sẽ không khớp với ảnh chụp màn hình của bạn.",
+        "next": "Không có gì bị thay đổi. Hãy thử lại."
+      },
+      "WeakAlignment": {
+        "what": "Codex đã làm lệch ảnh khi tách nền.",
+        "why": "Mặt nạ của nó sẽ không khớp với ảnh chụp màn hình của bạn.",
+        "next": "Không có gì bị thay đổi. Hãy thử lại."
+      },
+      "Save": {
+        "what": "Cropa không lưu được ảnh đã tách nền cùng với bản chụp này.",
+        "why": "{{detail}}",
+        "next": "Ảnh đã tách nền vẫn hiển thị, nhưng sẽ không còn khi bạn mở lại bản chụp từ Lịch sử."
+      }
     }
   },
   "onboarding": {

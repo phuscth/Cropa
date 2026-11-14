@@ -21,6 +21,9 @@ export function createRedactionCache() {
     scene(scene: Scene, env: RenderEnv): { scene: Scene; env: RenderEnv } {
       const next = redactionKey(scene);
       if (next === '') return { scene, env };
+      // With a cut-out the renderer applies the redactions to the cut-out itself;
+      // taking them out of the scene here would leave the cut-out unredacted.
+      if (scene.screenshot.mask) return { scene, env };
       if (next !== key || source !== env.screenshot) {
         redacted = redactScreenshot(scene, env);
         key = next;

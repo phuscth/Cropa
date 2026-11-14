@@ -10,6 +10,11 @@ export const Ref = z
   .string()
   .regex(/^(?:builtin|user):[A-Za-z0-9._-]{1,128}$/, 'expected builtin:<name> or user:<name>');
 
+/** Names a cut-out image made for the open screenshot (`mask:<name>`); the app resolves it. */
+export const MaskRef = z
+  .string()
+  .regex(/^mask:[A-Za-z0-9._-]{1,128}$/, 'expected mask:<name>');
+
 export interface Rgba {
   r: number;
   g: number;

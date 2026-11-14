@@ -38,6 +38,7 @@ fn error_kind(error: &AgentError) -> &'static str {
         AgentError::Timeout => "Timeout",
         AgentError::Protocol(_) => "Protocol",
         AgentError::Cancelled => "Cancelled",
+        AgentError::NoImage => "NoImage",
     }
 }
 

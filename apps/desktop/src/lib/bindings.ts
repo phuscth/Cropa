@@ -63,6 +63,18 @@ export const commands = {
 	/**  Takes the image out of the editor, which goes back to its empty canvas. The history keeps its captures. */
 	clearEditorImage: () => typedError<null, CommandError>(__TAURI_INVOKE("clear_editor_image")),
 	/**
+	 *  Turns the picture an image model made (`cutout`: base64 PNG, no `data:` prefix) into a
+	 *  cut-out of the editor's image `image_key`, and keeps it in memory under a new name. The
+	 *  history is not written: that follows the scene, through `show_cutout`.
+	 */
+	applyCutout: (imageKey: string, cutout: string) => typedError<AppliedCutout, CutoutError>(__TAURI_INVOKE("apply_cutout", { imageKey, cutout })),
+	/**
+	 *  The cut-out the editor's scene shows now: `name` as returned by `apply_cutout` (or the
+	 *  one the history kept), or `None` for the plain image. A capture kept in the history keeps
+	 *  that cut-out, or none; an image that is not in the history has nothing to keep.
+	 */
+	showCutout: (imageKey: string, name: string | null) => typedError<null, CutoutError>(__TAURI_INVOKE("show_cutout", { imageKey, name })),
+	/**
 	 *  Ctrl+S: save the rendered image (a `data:` URL of `format`) to the save
 	 *  folder, named after the capture time. `session_file` is the id of this
 	 *  image's earlier quick save, which is then replaced instead of adding a copy.
@@ -253,10 +265,10 @@ export type AiEffort = "low" | "medium" | "high";
  *  Error returned to the WebView. The UI turns `kind` into a translated
  *  message.
  */
-export type AiError = { kind: "NotInstalled" } | { kind: "NotLoggedIn" } | { kind: "UsageLimit" } | { kind: "Unsupported" } | { kind: "Timeout" } | { kind: "Protocol"; detail: string } | { kind: "Cancelled" } | { kind: "InvalidRequest"; detail: string } | { kind: "RunIdInUse" };
+export type AiError = { kind: "NotInstalled" } | { kind: "NotLoggedIn" } | { kind: "UsageLimit" } | { kind: "Unsupported" } | { kind: "Timeout" } | { kind: "Protocol"; detail: string } | { kind: "Cancelled" } | { kind: "NoImage" } | { kind: "InvalidRequest"; detail: string } | { kind: "RunIdInUse" };
 
 /**  Why a mock run fails. */
-export type AiErrorKind = "notInstalled" | "notLoggedIn" | "usageLimit" | "unsupported" | "timeout" | "protocol" | "cancelled";
+export type AiErrorKind = "notInstalled" | "notLoggedIn" | "usageLimit" | "unsupported" | "timeout" | "protocol" | "cancelled" | "noImage";
 
 /**  Progress of a run, sent over the channel. */
 export type AiEvent = { kind: "started" } | 
@@ -419,6 +431,14 @@ export type AiSettings_Serialize = {
 	onboardingAnswered: boolean,
 };
 
+/**  A cut-out made for the editor's image. */
+export type AppliedCutout = {
+	/**  The name the scene refers to it by, as `mask:<name>`. */
+	name: string,
+	/**  A `data:` URL of the refined cut-out: the original's pixels with the background removed. */
+	image: string,
+};
+
 /**
  *  What Windows reports for start-at-sign-in after the first-launch answer,
  *  so an open Settings view can update its checkbox.
@@ -520,10 +540,26 @@ export type ChatRole = "user" | "agent";
  */
 export type CommandError = { kind: "ShortcutInvalid" } | { kind: "ShortcutInUse" } | { kind: "SaveSettings"; detail: string } | { kind: "Autostart"; detail: string } | { kind: "PrintScreenInUse" } | { kind: "OpenSystemSetting"; detail: string } | { kind: "HistoryMissing" } | { kind: "HistoryRead"; detail: string } | { kind: "HistoryDelete"; detail: string } | { kind: "ChatInvalid"; detail: string } | { kind: "ChatTooNew" } | { kind: "ChatRead"; detail: string } | { kind: "ChatSave"; detail: string } | { kind: "Clipboard"; detail: string } | { kind: "ExportInvalid" } | { kind: "ExportTooLarge"; detail: number } | { kind: "SaveFile"; detail: string } | { kind: "SaveAsExpired" } | { kind: "SaveDialog"; detail: string } | { kind: "SavedFileGone" } | { kind: "Drag"; detail: string } | { kind: "OpenFolder"; detail: string } | { kind: "OpenWebPage"; detail: string } | { kind: "UserPresetName" } | { kind: "UserPresetInvalid"; detail: string } | { kind: "UserPresetTooLarge" } | { kind: "UserPresetsFull" } | { kind: "UserPresetMissing" } | { kind: "UserPresetsTooNew" } | { kind: "UserPresetsRead"; detail: string } | { kind: "UserPresetsSave"; detail: string } | { kind: "BackgroundImageNotSupported" } | { kind: "BackgroundImageTooLarge"; detail: number } | { kind: "BackgroundImagesFull" } | { kind: "BackgroundImageMissing" } | { kind: "BackgroundImagesTooNew" } | { kind: "BackgroundImagesRead"; detail: string } | { kind: "BackgroundImagesSave"; detail: string } | { kind: "ImageImportUnreadable"; detail: string } | { kind: "ImageImportTooLarge"; detail: number } | { kind: "AiProviderUnavailable" } | { kind: "AiModelInvalid" } | { kind: "AiCliNotFound" } | { kind: "OpenTerminal"; detail: string };
 
+/**  Why no cut-out was made or kept. Serialised with `kind` and `detail`, like other errors. */
+export type CutoutError = 
+/**  The editor's image was replaced; the result belongs to an image that is gone. */
+{ kind: "ImageChanged" } | { kind: "Unreadable"; detail: string } | { kind: "TooLarge" } | { kind: "NoSubject" } | { kind: "NoBackground" } | { kind: "Misaligned"; detail: {
+	dx: number,
+	dy: number,
+} } | { kind: "WeakAlignment" } | { kind: "Save"; detail: string };
+
 /**  How a drag out of the editor ended. */
 export type DragResult = "dropped" | "cancelled" | 
 /**  The mouse button was already up, so no drag began. */
 "notStarted";
+
+/**  A background cut-out the editor shows from the start. */
+export type EditorCutout = {
+	/**  The name the scene refers to it by, as `mask:<name>`. */
+	name: string,
+	/**  A `data:` URL of the cut-out. */
+	image: string,
+};
 
 /**  The editor has another image to show. */
 export type EditorImageChanged = null;
@@ -539,6 +575,10 @@ export type EditorImageData_Deserialize = {
 	capturedAt?: number | null,
 	/**  The capture's id in the history, when it is kept there. The chat is stored under it. */
 	historyId?: string | null,
+	/**  Names this image for `apply_cutout` and `show_cutout`; it changes whenever the image does. */
+	imageKey: string,
+	/**  The background cut-out the history kept for this capture, when it has one. */
+	cutout?: EditorCutout | null,
 };
 
 /**  What the editor shows: the image and when it was captured. */
@@ -549,6 +589,10 @@ export type EditorImageData_Serialize = {
 	capturedAt: number | null,
 	/**  The capture's id in the history, when it is kept there. The chat is stored under it. */
 	historyId: string | null,
+	/**  Names this image for `apply_cutout` and `show_cutout`; it changes whenever the image does. */
+	imageKey: string,
+	/**  The background cut-out the history kept for this capture, when it has one. */
+	cutout: EditorCutout | null,
 };
 
 /**  An image file format the editor can export. */

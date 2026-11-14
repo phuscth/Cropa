@@ -40,6 +40,7 @@ const PROBE: Probe = Probe {
     login_env: LOGIN_ENV,
     login_args: &["auth", "status"],
     parse_login,
+    image_out: false,
 };
 
 /// Only `loggedIn` is read; the email, organisation and the rest of the
@@ -1065,6 +1066,27 @@ mod tests {
             assert_eq!(args[at + 1], OsString::from(word));
             assert_eq!(args.iter().filter(|a| *a == "--effort").count(), 1);
         }
+    }
+
+    #[test]
+    fn a_turn_that_wants_an_image_is_unsupported_before_anything_starts() {
+        let adapter = ClaudeCode::with_executable(PathBuf::from("/does/not/matter"));
+        let req = RunRequest {
+            system: String::new(),
+            prompt: "p".to_owned(),
+            schema: None,
+            images: Vec::new(),
+            want_image: true,
+            model: None,
+            effort: Effort::default(),
+            timeout: std::time::Duration::from_secs(5),
+        };
+        assert_eq!(
+            adapter
+                .run(req, &CancelToken::new(), &mut |_| {})
+                .unwrap_err(),
+            AgentError::Unsupported
+        );
     }
 
     #[test]

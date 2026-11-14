@@ -26,10 +26,11 @@ import { loadInter } from '../../features/editor/fonts.ts';
 import { isDraggingOut } from '../../features/editor/export/use-export.ts';
 import { fileToPng, MAX_IMPORT_PIXELS, pickImageFile } from '../../features/editor/import-image.ts';
 import { isTextField, keyLetter } from '../../features/editor/keyboard.ts';
-import { beginBackgroundChange } from '../../features/editor/background-images.ts';
+import { beginBackgroundChange, cacheImage } from '../../features/editor/background-images.ts';
+import { useRemoveBackground } from '../../features/editor/remove-background/use-remove-background.ts';
 import { dataUrlToBitmap } from '../../features/editor/load-image.ts';
 import { shotRectCss } from '../../features/editor/annotate/geometry.ts';
-import { sceneForNewImage } from '../../features/editor/scene-edits.ts';
+import { maskRef, sceneForNewImage, setMask } from '../../features/editor/scene-edits.ts';
 import { ScenePreview } from '../../features/editor/ScenePreview.tsx';
 import { useSceneHistory } from '../../features/editor/use-scene-history.ts';
 import { commands, events, type ExportFormat } from '../../lib/bindings.ts';
@@ -54,6 +55,8 @@ interface Loaded {
   capturedAt: number | null;
   /** The capture's id in the history, when it is kept there. */
   historyId: string | null;
+  /** Names the image to Rust, for the cut-outs made for it. */
+  imageKey: string;
 }
 
 /** The size of the stand-in screenshot before an image is loaded: 4:3. */
@@ -123,6 +126,7 @@ export function EditorView() {
     imageId: loaded?.imageId ?? 0,
     historyId: loaded?.historyId ?? null,
   });
+  const removeBackground = useRemoveBackground({ history, imageKey: loaded?.imageKey ?? null });
   const chatOpen = useChatPanelOpen();
   const sidebarOpen = useEditorSidebarOpen();
   // While the AI writes a background, the image is not exported: the result would replace it.
@@ -223,6 +227,21 @@ export function EditorView() {
             bitmap.close();
             return;
           }
+          // A capture opened from the history comes back with the cut-out it was left with; it is
+          // cached before the scene names it. One that cannot be decoded shows the whole image.
+          let cutoutName: string | null = null;
+          if (data.cutout) {
+            const cutoutBitmap = await dataUrlToBitmap(data.cutout.image).catch(() => undefined);
+            if (id !== loadId.current) {
+              cutoutBitmap?.close();
+              bitmap.close();
+              return;
+            }
+            if (cutoutBitmap) {
+              cacheImage(maskRef(data.cutout.name), cutoutBitmap);
+              cutoutName = data.cutout.name;
+            }
+          }
           setError(undefined);
           endImport();
           setPickerOpen(false);
@@ -235,12 +254,17 @@ export function EditorView() {
             imageId,
             capturedAt: data.capturedAt,
             historyId: data.historyId,
+            imageKey: data.imageKey,
           }));
+          // The cut-out is the scene's first state, not an undo step.
           load(
-            sceneForNewImage(hasImageNow.current ? null : sceneNow.current, {
-              width: bitmap.width,
-              height: bitmap.height,
-            }),
+            setMask(
+              sceneForNewImage(hasImageNow.current ? null : sceneNow.current, {
+                width: bitmap.width,
+                height: bitmap.height,
+              }),
+              cutoutName,
+            ),
           );
         })
         .catch((cause: unknown) => { failed(describeUnexpected(tRef.current, cause)); });
@@ -511,7 +535,11 @@ export function EditorView() {
   return (
     <main className="flex min-w-0 flex-1 gap-1.5 p-1.5">
       <PanelDock open={sidebarOpen} side="left" width={SIDEBAR_WIDTH} keepMounted>
-        <EditorSidebar history={history} edgeColor={loaded?.edge ?? null} />
+        <EditorSidebar
+          history={history}
+          edgeColor={loaded?.edge ?? null}
+          removeBackground={removeBackground}
+        />
       </PanelDock>
       <section className="relative flex min-w-0 flex-1 overflow-hidden rounded-2xl bg-canvas">
         {shownBitmap && (
@@ -560,6 +588,8 @@ export function EditorView() {
           )}
         />
       </section>
+      {/* Outside the panel, which may be hidden or on another tab when the question is asked. */}
+      {removeBackground.dialog}
       <PanelDock open={chatOpen} side="right" width={CHAT_PANEL_WIDTH}>
         <ChatPanel chat={chat} onClose={() => { setChatPanelOpen(false); }} />
       </PanelDock>

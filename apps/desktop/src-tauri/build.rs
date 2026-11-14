@@ -24,6 +24,8 @@ fn main() {
         "get_editor_image",
         "import_editor_image",
         "clear_editor_image",
+        "apply_cutout",
+        "show_cutout",
         "quick_save",
         "choose_save_as_path",
         "write_save_as",

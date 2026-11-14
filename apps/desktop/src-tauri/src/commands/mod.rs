@@ -5,6 +5,7 @@
 pub mod ai;
 pub mod ai_setup;
 pub mod background_images;
+pub mod cutout;
 pub mod editor;
 pub mod export;
 pub mod history;

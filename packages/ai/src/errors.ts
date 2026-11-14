@@ -10,6 +10,7 @@ export const AGENT_ERROR_KINDS = [
   'Timeout',
   'Protocol',
   'Cancelled',
+  'NoImage',
 ] as const;
 
 export type AgentErrorKind = (typeof AGENT_ERROR_KINDS)[number];
