@@ -226,6 +226,7 @@ export function TitleBar({ maximized, view, onView, onAbout, onError }: Props) {
           </Button>
           <StartOverConfirm
             disabled={!(inEditor && actions?.canStartOver)}
+            maximized={maximized}
             onConfirm={() => { actions?.startOver(); }}
           />
         </div>

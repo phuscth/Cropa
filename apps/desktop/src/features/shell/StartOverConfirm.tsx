@@ -6,6 +6,8 @@ import { useTranslation } from 'react-i18next';
 interface Props {
   /** There is nothing to start over from, or an export is running. */
   disabled: boolean;
+  /** The window is maximized, so its root has no rounded corners for the backdrop to follow. */
+  maximized: boolean;
   onConfirm: () => void;
 }
 
@@ -30,9 +32,10 @@ function Illustration() {
 
 /**
  * Dims the page behind the card. It stays mounted while it fades out, and never takes
- * a click, so the dismissing press is the card's own.
+ * a click, so the dismissing press is the card's own. The window is transparent outside its
+ * rounded corners, so the backdrop is rounded the same way unless the window is maximized.
  */
-function Backdrop({ open }: { open: boolean }) {
+function Backdrop({ open, maximized }: { open: boolean; maximized: boolean }) {
   const [shown, setShown] = useState(open);
   if (open && !shown) setShown(true);
   if (!shown) return null;
@@ -41,6 +44,7 @@ function Backdrop({ open }: { open: boolean }) {
       aria-hidden="true"
       className={cn(
         'pointer-events-none fixed inset-0 z-[60] bg-black/30',
+        !maximized && 'rounded-2xl',
         open ? 'animate-fade-in' : 'animate-fade-out',
       )}
       onAnimationEnd={() => { if (!open) setShown(false); }}
@@ -56,7 +60,7 @@ const PILL =
  * The "Start over" button of the title bar and the card that asks before it clears the editor.
  * The page behind the card is dimmed, the title bar included.
  */
-export function StartOverConfirm({ disabled, onConfirm }: Props) {
+export function StartOverConfirm({ disabled, maximized, onConfirm }: Props) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const cancel = useRef<HTMLButtonElement>(null);
@@ -70,13 +74,13 @@ export function StartOverConfirm({ disabled, onConfirm }: Props) {
           variant="ghost"
           size="icon-sm"
           aria-label={t('editor.startOver.label')}
-          title={t('editor.startOver.label')}
+          tooltip={{ label: t('editor.startOver.label') }}
           disabled={disabled}
         >
           <RestartIcon />
         </Button>
       </PopoverTrigger>
-      <Backdrop open={open} />
+      <Backdrop open={open} maximized={maximized} />
       <PopoverContent
         align="center"
         sideOffset={8}
