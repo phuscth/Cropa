@@ -86,7 +86,7 @@ function SegmentedControl({
         if (next !== '') onValueChange(next);
       }}
       className={cn(
-        'group/segmented relative grid h-9 w-full auto-cols-fr grid-flow-col rounded-full bg-secondary p-[3px]',
+        'group/segmented relative grid h-9 w-full auto-cols-fr grid-flow-col rounded-[11px] bg-secondary p-[3px]',
         className,
       )}
       {...props}
@@ -95,7 +95,7 @@ function SegmentedControl({
         aria-hidden="true"
         data-slot="segmented-control-indicator"
         className={cn(
-          'pointer-events-none absolute inset-y-[3px] left-0 rounded-full bg-card shadow-soft dark:bg-foreground/15',
+          'pointer-events-none absolute inset-y-[3px] left-0 rounded-[8px] bg-card shadow-soft dark:bg-foreground/15',
           placed && 'transition-[transform,width] duration-200 ease-enter',
         )}
         style={
@@ -114,7 +114,7 @@ function SegmentedControlItem({ className, ...props }: ComponentProps<typeof Tog
     <ToggleGroup.Item
       data-slot="segmented-control-item"
       className={cn(
-        'focus-ring relative z-10 inline-flex h-full min-w-0 items-center justify-center rounded-full px-3 text-control whitespace-nowrap text-muted-foreground transition-colors duration-150 ease-enter group-data-[size=tab]/segmented:text-tab hover:text-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:text-foreground',
+        'focus-ring relative z-10 inline-flex h-full min-w-0 items-center justify-center rounded-[8px] px-3 text-control whitespace-nowrap text-muted-foreground transition-colors duration-150 ease-enter group-data-[size=tab]/segmented:text-tab hover:text-foreground disabled:pointer-events-none disabled:opacity-50 data-[state=on]:text-foreground',
         className,
       )}
       {...props}
