@@ -12,41 +12,6 @@
       "px": "{{value}} px",
       "deg": "{{value}}°"
     },
-    "aiBackground": {
-      "title": "AI background",
-      "label": "Describe the background",
-      "placeholder": "A meadow in light wind, or fireflies over a dark lake",
-      "generate": "Generate",
-      "cancel": "Cancel",
-      "writing": "Writing the background…",
-      "checking": "Checking that it runs…",
-      "effort": {
-        "label": "Effort",
-        "low": "Low",
-        "medium": "Medium",
-        "high": "High",
-        "hint": "Higher effort takes longer and uses more of your AI quota."
-      },
-      "noWebgl": {
-        "what": "This background needs 3D graphics.",
-        "why": "WebGL isn't available in this window, so a 3D background can't run here.",
-        "next": "Try a description without 3D objects. The closest preset stays in place.",
-        "nextKept": "Try a description without 3D objects. Your current background is unchanged."
-      },
-      "madeWith": "Made with {{provider}} · Effort: {{effort}}",
-      "changeLabel": "Change it",
-      "changePlaceholder": "More wind, or make it night",
-      "apply": "Apply change",
-      "regenerate": "Regenerate",
-      "regenerateHint": "Runs the same description again and replaces this background.",
-      "startOver": "Start over",
-      "saveAsPreset": "Save as preset",
-      "presetName": "Preset name",
-      "save": "Save",
-      "saved": "Saved to your presets.",
-      "elapsed": "{{seconds}} s",
-      "unchanged": "Your current background is unchanged."
-    },
     "background": {
       "customize": "Customize",
       "type": "Type",
@@ -237,6 +202,58 @@
       "spacing": "Spacing"
     }
   },
+  "chat": {
+    "title": "AI chat",
+    "toggle": "AI chat",
+    "toggleHint": "Show or hide the AI chat",
+    "close": "Close the chat",
+    "emptyHint": "Describe a background and your AI writes it. Then ask for changes, such as more wind or make it night.",
+    "notKept": "This conversation isn't kept because the capture isn't in your history.",
+    "loading": "Opening the conversation…",
+    "placeholder": {
+      "generate": "Describe a background…",
+      "refine": "Change it…"
+    },
+    "messageLabel": "Message",
+    "send": "Send",
+    "stop": "Stop",
+    "thinking": "Thinking",
+    "code": "Code",
+    "lineCount": "Lines: {{count}}",
+    "stage": {
+      "starting": "Starting…",
+      "writing": "Writing…",
+      "checking": "Checking that it runs…",
+      "retrying": "Trying again…"
+    },
+    "elapsed": "{{seconds}} s",
+    "applied": "Applied",
+    "onCanvas": "On canvas",
+    "useThis": "Use this",
+    "saveAsPreset": "Save as preset",
+    "presetName": "Preset name",
+    "save": "Save",
+    "cancel": "Cancel",
+    "saved": "Saved to your presets.",
+    "regenerate": "Regenerate",
+    "regenerateHint": "Runs the same description again and replaces this background.",
+    "startOver": "Start over",
+    "cancelled": "Cancelled",
+    "effort": {
+      "label": "Effort",
+      "low": "Low",
+      "medium": "Medium",
+      "high": "High",
+      "hint": "Higher effort takes longer and uses more of your AI quota."
+    },
+    "noWebgl": {
+      "what": "This background needs 3D graphics.",
+      "why": "WebGL isn't available in this window, so a 3D background can't run here.",
+      "next": "Try a description without 3D objects. The closest preset stays in place.",
+      "nextKept": "Try a description without 3D objects. Your current background is unchanged."
+    },
+    "unchanged": "Your current background is unchanged."
+  },
   "rail": {
     "label": "Cropa",
     "editor": "Editor",
@@ -356,6 +373,26 @@
       "what": "Couldn't delete the capture.",
       "why": "Windows refused the change ({{detail}}).",
       "next": "Close any app that has the file open and try again."
+    },
+    "ChatInvalid": {
+      "what": "Couldn't save the conversation.",
+      "why": "A message was refused as not valid ({{detail}}).",
+      "next": "Try sending your message again. If it keeps happening, start with a new capture."
+    },
+    "ChatTooNew": {
+      "what": "Couldn't open the conversation.",
+      "why": "It was saved by a newer version of Cropa.",
+      "next": "Update Cropa to read it. Until then this conversation won't be saved."
+    },
+    "ChatRead": {
+      "what": "Couldn't open the conversation.",
+      "why": "Cropa couldn't read it from the history folder ({{detail}}).",
+      "next": "Try opening the capture again from History. New messages won't be saved until it opens."
+    },
+    "ChatSave": {
+      "what": "Couldn't save the conversation.",
+      "why": "Cropa couldn't write it to the history folder ({{detail}}).",
+      "next": "Check that your user folder isn't full or read-only. Your messages stay on screen until you leave this capture."
     },
     "Clipboard": {
       "what": "Couldn't copy the capture.",
