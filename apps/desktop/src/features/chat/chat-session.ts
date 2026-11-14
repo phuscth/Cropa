@@ -139,6 +139,12 @@ function cutBytes(text: string, max: number): string {
   return cut.replace(/�+$/, '');
 }
 
+/** A duration split into whole minutes and the seconds left over; a negative one counts as zero. */
+export function durationParts(ms: number): { minutes: number; seconds: number } {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  return { minutes: Math.floor(total / 60), seconds: total % 60 };
+}
+
 /** A reply whose background was put on the canvas when it arrived. */
 export function reachedCanvas(message: ChatMessage): boolean {
   return message.role === 'agent' && message.outcome === 'applied' && message.unchanged !== true;

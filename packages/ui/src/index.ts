@@ -6,6 +6,9 @@ export {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuTrigger,
 } from './components/dropdown-menu.tsx';
 export { Card, CardRow, DetailsCard, DetailsRow } from './components/card.tsx';

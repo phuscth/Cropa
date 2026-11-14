@@ -10,6 +10,7 @@ import { createChatSaver, withValidBackgrounds } from './chat-store.ts';
 import {
   createChatSession,
   descriptionFor,
+  durationParts,
   isRefining,
   reachedCanvas,
   type AiRunRequest,
@@ -396,6 +397,16 @@ describe('chat session', () => {
     ];
     expect(descriptionFor(messages, 3)).toBe('fireflies');
     expect(descriptionFor(messages.slice(2), 1)).toBe('make it night');
+  });
+});
+
+describe('duration parts', () => {
+  it('floors to whole seconds and splits minutes', () => {
+    expect(durationParts(0)).toEqual({ minutes: 0, seconds: 0 });
+    expect(durationParts(59_999)).toEqual({ minutes: 0, seconds: 59 });
+    expect(durationParts(60_000)).toEqual({ minutes: 1, seconds: 0 });
+    expect(durationParts(218_000)).toEqual({ minutes: 3, seconds: 38 });
+    expect(durationParts(-5000)).toEqual({ minutes: 0, seconds: 0 });
   });
 });
 
