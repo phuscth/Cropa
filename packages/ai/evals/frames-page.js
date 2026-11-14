@@ -12,7 +12,8 @@
 
 (() => {
   const SAMPLES = [0, 1 / 3, 2 / 3];
-  const BOOT_TIMEOUT_MS = 5000;
+  // The first case also waits for a cold browser to start its first worker.
+  const BOOT_TIMEOUT_MS = 15000;
   const LOAD_TIMEOUT_MS = 3000;
   const FIRST_FRAME_TIMEOUT_MS = 3000;
   const FRAME_TIMEOUT_MS = 2000;
