@@ -59,6 +59,9 @@ import type { SceneHistory } from './use-scene-history.ts';
 type Tab = 'mockup' | 'frame';
 const TABS: readonly Tab[] = ['mockup', 'frame'];
 
+/** The panel's width in px; the dock that holds it needs the same number. */
+export const SIDEBAR_WIDTH = 248;
+
 interface Props {
   history: Pick<SceneHistory, 'scene' | 'blocked' | 'edit' | 'preview' | 'commit'>;
   /** The colour found at the screenshot's edges, or null when it has none. */
@@ -95,7 +98,8 @@ export function EditorSidebar({ history, edgeColor }: Props) {
   return (
     <aside
       aria-label={t('editor.panel.label')}
-      className="flex w-[248px] shrink-0 flex-col overflow-hidden rounded-2xl bg-panel"
+      style={{ width: SIDEBAR_WIDTH }}
+      className="flex shrink-0 flex-col overflow-hidden rounded-2xl bg-panel"
     >
       <div className="shrink-0 p-2">
         <SegmentedControl

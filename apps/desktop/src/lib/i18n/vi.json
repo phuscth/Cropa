@@ -210,7 +210,10 @@
       "tabs": "Nhóm cài đặt",
       "mockup": "Mockup",
       "frame": "Khung",
-      "presetOpen": "Chọn preset, đang dùng: {{name}}"
+      "presetOpen": "Chọn preset, đang dùng: {{name}}",
+      "toggle": "Bảng chỉnh sửa",
+      "hide": "Ẩn bảng chỉnh sửa",
+      "show": "Hiện bảng chỉnh sửa"
     },
     "details": {
       "image": "Ảnh",

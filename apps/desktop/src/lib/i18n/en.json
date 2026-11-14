@@ -210,7 +210,10 @@
       "tabs": "Settings group",
       "mockup": "Mockup",
       "frame": "Frame",
-      "presetOpen": "Choose a preset, current: {{name}}"
+      "presetOpen": "Choose a preset, current: {{name}}",
+      "toggle": "Editing panel",
+      "hide": "Hide editing panel",
+      "show": "Show editing panel"
     },
     "details": {
       "image": "Image",

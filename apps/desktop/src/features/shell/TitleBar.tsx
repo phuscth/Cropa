@@ -11,6 +11,8 @@ import {
   HelpIcon,
   HistoryIcon,
   IconButton,
+  PanelCloseIcon,
+  PanelOpenIcon,
   Popover,
   PopoverTrigger,
   RedoIcon,
@@ -28,6 +30,7 @@ import logoUrl from '../../../icon-src/icon.svg?url';
 import { commands, type MainView } from '../../lib/bindings.ts';
 import { describeCommandError, describeUnexpected, type UserError } from '../../lib/errors.ts';
 import { toggleChatPanel, useChatPanelOpen } from '../chat/panel-state.ts';
+import { toggleEditorSidebar, useEditorSidebarOpen } from '../editor/panel-state.ts';
 import { useEditorActions } from './editor-actions.ts';
 import { SavePopover } from './SavePopover.tsx';
 import { StartOverConfirm } from './StartOverConfirm.tsx';
@@ -60,6 +63,39 @@ function Logo() {
       draggable={false}
       className="pointer-events-none size-9 select-none"
     />
+  );
+}
+
+/** In the editor the logo is the toggle of the left panel; hovering or focusing it shows the action. */
+function PanelToggle() {
+  const { t } = useTranslation();
+  const open = useEditorSidebarOpen();
+  const swap = 'transition-opacity duration-150 ease-enter';
+  return (
+    <Button
+      variant="ghost"
+      // As large as the logo, so the whole mark takes the hover and the click.
+      size="icon"
+      aria-label={t('editor.panel.toggle')}
+      aria-pressed={open}
+      tooltip={{ label: t(open ? 'editor.panel.hide' : 'editor.panel.show'), keys: ['Ctrl', 'B'], align: 'start' }}
+      className="group/logo relative"
+      onClick={toggleEditorSidebar}
+    >
+      <span className={cn(swap, 'flex group-hover/logo:opacity-0 group-focus-visible/logo:opacity-0')}>
+        <Logo />
+      </span>
+      <span
+        aria-hidden="true"
+        className={cn(
+          swap,
+          'absolute inset-0 flex items-center justify-center opacity-0 group-hover/logo:opacity-100 group-focus-visible/logo:opacity-100',
+        )}
+      >
+        {/* The size of the view icons beside it. */}
+        {open ? <PanelCloseIcon className="size-[18px]" /> : <PanelOpenIcon className="size-[18px]" />}
+      </span>
+    </Button>
   );
 }
 
@@ -175,7 +211,7 @@ export function TitleBar({ maximized, view, onView, onAbout, onError }: Props) {
       className="flex h-11 shrink-0 items-center bg-sidebar select-none"
     >
       <div data-tauri-drag-region className="flex h-11 w-12 items-center justify-center">
-        <Logo />
+        {inEditor ? <PanelToggle /> : <Logo />}
       </div>
       {/* Above the views, so the tooltips stay on top even while a pressed button scales and becomes its own layer. */}
       <div data-tauri-drag-region className="relative z-50 flex h-full items-center gap-1">
