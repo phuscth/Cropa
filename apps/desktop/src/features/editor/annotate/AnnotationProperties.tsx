@@ -1,6 +1,7 @@
 import {
   Button,
   ColorInput,
+  DeleteIcon,
   cn,
   Popover,
   PopoverContent,
@@ -25,13 +26,6 @@ const SLIDERS: Partial<Record<string, { kind: ValueKind; min: number; max: numbe
 
 const COLORED = new Set(['arrow', 'rect', 'text', 'step']);
 
-function TrashIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M3 4.5h10M6.5 4.5v-1.5h3v1.5M4.5 4.5l.5 8.5h6l.5-8.5" />
-    </svg>
-  );
-}
 
 /** Colour, size and delete for the selected mark, or for the next one when none is selected. */
 export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
@@ -122,7 +116,7 @@ export function AnnotationProperties({ annotate }: { annotate: Annotate }) {
           title={`${t('editor.annotate.delete')} (Del)`}
           onClick={annotate.removeSelected}
         >
-          <TrashIcon />
+          <DeleteIcon />
         </Button>
       )}
     </div>

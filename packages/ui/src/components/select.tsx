@@ -2,6 +2,7 @@ import { Select as SelectPrimitive } from 'radix-ui';
 import type { ComponentProps } from 'react';
 
 import { fieldClasses } from '../lib/field.ts';
+import { CheckIcon, ChevronDownIcon } from '../icons.tsx';
 import { cn } from '../lib/utils.ts';
 
 function Select(props: ComponentProps<typeof SelectPrimitive.Root>) {
@@ -28,18 +29,7 @@ function SelectTrigger({
     >
       {children}
       <SelectPrimitive.Icon asChild>
-        <svg
-          viewBox="0 0 16 16"
-          className="size-4 shrink-0 text-muted-foreground"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="m4 6 4 4 4-4" />
-        </svg>
+        <ChevronDownIcon className="size-4 shrink-0 text-muted-foreground" />
       </SelectPrimitive.Icon>
     </SelectPrimitive.Trigger>
   );
@@ -85,18 +75,7 @@ function SelectItem({
     >
       <SelectPrimitive.ItemText>{children}</SelectPrimitive.ItemText>
       <SelectPrimitive.ItemIndicator className="absolute right-2 flex size-4 items-center justify-center">
-        <svg
-          viewBox="0 0 16 16"
-          className="size-4"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="m3.5 8.5 3 3 6-7" />
-        </svg>
+        <CheckIcon className="size-4" />
       </SelectPrimitive.ItemIndicator>
     </SelectPrimitive.Item>
   );

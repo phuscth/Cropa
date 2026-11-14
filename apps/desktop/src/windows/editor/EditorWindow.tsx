@@ -1,5 +1,5 @@
 import { defaultScene, edgeColor, type PaletteColour } from '@cropa/core';
-import { Button } from '@cropa/ui';
+import { Button, CloseIcon } from '@cropa/ui';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -53,14 +53,6 @@ function findEdgeColor(bitmap: ImageBitmap): string | null {
   } catch {
     return null;
   }
-}
-
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-      <path d="m4 4 8 8M12 4l-8 8" />
-    </svg>
-  );
 }
 
 /** Two crop corners around a square: the mark of an empty canvas. */

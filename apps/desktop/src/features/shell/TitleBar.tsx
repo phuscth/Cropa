@@ -1,5 +1,7 @@
 import {
   Button,
+  CopyIcon,
+  DragOutIcon,
   Menubar,
   MenubarContent,
   MenubarItem,
@@ -14,6 +16,9 @@ import {
   MenubarTrigger,
   Popover,
   PopoverTrigger,
+  RedoIcon,
+  SaveIcon,
+  UndoIcon,
   cn,
 } from '@cropa/ui';
 import { getCurrentWindow } from '@tauri-apps/api/window';
@@ -122,55 +127,6 @@ function WindowButton({ label, onClick, danger = false, children }: WindowButton
     >
       {children}
     </button>
-  );
-}
-
-function UndoIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M6 3.5 3 6.5l3 3" />
-      <path d="M3 6.5h6.5a3.5 3.5 0 0 1 0 7H7" />
-    </svg>
-  );
-}
-
-function RedoIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="m10 3.5 3 3-3 3" />
-      <path d="M13 6.5H6.5a3.5 3.5 0 0 0 0 7H9" />
-    </svg>
-  );
-}
-
-function GripIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <circle cx="5.5" cy="3.5" r="1.25" />
-      <circle cx="10.5" cy="3.5" r="1.25" />
-      <circle cx="5.5" cy="8" r="1.25" />
-      <circle cx="10.5" cy="8" r="1.25" />
-      <circle cx="5.5" cy="12.5" r="1.25" />
-      <circle cx="10.5" cy="12.5" r="1.25" />
-    </svg>
-  );
-}
-
-function CopyIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <rect x="5.5" y="5.5" width="8" height="8" rx="2" />
-      <path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" />
-    </svg>
-  );
-}
-
-function SaveIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 2v7.5M5 6.5l3 3 3-3" />
-      <path d="M2.5 10.5v1A1.5 1.5 0 0 0 4 13h8a1.5 1.5 0 0 0 1.5-1.5v-1" />
-    </svg>
   );
 }
 
@@ -396,7 +352,7 @@ export function TitleBar({ view, onView, onAbout, onError, onThemeChanged }: Pro
           disabled={!canExport}
           {...actions?.dragHandlers}
         >
-          <GripIcon />
+          <DragOutIcon />
         </Button>
         <Button
           variant="ghost"

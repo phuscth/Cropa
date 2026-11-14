@@ -10,12 +10,14 @@ import {
   type Preset,
 } from '@cropa/core';
 import {
+  AddIcon,
   Button,
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
   Input,
+  MoreIcon,
   PickerCard,
   PickerContent,
   PickerGrid,
@@ -26,6 +28,7 @@ import {
   Popover,
   PopoverTrigger,
   SelectorCard,
+  UploadIcon,
 } from '@cropa/ui';
 import {
   useCallback,
@@ -107,32 +110,6 @@ const NAME_MAX = 40;
 const STATUS_MS = 6000;
 const CARD_SELECTOR = 'button[data-preset-card]';
 
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-      <path d="M8 3.5v9M3.5 8h9" />
-    </svg>
-  );
-}
-
-function UploadIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
-      <path d="M8 10.5v-7M5 6l3-3 3 3" />
-      <path d="M3 10.5v2h10v-2" />
-    </svg>
-  );
-}
-
-function DotsIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true">
-      <circle cx="3.5" cy="8" r="1.2" />
-      <circle cx="8" cy="8" r="1.2" />
-      <circle cx="12.5" cy="8" r="1.2" />
-    </svg>
-  );
-}
 
 /** A preview of a background; a neutral box until it is drawn. */
 export function PresetThumb({ background }: { background: BackgroundSpec }) {
@@ -518,7 +495,7 @@ export function PresetPicker({ history, onExport }: Props) {
                   className="absolute right-[22px] bottom-[22px] size-7 rounded-full bg-card/90 opacity-0 group-focus-within/card:opacity-100 group-hover/card:opacity-100 data-[state=open]:opacity-100"
                   aria-label={t('editor.presets.more', { name: saved.name })}
                 >
-                  <DotsIcon />
+                  <MoreIcon />
                 </Button>
               </DropdownMenuTrigger>
               <DropdownMenuContent
@@ -565,7 +542,7 @@ export function PresetPicker({ history, onExport }: Props) {
         disabled={busy}
         onClick={() => { openMode({ kind: 'save' }); }}
       >
-        <PlusIcon />
+        <AddIcon />
       </Button>
       <Button
         variant="ghost"

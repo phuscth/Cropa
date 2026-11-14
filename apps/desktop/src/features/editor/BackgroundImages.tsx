@@ -1,5 +1,5 @@
 import { BUILTIN_IMAGES } from '@cropa/core';
-import { Button, Tile, TileGroup } from '@cropa/ui';
+import { AddIcon, Button, CloseIcon, ImageIcon, Tile, TileGroup } from '@cropa/ui';
 import { useCallback, useEffect, useRef, useState, type SyntheticEvent } from 'react';
 import { useTranslation } from 'react-i18next';
 
@@ -30,31 +30,6 @@ const MAX_FILE_MB = 20;
 const MAX_SIDE = 8192;
 
 const userRef = (id: string) => `user:${id}`;
-
-function PlusIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true" className="size-4">
-      <path d="M8 3.5v9M3.5 8h9" />
-    </svg>
-  );
-}
-
-function CloseIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" aria-hidden="true">
-      <path d="m4 4 8 8M12 4l-8 8" />
-    </svg>
-  );
-}
-
-function ScreenshotIcon() {
-  return (
-    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round" aria-hidden="true" className="size-5">
-      <rect x="2" y="3" width="12" height="10" rx="1.5" />
-      <path d="M2 10.5 5.5 7 9 10.5l2-2 3 3" />
-    </svg>
-  );
-}
 
 /** The file as base64, without the `data:` prefix Rust does not expect. */
 function readBase64(file: File): Promise<string> {
@@ -193,7 +168,7 @@ export function BackgroundImages({ history }: Props) {
       >
         <Tile value={CAPTURE_REF} label={t('editor.background.images.capture')}>
           <span className="text-muted-foreground">
-            <ScreenshotIcon />
+            <ImageIcon className="size-5" />
           </span>
         </Tile>
         {BUILTIN_IMAGES.map((name) => {
@@ -239,7 +214,7 @@ export function BackgroundImages({ history }: Props) {
       )}
 
       <Button variant="secondary" className="w-full" disabled={busy} onClick={() => { fileInput.current?.click(); }}>
-        <PlusIcon />
+        <AddIcon className="size-4" />
         {t('editor.background.images.add')}
       </Button>
       <input

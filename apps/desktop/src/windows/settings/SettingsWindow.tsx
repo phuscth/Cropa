@@ -413,7 +413,10 @@ export function SettingsView({ settingsVersion = 0 }: { settingsVersion?: number
         <AiSettingsSection settings={settings} onSettings={setSettings} />
 
         <SettingsSection id={ABOUT_SECTION_ID} title={t('settings.about.title')}>
-          <SettingRow label={version ? t('settings.about.version', { version }) : t('app.name')}>
+          <SettingRow
+            label={version ? t('settings.about.version', { version }) : t('app.name')}
+            description={t('settings.about.iconCredit')}
+          >
             <Button
               variant="outline"
               size="sm"

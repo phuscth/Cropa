@@ -55,3 +55,4 @@ export { SliderField } from './components/slider-field.tsx';
 export { Switch } from './components/switch.tsx';
 export { Tile, TileGroup } from './components/tile-group.tsx';
 export { cn } from './lib/utils.ts';
+export * from './icons.tsx';

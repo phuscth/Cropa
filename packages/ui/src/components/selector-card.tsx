@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from 'react';
 
+import { ChevronDownIcon } from '../icons.tsx';
 import { cn } from '../lib/utils.ts';
 
 interface SelectorCardProps extends Omit<ComponentProps<'button'>, 'title'> {
@@ -35,18 +36,7 @@ function SelectorCard({ className, title, caption, thumbnail, ...props }: Select
         <span className="truncate text-control leading-tight">{title}</span>
         {caption ? <span className="text-caption truncate leading-tight">{caption}</span> : null}
       </span>
-      <svg
-        viewBox="0 0 16 16"
-        className="size-4 shrink-0 text-tertiary-foreground transition-transform duration-200 ease-enter group-data-[state=open]:rotate-180"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="1.5"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        aria-hidden="true"
-      >
-        <path d="m4 6 4 4 4-4" />
-      </svg>
+      <ChevronDownIcon className="size-4 shrink-0 text-tertiary-foreground transition-transform duration-200 ease-enter group-data-[state=open]:rotate-180" />
     </button>
   );
 }

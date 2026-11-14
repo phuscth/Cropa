@@ -1,3 +1,4 @@
+import { ChevronDownIcon } from '@cropa/ui';
 import { useId, type ReactNode } from 'react';
 
 /**
@@ -73,18 +74,7 @@ export function CollapsibleSection({
         className="focus-ring flex min-h-5 w-full items-center justify-between gap-2 rounded-md text-left"
       >
         <span className="text-section">{title}</span>
-        <svg
-          viewBox="0 0 16 16"
-          className={`size-4 shrink-0 text-tertiary-foreground transition-transform duration-200 ease-enter ${open ? 'rotate-180' : ''}`}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="1.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          aria-hidden="true"
-        >
-          <path d="m4 6 4 4 4-4" />
-        </svg>
+        <ChevronDownIcon className={`size-4 shrink-0 text-tertiary-foreground transition-transform duration-200 ease-enter ${open ? 'rotate-180' : ''}`} />
       </button>
       <div
         id={bodyId}
