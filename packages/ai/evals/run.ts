@@ -1,4 +1,5 @@
 import { mkdirSync, writeFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 
 import type { Provider } from '../src/task.ts';
@@ -6,6 +7,7 @@ import type { Transport } from '../src/transport.ts';
 import { buildTurnBinary, createAgentTransport } from './agent-transport.ts';
 import type { RealProvider } from './agent-transport.ts';
 import { runEval } from './eval.ts';
+import { describeOutcomes, renderFrames } from './frames.ts';
 import { EVAL_TASKS, loadCases } from './registry.ts';
 
 const PROVIDERS = ['mock', 'codex', 'claude'];
@@ -19,6 +21,7 @@ const HELP = `Usage: pnpm --filter @cropa/ai eval --task <task> --provider <prov
   --limit N   run only the first N cases
   --cases a,b run only the cases with these ids
   --effort    low (default) | medium | high: how much thinking each real turn may spend
+  --frames    after the run, render the accepted backgrounds and write a contact sheet (see below)
 
 Real providers spend your own quota and take minutes: run them by hand, never in CI. The
 first real run builds crates/cropa-agent/examples/turn.rs with cargo.
@@ -27,7 +30,14 @@ Every answer is code written by a model, and the eval runs it to check it. That 
 child Node process under the permission model (read-only access to the checker's own files, no
 file writes, no child processes, no workers, an empty environment), killed on a time limit. The
 module runs in a vm context with no host objects and no string code generation. The process does
-NOT block the network (Node 24 has no flag for it); that context isolation is the barrier.`;
+NOT block the network (Node 24 has no flag for it); that context isolation is the barrier.
+
+--frames, and \`pnpm --filter @cropa/ai frames <records.cases.json> [...]\` for records already on disk,
+render the accepted background modules to PNG frames and a contact sheet (one row per case, one
+column group per records file) under evals/results/. They need Edge or Chrome (or
+CROPA_EVAL_BROWSER set to a Chromium executable). The modules run in the app's own sandbox (a
+sandboxed iframe and a blob Worker) in a headless browser with a throwaway profile and no name
+resolution, on top of a placeholder screenshot card.`;
 
 function pct(rate: number): string {
   return `${(rate * 100).toFixed(1)}%`;
@@ -45,6 +55,7 @@ const { values } = parseArgs({
     limit: { type: 'string' },
     cases: { type: 'string' },
     effort: { type: 'string' },
+    frames: { type: 'boolean' },
     help: { type: 'boolean' },
   },
 });
@@ -62,6 +73,7 @@ if (!values.provider || !PROVIDERS.includes(values.provider)) {
 
 const entry = EVAL_TASKS[values.task];
 if (!entry) fail(`Unknown task ${values.task}`);
+if (values.frames && !entry.validate) fail('--frames only applies to the background tasks.');
 
 let cases = loadCases(entry.cases, entry.task.id);
 if (values.cases !== undefined) {
@@ -138,3 +150,8 @@ writeFileSync(
 );
 console.log(`report: packages/ai/evals/results/${base}.json`);
 console.log(`cases:  packages/ai/evals/results/${casesName}`);
+
+if (values.frames) {
+  const result = await renderFrames([fileURLToPath(new URL(casesName, dir))]);
+  for (const line of describeOutcomes(result)) console.log(line);
+}

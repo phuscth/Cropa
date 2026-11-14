@@ -10,7 +10,9 @@
   "include": [
     "evals/**/*.ts",
     "../../apps/desktop/src/features/code-sandbox/compose-worker.ts",
-    "../../apps/desktop/src/features/code-sandbox/errors.ts"
+    "../../apps/desktop/src/features/code-sandbox/errors.ts",
+    "../../apps/desktop/src/features/code-sandbox/bootstrap.ts",
+    "../../apps/desktop/three-bundle.ts"
   ],
   "references": [{ "path": "./tsconfig.json" }]
 }

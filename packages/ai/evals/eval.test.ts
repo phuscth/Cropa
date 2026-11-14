@@ -69,6 +69,42 @@ describe('checkModuleInNode', { timeout: 30_000 }, () => {
     expect(await checkModuleInNode(source, scene)).toMatchObject({ ok: true, loops: false });
   });
 
+  describe('three.js addons', () => {
+    // Image-based light from RoomEnvironment through PMREMGenerator, a rounded box, and a composer
+    // whose bloom and output passes draw full-screen quads after the scene.
+    const addonsModule = (turns: string): string => `const meta = { durationMs: 4000 };
+let renderer = null, world = null, camera = null, box = null, composer = null;
+function setup(scene) {
+  renderer = new THREE.WebGLRenderer({ canvas: new OffscreenCanvas(scene.width, scene.height), alpha: true });
+  renderer.toneMapping = THREE.ACESFilmicToneMapping;
+  world = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  world.environment = pmrem.fromScene(new THREE.addons.RoomEnvironment(), 0.04).texture;
+  camera = new THREE.PerspectiveCamera(40, scene.width / scene.height, 0.1, 100);
+  camera.position.set(0, 0, 6);
+  box = new THREE.Mesh(new THREE.addons.RoundedBoxGeometry(1, 1, 1, 4, 0.1), new THREE.MeshStandardMaterial({ color: scene.palette[0] }));
+  world.add(box);
+  composer = new THREE.addons.EffectComposer(renderer);
+  composer.addPass(new THREE.addons.RenderPass(world, camera));
+  composer.addPass(new THREE.addons.UnrealBloomPass(new THREE.Vector2(scene.width, scene.height), 0.5, 0.4, 0.8));
+  composer.addPass(new THREE.addons.OutputPass());
+}
+function back(ctx, t, scene) {
+  if (renderer === null) setup(scene);
+  box.rotation.y = 2 * Math.PI * ${turns} * t;
+  composer.render();
+  ctx.drawImage(renderer.domElement, 0, 0);
+}`;
+
+    it('loads RoundedBoxGeometry, RoomEnvironment and an EffectComposer, and loops', async () => {
+      expect(await checkModuleInNode(addonsModule('1'), scene)).toMatchObject({ ok: true, loops: true });
+    });
+
+    it('still sees the scene move when the composer draws its quads after it', async () => {
+      expect(await checkModuleInNode(addonsModule('0.5'), scene)).toMatchObject({ ok: true, loops: false });
+    });
+  });
+
   it('reports the errors the sandbox reports', async () => {
     expect(await checkModuleInNode(module2d('missing.call();'), scene)).toMatchObject({
       ok: false,
@@ -331,6 +367,7 @@ describe('background eval on the mock provider', { timeout: 60_000 }, () => {
     expect(records).toHaveLength(30);
     records.forEach((record, index) => {
       expect(record.passed).toBe(true);
+      expect(record.result).toMatchObject({ layers: expect.arrayContaining([expect.objectContaining({ type: 'code' })]) as unknown });
       if (index % 4 !== 3) {
         expect(record.attempts).toHaveLength(1);
         expect(record.attempts[0]).not.toHaveProperty('output');
@@ -379,6 +416,7 @@ describe('background eval on the mock provider', { timeout: 60_000 }, () => {
     expect(report.failing).toEqual([failed]);
     expect(records.map((r) => r.passed)).toEqual([true, false, true]);
     const record = records[1];
+    expect(record).not.toHaveProperty('result');
     expect(record).toMatchObject({
       id: failed,
       passed: false,
