@@ -272,7 +272,9 @@ export function TitleBar({ maximized, view, onView, onAbout, onError }: Props) {
         <Popover open={saveOpen} onOpenChange={setSaveOpen}>
           <PopoverTrigger asChild>
             <Button
+              variant="ghost"
               size="icon-sm"
+              className="data-[state=open]:bg-accent data-[state=open]:text-foreground"
               aria-label={t('editor.export.save')}
               tooltip={{ label: t('editor.export.saveOptions') }}
               disabled={!loaded}
