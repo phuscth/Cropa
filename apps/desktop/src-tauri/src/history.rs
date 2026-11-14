@@ -225,6 +225,14 @@ impl History {
         original
     }
 
+    /// Remove each capture in turn. Returns the ids that could not be removed, with why,
+    /// in the order given; the others are gone.
+    pub fn delete_each(&self, ids: &[String]) -> Vec<(String, HistoryError)> {
+        ids.iter()
+            .filter_map(|id| self.delete(id).err().map(|err| (id.clone(), err)))
+            .collect()
+    }
+
     /// Remove every capture, thumbnail and chat. Other files in the folder stay.
     pub fn delete_all(&self) -> Result<(), HistoryError> {
         let _guard = self.guard();
@@ -772,6 +780,45 @@ mod tests {
 
         history.delete_all().unwrap();
         assert_eq!(chat_files(&history), Vec::<String>::new());
+    }
+
+    #[test]
+    fn delete_each_removes_the_valid_ids_and_reports_the_others() {
+        let dir = TempDir::new("delete-each");
+        let history = history(&dir);
+        let base = SystemTime::now();
+        let first = history.save(&tiny(), base).unwrap();
+        let second = history.save(&tiny(), base + millis(1)).unwrap();
+        let third = history.save(&tiny(), base + millis(2)).unwrap();
+        history.save_chat(&first, convo()).unwrap();
+        history.save_chat(&second, convo()).unwrap();
+
+        let failed = history.delete_each(&[
+            first.clone(),
+            "999".to_owned(),
+            third.clone(),
+            "../x".to_owned(),
+        ]);
+
+        assert_eq!(failed.len(), 2);
+        assert_eq!(failed[0].0, "999");
+        assert_eq!(failed[1].0, "../x");
+        assert!(
+            failed
+                .iter()
+                .all(|(_, err)| matches!(err, HistoryError::Missing))
+        );
+        for gone in [&first, &third] {
+            assert!(!history.dir.join(format!("{gone}.png")).exists());
+            assert!(
+                !history
+                    .thumbnails_dir()
+                    .join(format!("{gone}.png"))
+                    .exists()
+            );
+        }
+        assert!(history.dir.join(format!("{second}.png")).exists());
+        assert_eq!(chat_files(&history), [format!("{second}.json")]);
     }
 
     #[test]

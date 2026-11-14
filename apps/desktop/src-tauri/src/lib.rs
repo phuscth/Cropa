@@ -43,6 +43,7 @@ fn specta_builder() -> tauri_specta::Builder<tauri::Wry> {
             commands::history::get_history_thumbnail,
             commands::history::copy_history_image,
             commands::history::delete_history_image,
+            commands::history::delete_history_images,
             commands::history::delete_all_history,
             commands::history::open_history_in_editor,
             commands::history::get_chat,

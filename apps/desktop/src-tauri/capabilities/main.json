@@ -33,6 +33,7 @@
     "allow-get-history-thumbnail",
     "allow-copy-history-image",
     "allow-delete-history-image",
+    "allow-delete-history-images",
     "allow-delete-all-history",
     "allow-open-history-in-editor",
     "allow-get-chat",
