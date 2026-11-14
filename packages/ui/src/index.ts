@@ -1,6 +1,7 @@
 // @cropa/ui: presentational shadcn/ui components. No business logic here.
 
 export { Button, buttonVariants } from './components/button.tsx';
+export { Checkbox } from './components/checkbox.tsx';
 export { ColorInput } from './components/color-input.tsx';
 export {
   DropdownMenu,
