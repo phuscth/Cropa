@@ -13,12 +13,13 @@ type SliderFieldProps = ComponentProps<typeof SliderPrimitive.Root> & {
 };
 
 /**
- * A single-thumb slider drawn as one rounded pill, 30px tall: the filled part
- * is the raised colour and follows the pointer with no transition, a thin bar
- * marks its edge, the label sits inside on the left and the value on the right.
- * The whole pill takes clicks and drags. The thumb is a 22px box that carries
- * the bar and the keyboard and screen-reader behaviour; the fill always ends
- * just past the bar, so every value looks different. `value` is a one-item
+ * A single-thumb slider drawn as one rounded rectangle, 30px tall: the filled
+ * part is the raised colour with the same corners and follows the pointer with
+ * no transition, a thin bar marks its edge, the label sits inside on the left
+ * and the value on the right. The whole track takes clicks and drags. The thumb
+ * is a 22px box that carries the bar and the keyboard and screen-reader
+ * behaviour; the fill ends at the thumb's right edge, so every value looks
+ * different and the maximum fills the track exactly. `value` is a one-item
  * array, like Radix, and is required.
  */
 function SliderField({ className, label, valueText, value, min = 0, max = 100, ...props }: SliderFieldProps) {
@@ -41,8 +42,8 @@ function SliderField({ className, label, valueText, value, min = 0, max = 100, .
       >
         <span
           aria-hidden="true"
-          className="absolute inset-y-0 left-0 bg-card shadow-[0_1.5px_6px_-3px_rgba(0,0,0,0.4)] dark:bg-foreground/20"
-          style={{ width: `calc(16px + (100% - 22px) * ${String(fraction)})` }}
+          className="absolute inset-y-0 left-0 rounded-[10px] bg-card shadow-[0_1.5px_6px_-3px_rgba(0,0,0,0.4)] dark:bg-foreground/20"
+          style={{ width: `calc(22px + (100% - 22px) * ${String(fraction)})` }}
         />
       </SliderPrimitive.Track>
       <span aria-hidden="true" className="pointer-events-none absolute inset-x-3.5 z-10 flex items-center justify-between gap-2 text-[11px] leading-[1.3] font-medium tracking-[-0.2px]">
